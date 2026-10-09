@@ -74,3 +74,42 @@ for event paths, no state update when results are unchanged.
   rewrite the hook cache, which is watched.
 - Index state is memory-only. Persisting it would save the 1.4 s first scan at launch; not needed
   at current sizes.
+
+## Codex live updates (2026-10-09)
+
+Symptom: the Codex value did not change while Codex was in use; it did change after **Refresh**.
+
+Diagnosis (probe: FSEvents with zero latency + `stat` every 200 ms on the rollout, recording only
+times, event kinds, byte counts and line types; app: refresh logs with their trigger):
+
+| Step | Observed | Delay |
+|---|---|---|
+| 1. Codex writes `token_count` + `rate_limits` | appended immediately after each turn | none |
+| 2. File change detection | FSEvents reported only the rollout's **creation**; no event for any later append (Codex keeps the file open) | **cause** |
+| 3. Incremental read | ran only on manual refresh / 5-min poll; then read exactly the appended bytes in ~20 ms | follows 2 |
+| 4. State and label | updated in the same main-actor turn as the refresh | none |
+
+Before the fix: first `token_count` at 16:28:13.8 appeared at 16:28:50.2 via the 5-minute poll
+(36 s; up to 5 min). Manual refresh picked it up immediately.
+
+Fix: `ActiveFileSet` — every 2 s, `stat` only the Codex rollouts that grew in the last 15 minutes
+(or the most recent one) and run the incremental refresh when a size changed. New session files are
+still found through their FSEvents creation event. No full re-parse.
+
+After the fix (real Codex use):
+
+| `token_count` written | App updated | Delay |
+|---|---|---|
+| 16:29:52.6 | 16:29:54.4 | 1.8 s |
+| 16:29:58.0 | 16:29:58.4 | 0.4 s |
+| 16:30:02.2 | 16:30:02.4 | 0.2 s |
+
+5-minute window with Codex and Claude Code in use: CPU average **0.39%** (max 2.8% per 5 s);
+refreshes: 13 FSEvents (avg 14 ms), 7 active-Codex (avg 11 ms, 84 KB), 1 poll. Footprint 23 MB
+until the popover was opened.
+
+### Popover cost (found during this run, not fixed yet)
+
+Opening the popover raised the footprint to a 163 MB transient peak, then 43 MB while open, and
+CPU to ~1% while it stays open (1-second countdown redraws). Candidates: drop the hosting
+controller when the popover closes, tick only the countdown text, update freshness every 30 s.
