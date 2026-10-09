@@ -91,3 +91,23 @@ struct ParsingHelpersTests {
         #expect(parser.date(from: nil) == nil)
     }
 }
+
+struct FilesSignatureTests {
+    @Test func changesWhenFilesGrowOrAppear() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("tg-sig-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let a = root.appendingPathComponent("a.jsonl")
+        try Data("1\n".utf8).write(to: a)
+        let first = FilesSignature.of([a])
+        #expect(first == FilesSignature.of([a]))
+        #expect(first.count == 1 && first.totalSize == 2)
+
+        try Data("1\n2\n".utf8).write(to: a)
+        #expect(FilesSignature.of([a]) != first)
+
+        let b = root.appendingPathComponent("b.jsonl")
+        try Data().write(to: b)
+        #expect(FilesSignature.of([a, b]).count == 2)
+    }
+}
