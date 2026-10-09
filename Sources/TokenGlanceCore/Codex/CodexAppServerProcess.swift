@@ -18,7 +18,7 @@ public final class CodexProcessTransport: CodexAppServerTransport, @unchecked Se
 
     public func start() throws {
         guard let executable = executableURL ?? Self.findCodexExecutable() else {
-            throw CodexAppServerFailure.disconnected
+            throw CodexAppServerFailure.executableUnavailable
         }
         process.executableURL = executable
         process.arguments = arguments

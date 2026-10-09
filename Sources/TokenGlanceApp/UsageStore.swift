@@ -338,6 +338,7 @@ final class UsageStore {
 
     private static func onlineFailureText(_ failure: CodexAppServerFailure) -> String {
         switch failure {
+        case .executableUnavailable: "Codex executable not found"
         case .loginRequired: "Codex login required"
         case .apiKeyAccount: "ChatGPT subscription login required"
         case .unsupportedMethod: "Installed Codex does not support account limits"

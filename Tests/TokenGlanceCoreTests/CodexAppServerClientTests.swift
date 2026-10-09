@@ -8,6 +8,7 @@ private final class FakeCodexTransport: CodexAppServerTransport, @unchecked Send
     private let lock = NSLock()
     private var lines: [Data] = []
     private var waiter: CheckedContinuation<Data?, Error>?
+    private var readFailure: Error?
     private var isClosed = false
     private var sent: [[String: Any]] = []
     let reply: Reply
@@ -26,7 +27,11 @@ private final class FakeCodexTransport: CodexAppServerTransport, @unchecked Send
     func readLine() async throws -> Data? {
         try await withCheckedThrowingContinuation { continuation in
             lock.lock()
-            if !lines.isEmpty {
+            if let readFailure {
+                self.readFailure = nil
+                lock.unlock()
+                continuation.resume(throwing: readFailure)
+            } else if !lines.isEmpty {
                 let line = lines.removeFirst()
                 lock.unlock()
                 continuation.resume(returning: line)
@@ -67,6 +72,7 @@ private final class FakeCodexTransport: CodexAppServerTransport, @unchecked Send
         lock.lock()
         let pending = waiter
         waiter = nil
+        if pending == nil { readFailure = CodexAppServerFailure.disconnected }
         lock.unlock()
         pending?.resume(throwing: CodexAppServerFailure.disconnected)
     }
@@ -139,6 +145,13 @@ struct CodexAppServerClientTests {
         let client = CodexAppServerClient(transportFactory: { fake })
         #expect(await client.readLimits() == .failure(.apiKeyAccount))
         #expect(!fake.methods.contains("account/rateLimits/read"))
+        await client.stop()
+    }
+
+    @Test func authenticationErrorIsDistinctFromMalformedResponse() async {
+        let unauthorized = fixtureTransport(error: ["code": 401, "message": "Unauthorized"])
+        let client = CodexAppServerClient(transportFactory: { unauthorized })
+        #expect(await client.readLimits() == .failure(.loginRequired))
         await client.stop()
     }
 

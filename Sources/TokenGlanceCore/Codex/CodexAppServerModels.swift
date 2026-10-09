@@ -74,6 +74,7 @@ public struct CodexAccountLimits: Equatable, Sendable {
 }
 
 public enum CodexAppServerFailure: Error, Equatable, Sendable {
+    case executableUnavailable
     case loginRequired
     case apiKeyAccount
     case unsupportedMethod

@@ -181,6 +181,8 @@ public actor CodexAppServerClient {
             let detail = (error["message"] as? String ?? "").lowercased()
             if code == -32601 {
                 continuation.resume(throwing: CodexAppServerFailure.unsupportedMethod)
+            } else if code == 401 || code == 403 {
+                continuation.resume(throwing: CodexAppServerFailure.loginRequired)
             } else if code == 429 || detail.contains("429") || detail.contains("rate limit") {
                 let delay: TimeInterval = 300
                 let date = now().addingTimeInterval(delay)
