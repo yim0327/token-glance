@@ -162,7 +162,7 @@ final class UsageLoader: @unchecked Sendable {
     private var codexIndex = CodexUsageIndex()
     private var hookStatus: StatuslineInstaller.Status?
     private var lastPrune = Date.distantPast
-    private var codexActive = ActiveFileSet(window: 15 * 60)
+    private var codexActive = ActiveFileSet(window: 15 * 60, recentlyModified: 24 * 60 * 60)
 
     private let paths = TokenGlancePaths.default()
     private let fileSource = LocalFileSource()
@@ -195,7 +195,7 @@ final class UsageLoader: @unchecked Sendable {
         codexHome = roots.codexHome
         claudeIndex = ClaudeUsageIndex()
         codexIndex = CodexUsageIndex()
-        codexActive = ActiveFileSet(window: 15 * 60)
+        codexActive = ActiveFileSet(window: 15 * 60, recentlyModified: 24 * 60 * 60)
     }
 
     var watchedPaths: [String] {
@@ -229,8 +229,13 @@ final class UsageLoader: @unchecked Sendable {
         claudeIndex.update(files: claudeFiles, source: fileSource, onRead: reporter)
         codexIndex.update(files: codexFiles, source: fileSource, onRead: reporter)
         var codexSizes: [URL: Int] = [:]
-        for url in codexFiles { codexSizes[url] = fileSource.stat(url)?.size }
-        codexActive.update(sizes: codexSizes, now: now)
+        var codexModified: [URL: Date] = [:]
+        for url in codexFiles {
+            guard let stat = fileSource.stat(url) else { continue }
+            codexSizes[url] = stat.size
+            codexModified[url] = stat.modified
+        }
+        codexActive.update(sizes: codexSizes, modified: codexModified, now: now)
         if now.timeIntervalSince(lastPrune) > 3600 {
             claudeIndex.prune(before: now - Self.retention)
             codexIndex.prune(before: now - Self.retention)

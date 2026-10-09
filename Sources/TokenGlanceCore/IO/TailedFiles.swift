@@ -4,10 +4,12 @@ import Foundation
 public struct FileStat: Equatable, Sendable {
     public var inode: UInt64
     public var size: Int
+    public var modified: Date?
 
-    public init(inode: UInt64, size: Int) {
+    public init(inode: UInt64, size: Int, modified: Date? = nil) {
         self.inode = inode
         self.size = size
+        self.modified = modified
     }
 }
 
@@ -22,7 +24,8 @@ public protocol TailSource: FileSource {
 private func regularFileStat(_ path: String) -> FileStat? {
     var info = Darwin.stat()
     guard stat(path, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG else { return nil }
-    return FileStat(inode: UInt64(info.st_ino), size: Int(info.st_size))
+    let modified = Date(timeIntervalSince1970: TimeInterval(info.st_mtimespec.tv_sec) + TimeInterval(info.st_mtimespec.tv_nsec) / 1e9)
+    return FileStat(inode: UInt64(info.st_ino), size: Int(info.st_size), modified: modified)
 }
 
 extension LocalFileSource: TailSource {
