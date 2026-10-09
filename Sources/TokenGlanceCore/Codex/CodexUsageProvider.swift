@@ -29,7 +29,8 @@ public struct CodexUsageProvider: UsageProvider {
                 parser.consume(data)
             }
         }
-        return UsageSnapshot(limits: parser.limits, records: parser.records)
+        let limits = parser.limits
+        return UsageSnapshot(limits: limits, records: parser.records, limitsIssue: limits.isEmpty ? .noData : nil)
     }
 
     @Sendable static func isRollout(_ name: String) -> Bool {

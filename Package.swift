@@ -15,7 +15,10 @@ let package = Package(
             name: "TokenGlanceApp",
             dependencies: ["TokenGlanceCore"]
         ),
-        .executableTarget(name: "token-glance-hook"),
+        .executableTarget(
+            name: "token-glance-hook",
+            dependencies: ["TokenGlanceCore"]
+        ),
         .testTarget(
             name: "TokenGlanceCoreTests",
             dependencies: ["TokenGlanceCore"]

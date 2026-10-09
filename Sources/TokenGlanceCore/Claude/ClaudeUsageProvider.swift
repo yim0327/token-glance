@@ -1,14 +1,25 @@
 import Foundation
 
-/// Token usage from Claude Code logs. Limits come from the statusline hook (M2), so `limits` is empty.
+/// Token usage from Claude Code logs; limits from the statusline hook cache.
 public struct ClaudeUsageProvider: UsageProvider {
     public let tool = Tool.claude
     public let projectsRoot: URL
     public let fileSource: any FileSource
+    public let rateLimitCache: ClaudeStatuslineCache
+    public let now: @Sendable () -> Date
 
-    public init(projectsRoot: URL = Self.defaultProjectsRoot(), fileSource: any FileSource = LocalFileSource()) {
+    /// `rateLimitCache` defaults to the standard cache location read through `fileSource`.
+    public init(
+        projectsRoot: URL = Self.defaultProjectsRoot(),
+        fileSource: any FileSource = LocalFileSource(),
+        rateLimitCache: ClaudeStatuslineCache? = nil,
+        now: @escaping @Sendable () -> Date = { Date() }
+    ) {
         self.projectsRoot = projectsRoot
         self.fileSource = fileSource
+        self.rateLimitCache = rateLimitCache
+            ?? ClaudeStatuslineCache(fileURL: TokenGlancePaths.default().rateLimitCache, fileSource: fileSource)
+        self.now = now
     }
 
     /// `${CLAUDE_CONFIG_DIR:-~/.claude}/projects`
@@ -27,6 +38,11 @@ public struct ClaudeUsageProvider: UsageProvider {
             guard let data = try? fileSource.contents(of: url) else { continue }
             parser.consume(data)
         }
-        return UsageSnapshot(records: parser.records)
+        switch rateLimitCache.read(now: now()) {
+        case .available(let windows):
+            return UsageSnapshot(limits: windows, records: parser.records)
+        case .unavailable(let reason):
+            return UsageSnapshot(records: parser.records, limitsIssue: reason)
+        }
     }
 }

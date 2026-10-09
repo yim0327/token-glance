@@ -93,6 +93,12 @@ M0 검증 결과. 모든 확인은 **읽기 전용**으로, 키 이름·타입·
 
 - `used_percentage`는 없으므로 메인 소스가 될 수 없다. **보조 신호**: "세션 한도 도달 + 초기화 시각"을 statusline 캐시가 없을 때 표시하는 용도로 쓸 수 있다.
 
+**제안 (M2 결정, 미구현):** 보조 신호로 사용한다. 단 아래 조건을 모두 만족할 때만.
+1. 훅 캐시가 `noData` 또는 `stale`일 때만 쓴다. 훅 캐시가 있으면 항상 훅 값이 우선 (%가 있고 더 자주 갱신됨).
+2. `status == "rejected"`이고 `resetsAt > now`인 가장 최근 라인 1개만 사용. `rateLimitType`이 `five_hour`면 session, `seven_day`(추정, 미관찰)면 weekly로 매핑하고 그 외 값은 무시.
+3. 표시는 "한도 도달 (100%)" + `resetsAt` 카운트다운, `observedAt`은 라인의 `timestamp`. `resetsAt`이 지나면 기존 규칙대로 "초기화됨(0%)".
+4. 근거: 한도 도달은 사용자가 가장 알고 싶은 순간인데, 이때 Claude Code 응답이 거절되어 statusline 갱신이 멈출 수 있다. 로그 파싱은 이미 하고 있어 추가 I/O가 없다.
+
 ### 1.4 `type == "cost-state"` (참고)
 
 `sessionId`, `totalCostUSD`(float, 일부 int), `totalAPIDuration`, `totalDuration`, `startTime`(int), `totalLinesAdded/Removed`, `hasUnknownModelCost`, `modelUsage: { <model>: { inputTokens, outputTokens, thinkingTokens, cacheReadInputTokens, cacheCreationInputTokens, webSearchRequests, costUSD } }`.
@@ -213,24 +219,76 @@ OMC HUD가 저장해 둔 실제 stdin 캐시 3개(최근 60일)에서 키/타입
 4. **stdin 읽기 방식**: `process.stdin.isTTY`면 null. 아니면 `for await` 로 **EOF까지 전부** 읽어 `JSON.parse`. 파싱 실패 시 null(진단 출력).
    - → 체이닝 시 받은 stdin **바이트를 그대로** 자식 프로세스 stdin에 쓰고 **반드시 close(EOF)** 해야 한다. 재직렬화하지 말 것(필드 손실 방지).
 
-### 3.3 체이닝 설계 메모 (M2 입력)
+### 3.3 체이닝 설계 (M2 구현)
 
 ```
-Claude Code ──stdin──▶ token-glance-hook
-                         1. stdin 전체를 메모리로 읽음 (EOF까지)
-                         2. rate_limits 4개 값만 추출 → cache tmp 파일 → rename (원자적)
-                         3. 원래 statusLine.command 문자열을 /bin/sh -c 로 실행
-                            (쉘 변수 확장 유지; 경로 직접 해석 금지)
-                            - 자식 stdin ← 1의 원본 바이트, write 후 close
-                            - 자식 stdout/stderr → 그대로 상속 (HUD 출력이 Claude Code에 표시됨)
-                            - 자식 exit code 전달
+Claude Code ──stdin──▶ token-glance-hook (no args)
+                         1. stdin 전체를 EOF까지 읽어 원본 바이트 보관
+                         2. rate_limits만 파싱 → 캐시 임시파일 → rename (실패해도 3 진행)
+                         3. statusline-backup.json의 original_command를 /bin/sh -c 로 실행 (posix_spawn)
+                            - 자식 stdin ← 1의 원본 바이트 (재직렬화 없음), 별도 스레드에서 쓰고 close
+                            - stdout/stderr·환경변수 상속, 그 외 fd는 닫힘 (POSIX_SPAWN_CLOEXEC_DEFAULT)
+                            - 자식은 자체 프로세스 그룹의 리더 (pgid = pid)
+                            - 자식 exit code 그대로 반환, 시그널로 죽으면 128+sig
+                         original_command 없음/빈 문자열/백업 파일 깨짐 → 출력 없이 exit 0
 ```
 
-- 원본 command는 설치 시 백업 파일에 그대로 저장, 제거 시 복원.
-- 자식 환경변수는 그대로 상속 (`CLAUDE_SESSION_ID`, `CLAUDE_CONFIG_DIR` 등 OMC가 사용).
-- 2단계는 파싱 실패해도 3단계를 반드시 실행 (사용자 statusline이 깨지지 않게).
-- 훅은 OMC보다 오래 살아 있을 필요가 없도록 자식 대기 외 추가 작업 없음. Claude Code가 훅을 취소(SIGTERM 추정)하면 자식도 함께 정리되는지 M2에서 확인 ❓.
-- OMC 업데이트/`omc-setup` 재실행 시 statusLine 덮어쓰기 가능 → 앱에서 "설치됨/덮어씀" 상태 점검.
+- 관리 명령: `token-glance-hook install | uninstall | status | repair` (Claude Code는 인자 없이 실행). 출력은 상태 단어만.
+- 설치(`StatuslineInstaller`):
+  - settings.json은 `statusLine` 멤버의 바이트만 편집 (`JSONTextEditor`). 기존 statusLine 객체가 있으면 `command` 값만 교체해 `type`/`padding` 등 보존. 없으면 마지막 멤버 뒤에 추가.
+  - 쓰기 전 `settings.json.token-glance-backup-<UTC yyyyMMdd-HHmmss>` 전체 복사, 원래 권한 유지, 임시파일→rename.
+  - `statusline-backup.json`에 원본 `command`와 statusLine 원문(JSON 텍스트)을 그대로 저장. 셸 변수 확장 문자열을 해석하지 않음.
+  - 훅 바이너리는 `~/Library/Application Support/TokenGlance/bin/token-glance-hook`로 복사(755). settings.json에는 셸 인용된 절대 경로가 들어감(경로에 공백 포함).
+  - 거부: JSON이 깨졌거나 객체가 아님(`settingsUnreadable`), 쓰기 불가(`settingsNotWritable`). 거부 시 어떤 파일도 만들지 않음.
+  - `status`: notInstalled / installed / overwritten / hookMissing / settingsUnreadable. `repair`는 덮어쓴 새 command를 원본으로 채택해 재설치.
+  - `uninstall`: statusLine이 아직 훅을 가리키면 원문 복원(원래 없었으면 키 제거, 설치가 만든 파일이면 삭제). 다른 command로 바뀌어 있으면 settings.json은 건드리지 않음.
+- 시그널: 훅이 SIGTERM/SIGINT/SIGHUP을 받으면 자식 **프로세스 그룹**에 전달하고 자식 종료를 기다린 뒤 128+sig로 종료. 2단계 중 시그널이 오면 자식을 띄우지 않음.
+
+**측정 (2026-10-09, release, M-series Mac, 합성 입력 1.3KB, 300회)**
+
+| 항목 | p50 | p95 | 비고 |
+|---|---|---|---|
+| 프로세스 생성 기준선 (`/usr/bin/true`) | 1.45ms | 2.02ms | 비교용 |
+| 훅 단독 (stdin → 캐시, 체이닝 없음) | 5.65ms | 7.26ms | 목표 20ms 이하 ✅ |
+| 훅 + 체이닝 `cat >/dev/null` | 9.61ms | 11.24ms | |
+
+- 순서: 자식이 `sleep 3`인 경우에도 캐시 기록 완료(훅 시작 후 4.9ms)가 자식 시작보다 앞섬 ✅. 단위 테스트(`cacheIsWrittenBeforeChildStarts`)로도 고정.
+- 취소: SIGTERM/SIGINT → 자식과 복합 명령의 손자까지 종료, 좀비 0 ✅. **SIGKILL**은 가로챌 수 없어 자식이 끝까지 실행됨(고아, 좀비 아님) — OMC HUD는 자체 타임아웃 안에서 끝나므로 허용.
+
+**실제 환경 검증 (2026-10-09, Claude Code 2.1.295 + OMC 5.6.1, 사용자 승인 후 설치)**
+
+- `install` 후 settings.json 변경은 `statusLine.command` 한 줄뿐(다른 키 값·순서 동일, 텍스트 diff 확인). `statusline-backup.json`에 OMC command 원문 저장.
+- 실행 중 세션과 새 세션 모두에서 훅이 캐시를 기록(허용 키 4개만). OMC HUD 정상 출력(사용자 확인).
+- 수치: 5h는 캐시와 HUD 일치. 주간은 캐시 24% / HUD 25% — OMC HUD가 stdin 값과 비공식 OAuth usage API 값 중 큰 값을 표시하기 때문(3.2). 캐시는 Claude Code가 statusline에 넘긴 공식 값과 동일하다. API 값 자체는 OMC 캐시를 읽지 않는 원칙에 따라 확인하지 않음.
+- OMC HUD 체이닝 구간 실행 시간은 측정하지 않음(측정하려면 HUD를 직접 실행해야 하고, 그러면 네트워크 호출이 일어날 수 있음).
+
+### 3.4 Token Glance 캐시 포맷 (M2)
+
+경로: `~/Library/Application Support/TokenGlance/claude-rate-limits.json` (`TOKEN_GLANCE_SUPPORT_DIR`로 디렉터리 교체 가능, 테스트·측정용).
+
+```json
+{
+  "schema_version": 1,
+  "claude_version": "2.1.295",
+  "five_hour": { "used_percentage": 38, "resets_at": 1791433200, "observed_at": "2026-10-08T01:10:00Z" },
+  "seven_day": { "used_percentage": 12, "resets_at": 1791788400, "observed_at": "2026-10-08T01:10:00Z" }
+}
+```
+
+| 키 | 타입 | 비고 |
+|---|---|---|
+| `schema_version` | int | 현재 `1`. 리더는 모르는 버전을 "지원 안 함"으로 처리 |
+| `claude_version` | string? | 마지막으로 기록한 입력의 `version` |
+| `five_hour` / `seven_day` | object? | 없으면 생략 |
+| `.used_percentage` | number | 입력 그대로 (0~100) |
+| `.resets_at` | int | Unix epoch 초. 입력이 ms(≥1e12)거나 숫자 문자열이면 정규화 |
+| `.observed_at` | string | ISO 8601 UTC(초 단위). **윈도우별** 기록 |
+
+- 기록 금지: 경로, `session_id`, `session_name`, `prompt_id`, `cwd`, `transcript_path`, `workspace`, 비용·컨텍스트 값 등 위 표 외 모든 필드.
+- 갱신 규칙: 윈도우별 독립 갱신. `used_percentage`와 `resets_at`이 **둘 다** 있는 윈도우만 교체하고, 없거나 불완전한 윈도우는 기존 값(과 그 `observed_at`)을 유지한다.
+- `rate_limits` 키가 없거나 `null`이거나 쓸 수 있는 윈도우가 하나도 없으면 **파일을 쓰지 않는다**(기존 캐시 유지).
+- 쓰기: 같은 디렉터리의 임시 파일에 쓴 뒤 `rename(2)` (원자적). fsync는 하지 않음(크래시 내구성보다 지연 우선).
+- 동시성: Claude Code 세션 여러 개가 동시에 쓰면 마지막 rename이 이긴다. 서로 다른 윈도우를 거의 동시에 갱신하면 한쪽 갱신이 유실될 수 있으나 다음 statusline 갱신에서 회복된다.
 
 ---
 
@@ -241,6 +299,6 @@ Claude Code ──stdin──▶ token-glance-hook
 | Codex `info: null`·반복 스냅샷·누적 감소, resume/fork 동작 | 세션이 더 쌓인 뒤 재검증 | 수시 |
 | `rate_limits` 최소 Claude Code 버전 | changelog 확인 | M2 |
 | stdin에 `rate_limits`가 없을 때의 형태 | API 키 사용자 또는 첫 응답 전 stdin 캡처 | M2 |
-| Claude Code 취소 시그널과 자식 프로세스 정리 | 훅 프로토타입으로 측정 | M2 |
-| OMC HUD 실제 실행 시간 | 훅 프로토타입에서 체이닝 구간 측정 (네트워크 호출 유발에 주의) | M2 |
+| Claude Code가 실제로 보내는 취소 시그널 종류 | 훅 SIGTERM/SIGINT 시 자식 그룹 정리는 확인됨(3.3). Claude Code가 SIGKILL을 쓰면 자식이 끝까지 실행됨 — 실제 시그널은 미확인 | 수시 |
+| OMC HUD 실제 실행 시간 | 미측정(직접 실행 시 네트워크 호출 가능). 실제 사용에서 표시 이상 없음 | 수시 |
 | `quotaLimits.rateLimitType`의 주간 값 이름 | 주간 한도 도달 시 관찰 | 수시 |

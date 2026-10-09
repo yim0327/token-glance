@@ -18,7 +18,7 @@ struct ClaudeParserTests {
         let snap = try snapshot(["-proj/session.jsonl": "claude-usage-sample.jsonl"])
         #expect(snap.records.count == 4)
         #expect(total(snap.records) == TokenUsage(input: 21, output: 794, cacheRead: 58000, cacheWrite: 3500, reasoning: 120))
-        // Claude limits come from the statusline hook (M2), not from logs.
+        // Limits come from the hook cache, which this in-memory source does not contain.
         #expect(snap.limits.isEmpty)
     }
 
