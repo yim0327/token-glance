@@ -1,0 +1,30 @@
+# SwiftPM / Xcode
+.build/
+.swiftpm/
+*.xcodeproj/
+xcuserdata/
+DerivedData/
+Package.resolved
+
+# Build outputs
+/dist/
+*.app/
+*.dmg
+*.zip
+
+# macOS
+.DS_Store
+
+# Local agent state (oh-my-claudecode)
+.omc/
+
+# Never commit real logs or credentials
+*.local.jsonl
+auth.json
+.credentials*
+*.sqlite
+hud-stdin-cache.json
+
+# Local tool state (Claude Code, Codex CLI)
+.claude/
+.codex/

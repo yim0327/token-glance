@@ -1,0 +1,46 @@
+{
+  "session_id": "00000000-0000-4000-8000-000000000001",
+  "transcript_path": "/Users/user/.claude/projects/-Users-user-project/00000000-0000-4000-8000-000000000001.jsonl",
+  "cwd": "/Users/user/project",
+  "model": {
+    "id": "claude-opus-5-5",
+    "display_name": "Opus 5.5"
+  },
+  "workspace": {
+    "current_dir": "/Users/user/project",
+    "project_dir": "/Users/user/project",
+    "added_dirs": []
+  },
+  "version": "2.1.295",
+  "output_style": {
+    "name": "default"
+  },
+  "cost": {
+    "total_cost_usd": 0.42,
+    "total_duration_ms": 600000,
+    "total_api_duration_ms": 120000,
+    "total_lines_added": 10,
+    "total_lines_removed": 2
+  },
+  "context_window": {
+    "total_input_tokens": 150000,
+    "total_output_tokens": 3000,
+    "context_window_size": 1000000,
+    "current_usage": {
+      "input_tokens": 3,
+      "output_tokens": 300,
+      "cache_creation_input_tokens": 500,
+      "cache_read_input_tokens": 150000
+    },
+    "used_percentage": 15,
+    "remaining_percentage": 85
+  },
+  "exceeds_200k_tokens": false,
+  "fast_mode": false,
+  "thinking": {
+    "enabled": true
+  },
+  "effort": {
+    "level": "medium"
+  }
+}
