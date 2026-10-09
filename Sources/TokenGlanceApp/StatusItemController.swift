@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import os
 import SwiftUI
 import TokenGlanceCore
 
@@ -11,6 +12,7 @@ final class StatusItemController: NSObject {
     private let popover = NSPopover()
     private var lastLabel: MenuBarLabel?
     private var settingsWindow: SettingsWindowController?
+    private let log = Logger(subsystem: "io.github.yim0327.token-glance", category: "label")
 
     init(store: UsageStore) {
         self.store = store
@@ -49,7 +51,10 @@ final class StatusItemController: NSObject {
             Task { @MainActor in self?.render() }
         }
         guard let button = item.button, label != lastLabel else { return }
-        if label.lines != lastLabel?.lines { button.image = LabelImage.make(label) }
+        if label.lines != lastLabel?.lines {
+            button.image = LabelImage.make(label)
+            log.info("label redrawn")
+        }
         lastLabel = label
         button.toolTip = label.tooltip
         button.setAccessibilityLabel("Token Glance: " + label.tooltip)

@@ -27,25 +27,37 @@ final class UsageStore {
     @ObservationIgnored private var watcher: FileWatcher?
     @ObservationIgnored private var pollTimer: Timer?
     @ObservationIgnored private var resetTimer: Timer?
+    @ObservationIgnored private var activeTimer: Timer?
     @ObservationIgnored private var refreshAgain = false
     /// Numbers only (durations, byte counts); never paths or content.
     @ObservationIgnored private let log = Logger(subsystem: "io.github.yim0327.token-glance", category: "refresh")
 
     static let fallbackPollInterval: TimeInterval = 300
+    /// Codex keeps its rollout open while appending, which FSEvents does not report; active
+    /// rollouts are stat-ed this often instead (no reading unless the size changed).
+    static let activeCodexCheckInterval: TimeInterval = 2
     static let eventLatency: TimeInterval = 1.5
 
     var states: [ToolState] { [claude, codex] }
 
     func start() {
         loader.configure(roots: LogRoots.resolve(settings))
-        refresh()
+        refresh(reason: "launch")
         startWatching()
         pollTimer = Timer.scheduledTimer(withTimeInterval: Self.fallbackPollInterval, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refresh(checkHook: true) }
+            Task { @MainActor in self?.refresh(checkHook: true, reason: "poll") }
         }
         pollTimer?.tolerance = 30
+        activeTimer = Timer.scheduledTimer(withTimeInterval: Self.activeCodexCheckInterval, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.settings.codexEnabled, !self.isRefreshing,
+                      self.loader.activeCodexFilesChanged() else { return }
+                self.refresh(reason: "codex-active")
+            }
+        }
+        activeTimer?.tolerance = 0.5
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.refresh(checkHook: true) }
+            MainActor.assumeIsolated { self?.refresh(checkHook: true, reason: "wake") }
         }
     }
 
@@ -85,16 +97,17 @@ final class UsageStore {
             MainActor.assumeIsolated {
                 let relevant = filter.isRelevant(paths)
                 self?.log.debug("fsevents: \(paths.count, privacy: .public) paths, relevant: \(relevant, privacy: .public)")
-                if relevant { self?.refresh() }
+                if relevant { self?.refresh(reason: "fsevents") }
             }
         }
         if watcher == nil { log.error("FSEvents stream could not be created; relying on polling") }
     }
 
     /// Incremental refresh. `checkHook` also re-reads the hook installation state from settings.json.
-    func refresh(checkHook: Bool = false) {
+    func refresh(checkHook: Bool = false, reason: String = "manual") {
         guard !isRefreshing else {
             refreshAgain = true  // coalesce: run once more after the current refresh
+            log.debug("refresh coalesced (\(reason, privacy: .public))")
             return
         }
         isRefreshing = true
@@ -113,16 +126,19 @@ final class UsageStore {
             }.value
             // Replace state only when something besides the refresh time changed, so SwiftUI and the
             // label are not recomputed for no-op refreshes.
-            if !claude.sameContent(as: self.claude) || self.claude.refreshedAt == nil { self.claude = claude }
-            if !codex.sameContent(as: self.codex) || self.codex.refreshedAt == nil { self.codex = codex }
+            let claudeChanged = !claude.sameContent(as: self.claude) || self.claude.refreshedAt == nil
+            let codexChanged = !codex.sameContent(as: self.codex) || self.codex.refreshedAt == nil
+            if claudeChanged { self.claude = claude }
+            if codexChanged { self.codex = codex }
+            log.info("state: claude changed \(claudeChanged, privacy: .public), codex changed \(codexChanged, privacy: .public)")
             self.lastRefresh = Date()
-            log.info("refresh: \(Int(Date().timeIntervalSince(started) * 1000), privacy: .public) ms, \(loader.bytesRead - bytesBefore, privacy: .public) bytes read")
+            log.info("refresh (\(reason, privacy: .public)): \(Int(Date().timeIntervalSince(started) * 1000), privacy: .public) ms, \(loader.bytesRead - bytesBefore, privacy: .public) bytes read")
             self.scanProgress = nil
             self.isRefreshing = false
             scheduleResetRefresh()
             if refreshAgain {
                 refreshAgain = false
-                refresh()
+                refresh(reason: "coalesced")
             }
         }
     }
@@ -133,7 +149,7 @@ final class UsageStore {
         let next = states.flatMap { $0.summary?.limits ?? [] }.compactMap(\.resetsAt).filter { $0 > Date() }.min()
         guard let next else { return }
         resetTimer = Timer.scheduledTimer(withTimeInterval: next.timeIntervalSinceNow + 1, repeats: false) { [weak self] _ in
-            Task { @MainActor in self?.refresh() }
+            Task { @MainActor in self?.refresh(reason: "reset") }
         }
     }
 }
@@ -146,6 +162,7 @@ final class UsageLoader: @unchecked Sendable {
     private var codexIndex = CodexUsageIndex()
     private var hookStatus: StatuslineInstaller.Status?
     private var lastPrune = Date.distantPast
+    private var codexActive = ActiveFileSet(window: 15 * 60)
 
     private let paths = TokenGlancePaths.default()
     private let fileSource = LocalFileSource()
@@ -161,6 +178,14 @@ final class UsageLoader: @unchecked Sendable {
         return claudeIndex.bytesRead + codexIndex.bytesRead
     }
 
+    /// Cheap check for the short timer: stats only the active Codex rollouts. Returns false without
+    /// waiting if a refresh currently holds the loader.
+    func activeCodexFilesChanged() -> Bool {
+        guard lock.try() else { return false }
+        defer { lock.unlock() }
+        return codexActive.hasChanges(source: fileSource)
+    }
+
     /// Points the loader at new log folders, discarding everything indexed so far.
     func configure(roots: LogRoots) {
         lock.lock()
@@ -170,6 +195,7 @@ final class UsageLoader: @unchecked Sendable {
         codexHome = roots.codexHome
         claudeIndex = ClaudeUsageIndex()
         codexIndex = CodexUsageIndex()
+        codexActive = ActiveFileSet(window: 15 * 60)
     }
 
     var watchedPaths: [String] {
@@ -202,6 +228,9 @@ final class UsageLoader: @unchecked Sendable {
         }
         claudeIndex.update(files: claudeFiles, source: fileSource, onRead: reporter)
         codexIndex.update(files: codexFiles, source: fileSource, onRead: reporter)
+        var codexSizes: [URL: Int] = [:]
+        for url in codexFiles { codexSizes[url] = fileSource.stat(url)?.size }
+        codexActive.update(sizes: codexSizes, now: now)
         if now.timeIntervalSince(lastPrune) > 3600 {
             claudeIndex.prune(before: now - Self.retention)
             codexIndex.prune(before: now - Self.retention)
