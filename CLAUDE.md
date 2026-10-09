@@ -50,9 +50,19 @@ swift test                # Xcode 환경 / CI
 
 - 한 번에 한 마일스톤(M0~M6)만 진행한다. 시작 전에 계획을 짧게 제시하고, 끝나면 완료 기준 충족 여부를 보고한다.
 - 테스트 먼저(또는 함께). 파서 버그를 고칠 때는 재현 fixture/테스트를 먼저 추가한다.
-- 커밋은 작은 단위로, 메시지는 `feat:`, `fix:`, `test:`, `docs:`, `chore:` 접두사를 사용한다.
+- 커밋은 작은 단위로, 메시지는 `feat:`, `fix:`, `test:`, `docs:`, `chore:`, `perf:` 접두사를 사용한다.
 - 실제 `~/.claude`, `~/.codex` 파일을 커밋하지 않는다. fixture는 반드시 익명화한다.
 - 모르는 것은 추측하지 말고 질문하거나 `docs/log-schemas.md`에 "미확인"으로 기록한다.
+
+### Git / PR 규칙
+
+1. 작업마다 `git fetch` 후 **최신 `origin/main`에서 새 브랜치**를 만든다 (`feat/…`, `fix/…`, `docs/…`, `chore/…`).
+2. 브랜치에서 작은 단위로 커밋한다. 커밋 전 `./scripts/test.sh`의 **종료 코드**로 통과를 확인한다(파이프로 종료 코드를 가리지 않는다).
+3. 커밋 메시지에 `Co-Authored-By` 등 AI 작성 표기를 넣지 않는다. 커밋 이메일은 GitHub noreply 주소를 유지한다.
+4. 브랜치를 push하고 `gh pr create --base main`으로 PR을 만든다. **`main`에 직접 push하지 않는다.** "push 해줘"도 작업 브랜치/PR 갱신을 뜻한다.
+5. PR 병합은 **사용자 승인 후 squash merge**(`gh pr merge --squash`)로만 한다.
+6. force push와 히스토리 재작성은 사용자가 명시적으로 요청한 경우에만 한다.
+7. 사용자가 작업 트리에 남겨 둔 미커밋 변경(예: `docs/PRD.md`)은 스테이징하지 않는다.
 
 ## 상표/고지
 
