@@ -37,24 +37,4 @@ import Testing
         try box.write("{ broken")
         #expect(throws: StatuslineInstaller.InstallerError.settingsUnreadable) { try HookAction.install.perform(with: box.installer) }
     }
-
-    @Test func consentTextNamesFilesBackupAndUndo() {
-        let home = URL(fileURLWithPath: "/Users/someone")
-        let consent = HookConsent(
-            settingsURL: home.appendingPathComponent(".claude/settings.json"),
-            paths: TokenGlancePaths(supportDirectory: home.appendingPathComponent("Library/Application Support/TokenGlance")),
-            hasExistingStatusLine: true, home: home)
-        #expect(consent.title == "Install the Claude limits hook?")
-        #expect(consent.body.contains("~/.claude/settings.json"))
-        #expect(consent.body.contains("statusLine"))
-        #expect(consent.body.contains("~/.claude/settings.json.token-glance-backup-"))
-        #expect(consent.body.contains("Your current statusline keeps working"))
-        #expect(consent.body.contains("Uninstall"))
-        #expect(!consent.body.contains("/Users/someone"))
-
-        let fresh = HookConsent(settingsURL: home.appendingPathComponent(".claude/settings.json"),
-                                paths: TokenGlancePaths(supportDirectory: home.appendingPathComponent("x")),
-                                hasExistingStatusLine: false, home: home)
-        #expect(!fresh.body.contains("Your current statusline keeps working"))
-    }
 }

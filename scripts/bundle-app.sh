@@ -21,6 +21,14 @@ rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin/TokenGlanceApp" "$app/Contents/MacOS/TokenGlance"
 cp "$bin/token-glance-hook" "$app/Contents/Resources/token-glance-hook"
+# Localized strings (SwiftPM resource bundle of TokenGlanceText). Located by Localizer in
+# Contents/Resources; without it the app would only work next to the build directory.
+resources="$bin/token-glance_TokenGlanceText.bundle"
+if [ ! -d "$resources" ]; then
+    echo "missing resource bundle: $resources" >&2
+    exit 1
+fi
+cp -R "$resources" "$app/Contents/Resources/"
 chmod 755 "$app/Contents/MacOS/TokenGlance" "$app/Contents/Resources/token-glance-hook"
 
 cat > "$app/Contents/Info.plist" <<PLIST

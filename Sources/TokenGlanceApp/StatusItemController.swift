@@ -3,6 +3,7 @@ import Observation
 import os
 import SwiftUI
 import TokenGlanceCore
+import TokenGlanceText
 
 /// Owns the menu bar item: renders the label from the store and toggles the popover.
 @MainActor
@@ -11,7 +12,9 @@ final class StatusItemController: NSObject {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let popover = NSPopover()
     private var lastLabel: MenuBarLabel?
+    private var lastTooltip: String?
     private var settingsWindow: SettingsWindowController?
+    private var historyWindow: HistoryWindowController?
     private let log = Logger(subsystem: "io.github.yim0327.token-glance", category: "label")
 
     init(store: UsageStore) {
@@ -24,11 +27,20 @@ final class StatusItemController: NSObject {
         }
         popover.behavior = .transient
         let settingsWindow = SettingsWindowController(store: store)
+        let historyWindow = HistoryWindowController(store: store)
         self.settingsWindow = settingsWindow
-        let host = NSHostingController(rootView: PopoverView(store: store, openSettings: { [weak self] in
-            self?.popover.performClose(nil)
-            settingsWindow.show()
-        }))
+        self.historyWindow = historyWindow
+        let host = NSHostingController(rootView: PopoverView(
+            store: store,
+            openSettings: { [weak self] in
+                self?.popover.performClose(nil)
+                settingsWindow.show()
+            },
+            openHistory: { [weak self] in
+                self?.popover.performClose(nil)
+                historyWindow.show()
+            }
+        ))
         // Without this the popover keeps its initial size and clips SwiftUI content that is taller,
         // e.g. once data arrives after launch.
         host.sizingOptions = [.preferredContentSize]
@@ -45,19 +57,24 @@ final class StatusItemController: NSObject {
 
     /// Re-renders whenever an observed store property changes.
     private func render() {
-        let label = withObservationTracking {
-            MenuBarLabel.make(states: store.states, mode: store.percentMode, now: Date())
+        let (label, tooltip) = withObservationTracking {
+            let label = MenuBarLabel.make(states: store.states, mode: store.percentMode)
+            let tooltip = store.localizer.tooltip(states: store.states, mode: store.percentMode, now: Date())
+            return (label, tooltip)
         } onChange: { [weak self] in
             Task { @MainActor in self?.render() }
         }
-        guard let button = item.button, label != lastLabel else { return }
-        if label.lines != lastLabel?.lines {
+        guard let button = item.button else { return }
+        if label != lastLabel {
             button.image = LabelImage.make(label)
+            lastLabel = label
             log.info("label redrawn")
         }
-        lastLabel = label
-        button.toolTip = label.tooltip
-        button.setAccessibilityLabel("Token Glance: " + label.tooltip)
+        if tooltip != lastTooltip {
+            lastTooltip = tooltip
+            button.toolTip = tooltip
+            button.setAccessibilityLabel(store.localizer("a11y.statusItem", tooltip))
+        }
     }
 
     @objc private func togglePopover() {

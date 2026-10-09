@@ -5,11 +5,14 @@ public struct FileStat: Equatable, Sendable {
     public var inode: UInt64
     public var size: Int
     public var modified: Date?
+    /// Creation (birth) time, used as the start of log coverage for the history chart.
+    public var created: Date?
 
-    public init(inode: UInt64, size: Int, modified: Date? = nil) {
+    public init(inode: UInt64, size: Int, modified: Date? = nil, created: Date? = nil) {
         self.inode = inode
         self.size = size
         self.modified = modified
+        self.created = created
     }
 }
 
@@ -24,8 +27,8 @@ public protocol TailSource: FileSource {
 private func regularFileStat(_ path: String) -> FileStat? {
     var info = Darwin.stat()
     guard stat(path, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG else { return nil }
-    let modified = Date(timeIntervalSince1970: TimeInterval(info.st_mtimespec.tv_sec) + TimeInterval(info.st_mtimespec.tv_nsec) / 1e9)
-    return FileStat(inode: UInt64(info.st_ino), size: Int(info.st_size), modified: modified)
+    func date(_ spec: timespec) -> Date { Date(timeIntervalSince1970: TimeInterval(spec.tv_sec) + TimeInterval(spec.tv_nsec) / 1e9) }
+    return FileStat(inode: UInt64(info.st_ino), size: Int(info.st_size), modified: date(info.st_mtimespec), created: date(info.st_birthtimespec))
 }
 
 extension LocalFileSource: TailSource {

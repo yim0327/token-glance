@@ -1,0 +1,153 @@
+/* 도구와 윈도우 */
+"tool.claude" = "Claude";
+"tool.codex" = "Codex";
+"tool.claudeCode" = "Claude Code";
+"window.session" = "5시간";
+"window.weekly" = "주간";
+"window.session.short" = "세션";
+"window.weekly.short" = "주간";
+
+/* 기간과 경과 시간 */
+"duration.now" = "지금";
+"duration.lessThanMinute" = "1분 미만";
+"duration.minutes" = "%d분";
+"duration.hoursMinutes" = "%1$d시간 %2$d분";
+"duration.daysHours" = "%1$d일 %2$d시간";
+"clock.daysPrefix" = "%1$d일 %2$@";
+"age.justNow" = "방금";
+"age.minutes" = "%d분 전";
+"age.hours" = "%d시간 전";
+"age.days" = "%d일 전";
+
+/* 툴팁 */
+"tooltip.window.left" = "%1$@ %2$@ %3$d%% 남음";
+"tooltip.window.used" = "%1$@ %2$@ %3$d%% 사용";
+"tooltip.resetsIn" = ", %@ 후 초기화";
+"tooltip.windowReset" = " (윈도우 초기화됨)";
+"tooltip.weekly.left" = " · 주간 %d%% 남음";
+"tooltip.weekly.used" = " · 주간 %d%% 사용";
+"tooltip.unavailable" = "%1$@: %2$@";
+"a11y.statusItem" = "Token Glance: %@";
+
+/* 값이 없는 이유 */
+"reason.noData" = "아직 데이터 없음";
+"reason.corrupt" = "데이터를 읽을 수 없음";
+"reason.stale" = "데이터가 7일 넘게 지남";
+"reason.unsupportedVersion" = "더 새 버전의 Token Glance가 만든 캐시";
+"reason.hookNotInstalled" = "statusline 훅이 설치되지 않음";
+"reason.hookOverwritten" = "statusline 훅이 다른 설정으로 바뀜 (예: OMC 업데이트)";
+"reason.hookMissing" = "statusline 훅 프로그램이 없음";
+"reason.settingsUnreadable" = "Claude settings.json을 읽을 수 없음";
+
+/* 팝오버 */
+"popover.indexing" = "로그 색인 중…";
+"popover.settings" = "설정…";
+"popover.history" = "기록…";
+"popover.refresh" = "새로고침";
+"popover.quit" = "종료";
+"popover.loading" = "불러오는 중…";
+"popover.updated" = "업데이트 %@";
+"popover.usedLeft" = "%1$d%% 사용 / %2$d%% 남음";
+"popover.resets" = "%1$@ 초기화 · %2$@ 남음";
+"popover.windowReset" = "윈도우 초기화됨 — 새 데이터를 기다리는 중";
+"popover.hook.overwritten" = "훅이 바뀜 — 설정에서 복구";
+"popover.hook.notInstalled" = "훅 미설치 — 설정에서 설치";
+"popover.hook.missing" = "훅 프로그램 없음";
+"popover.hook.settingsUnreadable" = "settings.json을 읽을 수 없음";
+"tokens.header" = "토큰";
+"tokens.input" = "입력";
+"tokens.output" = "출력";
+"tokens.cache" = "캐시";
+"tokens.today" = "오늘";
+"tokens.thisWeek" = "이번 주";
+"tokens.topModels" = "이번 주 상위 모델: %@";
+
+/* 기록 창 */
+"history.title" = "토큰 기록";
+"history.heading" = "최근 14일 일별 토큰";
+"history.caption" = "이 Mac의 로컬 Claude Code·Codex 로그만 집계합니다. 다른 곳의 사용량은 포함되지 않습니다.";
+"history.noLogs" = "로그 없음";
+"history.noLogsFor" = "%@: 이 기간의 로그 없음";
+"history.total" = "합계";
+"history.day" = "날짜";
+"history.tokens" = "토큰";
+
+/* 설정 */
+"settings.title" = "Token Glance 설정";
+"settings.menuBar" = "메뉴 막대";
+"settings.show" = "표시";
+"settings.remaining" = "남은 %";
+"settings.used" = "사용 %";
+"settings.oneLine" = "도구를 하나만 켜면 한 줄로 표시합니다.";
+"settings.language" = "언어";
+"language.system" = "시스템 설정 따름";
+"language.korean" = "한국어";
+"language.english" = "English";
+"settings.logFolders" = "로그 폴더";
+"settings.claudeFolder" = "Claude 설정 폴더";
+"settings.claudeFolder.placeholder" = "기본값: $CLAUDE_CONFIG_DIR 또는 ~/.claude";
+"settings.codexFolder" = "Codex 홈";
+"settings.codexFolder.placeholder" = "기본값: $CODEX_HOME 또는 ~/.codex";
+"settings.applyFolders" = "폴더 적용";
+"settings.startup" = "시작";
+"settings.openAtLogin" = "로그인 시 Token Glance 열기";
+"login.approval" = "시스템 설정 › 일반 › 로그인 항목에서 승인을 기다리는 중입니다.";
+"login.error" = "로그인 항목을 변경하지 못했습니다: %@";
+
+/* 경로 검사 */
+"path.useDefault" = "기본 위치를 사용합니다";
+"path.valid" = "확인됨";
+"path.missingSubfolder" = "안에 “%@” 폴더가 아직 없습니다";
+"path.notFound" = "폴더를 찾을 수 없습니다";
+"path.notADirectory" = "폴더가 아닙니다";
+"path.notAbsolute" = "전체 경로를 입력하세요 (/ 또는 ~로 시작)";
+
+/* 훅 */
+"hook.section" = "Claude 한도 훅";
+"hook.explain" = "Claude Code는 한도를 statusline 명령에만 전달합니다. 훅이 이 값을 기록한 뒤 기존 statusline을 그대로 실행합니다.";
+"hook.status.installed" = "설치됨";
+"hook.status.notInstalled" = "설치되지 않음";
+"hook.status.overwritten" = "다른 statusline으로 바뀜 (예: OMC 업데이트) — 복구하면 다시 연결됩니다";
+"hook.status.hookMissing" = "훅 프로그램 없음 — 설치하면 복원됩니다";
+"hook.status.settingsUnreadable" = "settings.json을 읽을 수 없어 아무것도 변경하지 않습니다";
+"hook.status.checking" = "확인 중…";
+"hook.button.install" = "설치…";
+"hook.button.repair" = "복구…";
+"hook.button.uninstall" = "제거";
+"alert.install" = "설치";
+"alert.repair" = "복구";
+"alert.cancel" = "취소";
+"hook.error.settingsUnreadable" = "settings.json을 JSON으로 읽을 수 없습니다. 아무것도 변경하지 않았습니다.";
+"hook.error.settingsNotWritable" = "settings.json에 쓸 수 없습니다. 아무것도 변경하지 않았습니다.";
+"hook.error.hookSourceMissing" = "앱 번들에 훅 프로그램이 없습니다. scripts/bundle-app.sh로 다시 빌드하세요.";
+"hook.error.notInstalled" = "훅이 설치되어 있지 않습니다.";
+"consent.title" = "Claude 한도 훅을 설치할까요?";
+"consent.intro" = "Claude Code는 5시간·주간 한도를 statusline 명령에만 전달합니다. Token Glance는 다음을 수행합니다:";
+"consent.changeKey" = "• %@에서 statusLine.command 키 하나만 바꿉니다. 다른 설정은 그대로 둡니다.";
+"consent.backup" = "• 먼저 파일 전체를 %@.token-glance-backup-<시각>으로 복사합니다.";
+"consent.copyHook" = "• 작은 훅 프로그램을 %1$@/bin에 복사하고, 기존 statusLine을 %1$@/statusline-backup.json에 저장합니다.";
+"consent.privacy" = "훅은 한도 퍼센트와 초기화 시각만 기록합니다. 네트워크를 사용하지 않으며 프롬프트, 경로, 세션 이름을 저장하지 않습니다.";
+"consent.keepsWorking" = "현재 statusline은 계속 동작합니다. 훅이 같은 입력으로 이어서 실행합니다.";
+"consent.undo" = "되돌리려면 Token Glance 설정에서 제거를 선택하세요. 기존 statusLine이 복원됩니다.";
+
+/* 알림 */
+"settings.notifications" = "알림";
+"settings.notifications.enable" = "한도가 줄어들면 알림";
+"settings.notifications.warning" = "경고 (남은 %)";
+"settings.notifications.critical" = "위험 (남은 %)";
+"settings.notifications.apply" = "임계값 적용";
+"settings.notifications.invalidRange" = "0~100 사이의 정수를 입력하세요.";
+"settings.notifications.invalidOrder" = "경고 값은 위험 값보다 커야 합니다.";
+"settings.notifications.explain" = "남은 퍼센트가 임계값을 넘어 줄어들 때, 그리고 한도가 줄어든 뒤 새 윈도우가 시작될 때 알립니다. Mac이 잠자기 중이거나 앱이 꺼져 있던 동안의 변화는 나중에 보내지 않습니다.";
+"settings.notifications.test" = "테스트 알림 보내기";
+"notifications.permission.denied" = "Token Glance 알림이 꺼져 있습니다. 시스템 설정 › 알림에서 허용하세요.";
+"notifications.permission.notDetermined" = "켜면 macOS가 알림 권한을 묻습니다.";
+"notifications.permission.openSettings" = "시스템 설정 열기";
+"notifications.sendFailed" = "알림을 보내지 못했습니다: %@";
+"notify.warning.title" = "%1$@ %2$@ 한도: %3$d%% 남음";
+"notify.critical.title" = "%1$@ %2$@ 한도 거의 소진: %3$d%% 남음";
+"notify.reset.title" = "%1$@ %2$@ 한도 초기화";
+"notify.body.resets" = "%@에 초기화됩니다.";
+"notify.body.reset" = "새 윈도우에서 %d%% 남음.";
+"notify.test.title" = "Token Glance 테스트 알림";
+"notify.test.body" = "알림이 정상 동작합니다.";

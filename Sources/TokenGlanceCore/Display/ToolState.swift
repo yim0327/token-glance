@@ -10,19 +10,6 @@ public enum UnavailableReason: Equatable, Sendable {
     case hookOverwritten
     case hookMissing
     case settingsUnreadable
-
-    public var message: String {
-        switch self {
-        case .noData: "no data yet"
-        case .corrupt: "data could not be read"
-        case .stale: "data is more than 7 days old"
-        case .unsupportedVersion: "cache written by a newer Token Glance"
-        case .hookNotInstalled: "statusline hook not installed"
-        case .hookOverwritten: "statusline hook was replaced (e.g. by an OMC update)"
-        case .hookMissing: "statusline hook binary is missing"
-        case .settingsUnreadable: "Claude settings.json could not be read"
-        }
-    }
 }
 
 /// Everything the UI needs about one tool at one refresh.
@@ -35,6 +22,10 @@ public struct ToolState: Equatable, Sendable {
     /// Claude only: state of the statusline hook installation.
     public var hookStatus: StatuslineInstaller.Status?
     public var refreshedAt: Date?
+    /// The limit observations behind `summary.limits` (for alert decisions); empty when unavailable.
+    public var limitWindows: [LimitWindow] = []
+    /// Daily totals for the last 14 days (see `UsageHistory`).
+    public var history: [DailyUsage] = []
 
     public init(tool: Tool, isEnabled: Bool = true, summary: UsageSummary? = nil, unavailableReason: UnavailableReason? = nil,
                 hookStatus: StatuslineInstaller.Status? = nil, refreshedAt: Date? = nil) {
@@ -53,13 +44,6 @@ public struct ToolState: Equatable, Sendable {
         return copy == self
     }
 
-    public var displayName: String {
-        switch tool {
-        case .claude: "Claude"
-        case .codex: "Codex"
-        }
-    }
-
     public var session: LimitStatus? { summary?.limits.first { $0.kind == .session } }
     public var weekly: LimitStatus? { summary?.limits.first { $0.kind == .weekly } }
 
@@ -76,8 +60,10 @@ public struct ToolState: Equatable, Sendable {
         if summary.limits.isEmpty {
             reason = hookReason(hookStatus) ?? snapshot.limitsIssue.map(Self.reason) ?? .noData
         }
-        return ToolState(tool: tool, isEnabled: isEnabled, summary: summary, unavailableReason: reason,
-                         hookStatus: hookStatus, refreshedAt: now)
+        var state = ToolState(tool: tool, isEnabled: isEnabled, summary: summary, unavailableReason: reason,
+                              hookStatus: hookStatus, refreshedAt: now)
+        state.limitWindows = snapshot.limits
+        return state
     }
 
     /// When Claude has no cached limits, a broken hook installation is the more useful explanation.
