@@ -75,6 +75,14 @@ public struct StatuslineInstaller {
         return StatuslineBackup.load(from: paths.statuslineBackup) == nil ? .notInstalled : .overwritten
     }
 
+    /// Whether settings.json currently has a `statusLine` (shown in the consent dialog).
+    public var hasStatusLine: Bool {
+        guard let data = try? Data(contentsOf: settingsURL),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return false }
+        return object["statusLine"] != nil
+    }
+
     @discardableResult
     public func install() throws -> InstallOutcome {
         switch status() {

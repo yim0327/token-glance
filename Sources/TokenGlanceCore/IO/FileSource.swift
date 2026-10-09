@@ -34,6 +34,8 @@ public struct LocalFileSource: FileSource {
 /// In-memory files keyed by absolute path. Intended for tests.
 public struct InMemoryFileSource: FileSource {
     public var files: [String: Data]
+    /// Simulated inode numbers (default 1); change one to simulate a replaced file.
+    public var inodes: [String: UInt64] = [:]
 
     public init(files: [String: Data]) {
         self.files = files

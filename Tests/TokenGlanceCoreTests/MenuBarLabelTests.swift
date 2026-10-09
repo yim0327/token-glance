@@ -80,3 +80,14 @@ struct MenuBarLabelTests {
         #expect(ok.refreshedAt == now)
     }
 }
+
+struct ToolStateContentTests {
+    @Test func sameContentIgnoresRefreshTime() {
+        let a = ToolState(tool: .codex, refreshedAt: Fixtures.t0)
+        var b = a
+        b.refreshedAt = Fixtures.t0 + 60
+        #expect(a.sameContent(as: b))
+        b.unavailableReason = .stale
+        #expect(!a.sameContent(as: b))
+    }
+}

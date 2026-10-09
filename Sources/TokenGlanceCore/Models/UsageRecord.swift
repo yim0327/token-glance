@@ -12,3 +12,12 @@ public struct UsageRecord: Equatable, Sendable {
         self.usage = usage
     }
 }
+
+extension UsageRecord {
+    /// Total order used for every record list, so results never depend on dictionary iteration order.
+    static func precedes(_ a: UsageRecord, _ b: UsageRecord) -> Bool {
+        let lhs = (a.timestamp, a.model, a.usage.output, a.usage.input, a.usage.cacheRead, a.usage.cacheWrite)
+        let rhs = (b.timestamp, b.model, b.usage.output, b.usage.input, b.usage.cacheRead, b.usage.cacheWrite)
+        return lhs != rhs ? lhs < rhs : a.usage.reasoning < b.usage.reasoning
+    }
+}

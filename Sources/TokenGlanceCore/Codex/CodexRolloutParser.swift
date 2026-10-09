@@ -7,9 +7,7 @@ import Foundation
 /// `last_token_usage` is used for that event. Tokens are attributed to the model of the most recent
 /// `turn_context`. See docs/log-schemas.md §2.
 public struct CodexRolloutParser {
-    private var records_: [UsageRecord] = []
-    private var newestLimits: [LimitWindow.Kind: LimitWindow] = [:]
-    private let timestamps = TimestampParser()
+    private var sessions: [CodexSessionParser] = []
 
     public init() {}
 
@@ -17,53 +15,81 @@ public struct CodexRolloutParser {
 
     /// Feeds one rollout file (one session). Malformed lines are ignored.
     public mutating func consume(_ data: Data) {
-        let decoder = JSONDecoder()
-        var model = Self.unknownModel
-        var previousTotal: RawUsage?
-        for line in JSONLines.lines(in: data) {
-            guard let entry = try? decoder.decode(Line.self, from: line),
-                  let payload = entry.payload
-            else { continue }
-            if entry.type == "turn_context", let turnModel = payload.model {
-                model = turnModel
-                continue
-            }
-            guard entry.type == "event_msg", payload.type == "token_count",
-                  let timestamp = timestamps.date(from: entry.timestamp)
-            else { continue }
-
-            if let rateLimits = payload.rate_limits {
-                record(rateLimits, observedAt: timestamp)
-            }
-            guard let info = payload.info, let total = info.total_token_usage else { continue }
-            let delta: RawUsage
-            if let previous = previousTotal {
-                let difference = total - previous
-                delta = difference.hasNegative ? (info.last_token_usage ?? total) : difference
-            } else {
-                delta = total
-            }
-            previousTotal = total
-            let usage = delta.normalized
-            if !usage.isZero {
-                records_.append(UsageRecord(timestamp: timestamp, model: model, usage: usage))
-            }
-        }
+        var session = CodexSessionParser()
+        for line in JSONLines.lines(in: data) { session.consume(line: line) }
+        sessions.append(session)
     }
 
     /// Records from all consumed sessions, ordered by time.
-    public var records: [UsageRecord] {
-        records_.sorted { $0.timestamp < $1.timestamp }
-    }
+    public var records: [UsageRecord] { CodexSessionParser.records(of: sessions) }
 
     /// The most recently observed window of each kind.
-    public var limits: [LimitWindow] {
-        LimitWindow.Kind.allCases.compactMap { newestLimits[$0] }
-    }
+    public var limits: [LimitWindow] { CodexSessionParser.limits(of: sessions) }
 
     /// Codex labels windows `primary` / `secondary`; classify by length instead of slot name.
     static func kind(forWindowMinutes minutes: Int) -> LimitWindow.Kind {
         minutes <= 24 * 60 ? .session : .weekly
+    }
+}
+
+/// State of one Codex session (rollout file), fed line by line. Keeps only what aggregation
+/// needs: the current model, the last cumulative usage, the usage records, and the newest limits.
+public struct CodexSessionParser: LineConsumer {
+    private var model = CodexRolloutParser.unknownModel
+    private var previousTotal: RawUsage?
+    private(set) var records: [UsageRecord] = []
+    private(set) var newestLimits: [LimitWindow.Kind: LimitWindow] = [:]
+    private let timestamps = TimestampParser()
+    private let decoder = JSONDecoder()
+
+    public init() {}
+
+    public mutating func consume(line: Data) {
+        guard let entry = try? decoder.decode(Line.self, from: line), let payload = entry.payload else { return }
+        if entry.type == "turn_context", let turnModel = payload.model {
+            model = turnModel
+            return
+        }
+        guard entry.type == "event_msg", payload.type == "token_count",
+              let timestamp = timestamps.date(from: entry.timestamp)
+        else { return }
+
+        if let rateLimits = payload.rate_limits {
+            record(rateLimits, observedAt: timestamp)
+        }
+        guard let info = payload.info, let total = info.total_token_usage else { return }
+        let delta: RawUsage
+        if let previous = previousTotal {
+            let difference = total - previous
+            delta = difference.hasNegative ? (info.last_token_usage ?? total) : difference
+        } else {
+            delta = total
+        }
+        previousTotal = total
+        let usage = delta.normalized
+        if !usage.isZero {
+            records.append(UsageRecord(timestamp: timestamp, model: model, usage: usage))
+        }
+    }
+
+    /// Forgets records older than `cutoff`. The cumulative baseline is kept, so later deltas stay correct.
+    public mutating func prune(before cutoff: Date) {
+        records.removeAll { $0.timestamp < cutoff }
+    }
+
+    static func records<S: Sequence>(of sessions: S) -> [UsageRecord] where S.Element == CodexSessionParser {
+        sessions.flatMap(\.records).sorted(by: UsageRecord.precedes)
+    }
+
+    static func limits<S: Sequence>(of sessions: S) -> [LimitWindow] where S.Element == CodexSessionParser {
+        var newest: [LimitWindow.Kind: LimitWindow] = [:]
+        for session in sessions {
+            for (kind, window) in session.newestLimits {
+                if let existing = newest[kind], existing.observedAt > window.observedAt { continue }
+                newest[kind] = window
+            }
+        }
+        return LimitWindow.Kind.allCases.compactMap { newest[$0] }
     }
 
     private mutating func record(_ rateLimits: RateLimits, observedAt: Date) {
@@ -73,7 +99,7 @@ public struct CodexRolloutParser {
                   let resetsAt = window.resets_at
             else { continue }
             let limit = LimitWindow(
-                kind: Self.kind(forWindowMinutes: minutes),
+                kind: CodexRolloutParser.kind(forWindowMinutes: minutes),
                 usedPercent: percent,
                 resetsAt: Date(timeIntervalSince1970: resetsAt),
                 observedAt: observedAt

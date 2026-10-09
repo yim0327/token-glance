@@ -227,6 +227,15 @@ struct InstallerSandbox {
         #expect(installer.hookCommand == #"'/Users/a b/Library/Application Support/It'\''s/bin/token-glance-hook'"#)
     }
 
+    @Test func reportsWhetherAStatusLineExists() throws {
+        let box = try InstallerSandbox(); defer { box.cleanup() }
+        #expect(!box.installer.hasStatusLine)
+        try box.write(#"{"model": "x"}"#)
+        #expect(!box.installer.hasStatusLine)
+        try box.write(InstallerSandbox.omcSettings)
+        #expect(box.installer.hasStatusLine)
+    }
+
     @Test func uninstallWithoutInstallIsANoOp() throws {
         let box = try InstallerSandbox(); defer { box.cleanup() }
         try box.write(InstallerSandbox.omcSettings)

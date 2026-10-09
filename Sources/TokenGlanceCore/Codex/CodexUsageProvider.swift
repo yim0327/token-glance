@@ -33,7 +33,7 @@ public struct CodexUsageProvider: UsageProvider {
         return UsageSnapshot(limits: limits, records: parser.records, limitsIssue: limits.isEmpty ? .noData : nil)
     }
 
-    @Sendable static func isRollout(_ name: String) -> Bool {
+    @Sendable public static func isRollout(_ name: String) -> Bool {
         name.hasPrefix("rollout-") && name.hasSuffix(".jsonl")
     }
 }

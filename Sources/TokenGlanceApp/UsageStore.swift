@@ -1,81 +1,233 @@
+import AppKit
 import Foundation
 import Observation
+import os
 import TokenGlanceCore
 
-/// App state: one `ToolState` per tool, refreshed every 60 seconds and on demand.
-/// Parsing runs off the main thread; only the results are applied on the main actor.
+/// App state: one `ToolState` per tool.
+///
+/// Updates are driven by FSEvents on the log directories and the hook cache, with a 5-minute
+/// fallback poll, a refresh at the next limit reset, after wake, and on demand. Each refresh only
+/// reads bytes appended since the last one (`UsageLoader`); work runs off the main thread.
 @Observable @MainActor
 final class UsageStore {
     private(set) var claude = ToolState(tool: .claude)
     private(set) var codex = ToolState(tool: .codex)
     private(set) var isRefreshing = false
-    var percentMode: PercentMode = .remaining
+    /// 0...1 while the first full scan runs, `nil` otherwise.
+    private(set) var scanProgress: Double?
+    /// Time of the last completed refresh (shown as freshness), kept apart from tool states.
+    private(set) var lastRefresh: Date?
+    /// Saved to UserDefaults on change; see `apply(_:)`.
+    private(set) var settings = AppSettings.load(from: .standard)
+
+    var percentMode: PercentMode { settings.percentMode }
 
     @ObservationIgnored private let loader = UsageLoader()
-    @ObservationIgnored private var timer: Timer?
+    @ObservationIgnored private var watcher: FileWatcher?
+    @ObservationIgnored private var pollTimer: Timer?
+    @ObservationIgnored private var resetTimer: Timer?
+    @ObservationIgnored private var refreshAgain = false
+    /// Numbers only (durations, byte counts); never paths or content.
+    @ObservationIgnored private let log = Logger(subsystem: "io.github.yim0327.token-glance", category: "refresh")
 
-    static let pollInterval: TimeInterval = 60
+    static let fallbackPollInterval: TimeInterval = 300
+    static let eventLatency: TimeInterval = 1.5
 
     var states: [ToolState] { [claude, codex] }
 
     func start() {
+        loader.configure(roots: LogRoots.resolve(settings))
         refresh()
-        timer = Timer.scheduledTimer(withTimeInterval: Self.pollInterval, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refresh() }
+        startWatching()
+        pollTimer = Timer.scheduledTimer(withTimeInterval: Self.fallbackPollInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.refresh(checkHook: true) }
         }
-        timer?.tolerance = 10
+        pollTimer?.tolerance = 30
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refresh(checkHook: true) }
+        }
     }
 
-    func refresh(force: Bool = false) {
-        guard !isRefreshing else { return }
+    /// Saves new settings. Changed log folders rebuild the indexes and the file watcher.
+    func apply(_ newSettings: AppSettings) {
+        let newSettings = newSettings.normalized
+        guard newSettings != settings else { return }
+        let rootsChanged = LogRoots.resolve(newSettings) != LogRoots.resolve(settings)
+        settings = newSettings
+        newSettings.save(to: .standard)
+        if rootsChanged {
+            loader.configure(roots: LogRoots.resolve(newSettings))
+            claude.refreshedAt = nil  // shows indexing progress again
+            startWatching()
+        }
+        refresh()
+    }
+
+    /// The installer for the Claude config folder currently in use.
+    func makeInstaller() -> StatuslineInstaller {
+        StatuslineInstaller(settingsURL: LogRoots.resolve(settings).claudeSettingsFile, paths: TokenGlancePaths.default(),
+                            hookSource: HookLocator.bundledHook)
+    }
+
+    /// Runs a hook action off the main thread, then re-reads the hook state. Returns an error message on failure.
+    func perform(_ action: HookAction) async -> String? {
+        let installer = makeInstaller()
+        let result: Result<StatuslineInstaller.Status, Error> = await Task.detached { Result { try action.perform(with: installer) } }.value
+        refresh(checkHook: true)
+        if case .failure(let error) = result { return HookErrorText.describe(error) }
+        return nil
+    }
+
+    private func startWatching() {
+        let filter = WatchFilter(rateLimitCache: TokenGlancePaths.default().rateLimitCache)
+        watcher = FileWatcher(paths: loader.watchedPaths, latency: Self.eventLatency) { [weak self] paths in
+            MainActor.assumeIsolated {
+                let relevant = filter.isRelevant(paths)
+                self?.log.debug("fsevents: \(paths.count, privacy: .public) paths, relevant: \(relevant, privacy: .public)")
+                if relevant { self?.refresh() }
+            }
+        }
+        if watcher == nil { log.error("FSEvents stream could not be created; relying on polling") }
+    }
+
+    /// Incremental refresh. `checkHook` also re-reads the hook installation state from settings.json.
+    func refresh(checkHook: Bool = false) {
+        guard !isRefreshing else {
+            refreshAgain = true  // coalesce: run once more after the current refresh
+            return
+        }
         isRefreshing = true
         let loader = loader
+        let firstScan = claude.refreshedAt == nil
+        let enabled = (claude: settings.claudeEnabled, codex: settings.codexEnabled)
+        if firstScan { scanProgress = 0 }
+        let progress: @Sendable (Double) -> Void = { value in
+            Task { @MainActor [weak self] in if self?.scanProgress != nil { self?.scanProgress = value } }
+        }
+        let started = Date()
+        let bytesBefore = loader.bytesRead
         Task {
-            let (claude, codex) = await Task.detached(priority: .utility) { loader.load(now: Date(), force: force) }.value
-            self.claude = claude
-            self.codex = codex
+            let (claude, codex) = await Task.detached(priority: .utility) {
+                loader.load(now: Date(), enabled: enabled, checkHook: checkHook || firstScan, progress: firstScan ? progress : nil)
+            }.value
+            // Replace state only when something besides the refresh time changed, so SwiftUI and the
+            // label are not recomputed for no-op refreshes.
+            if !claude.sameContent(as: self.claude) || self.claude.refreshedAt == nil { self.claude = claude }
+            if !codex.sameContent(as: self.codex) || self.codex.refreshedAt == nil { self.codex = codex }
+            self.lastRefresh = Date()
+            log.info("refresh: \(Int(Date().timeIntervalSince(started) * 1000), privacy: .public) ms, \(loader.bytesRead - bytesBefore, privacy: .public) bytes read")
+            self.scanProgress = nil
             self.isRefreshing = false
+            scheduleResetRefresh()
+            if refreshAgain {
+                refreshAgain = false
+                refresh()
+            }
+        }
+    }
+
+    /// Refreshes right after the earliest upcoming reset so the label flips to "reset" on time.
+    private func scheduleResetRefresh() {
+        resetTimer?.invalidate()
+        let next = states.flatMap { $0.summary?.limits ?? [] }.compactMap(\.resetsAt).filter { $0 > Date() }.min()
+        guard let next else { return }
+        resetTimer = Timer.scheduledTimer(withTimeInterval: next.timeIntervalSinceNow + 1, repeats: false) { [weak self] _ in
+            Task { @MainActor in self?.refresh() }
         }
     }
 }
 
-/// Reads both tools. Claude logs are re-parsed only when the log files changed.
+/// Keeps the incremental indexes and turns them into `ToolState`s. Not main-actor bound; calls are
+/// serialized with a lock.
 final class UsageLoader: @unchecked Sendable {
     private let lock = NSLock()
-    private var claudeSignature: FilesSignature?
-    private var claudeRecords: [UsageRecord] = []
+    private var claudeIndex = ClaudeUsageIndex()
+    private var codexIndex = CodexUsageIndex()
+    private var hookStatus: StatuslineInstaller.Status?
+    private var lastPrune = Date.distantPast
 
     private let paths = TokenGlancePaths.default()
     private let fileSource = LocalFileSource()
+    private var claudeRoot = ClaudeUsageProvider.defaultProjectsRoot()
+    private var codexHome = CodexUsageProvider.defaultCodexHome()
 
-    func load(now: Date, force: Bool = false) -> (ToolState, ToolState) {
+    /// Records older than this are dropped from memory (the weekly window is at most 7 days back).
+    static let retention: TimeInterval = 8 * 24 * 60 * 60
+
+    var bytesRead: Int {
         lock.lock()
         defer { lock.unlock() }
-        let aggregator = UsageAggregator()
+        return claudeIndex.bytesRead + codexIndex.bytesRead
+    }
 
-        let installer = StatuslineInstaller(settingsURL: StatuslineInstaller.defaultSettingsURL(), paths: paths,
-                                            hookSource: HookLocator.bundledHook)
-        let claudeLogs = fileSource.files(under: ClaudeUsageProvider.defaultProjectsRoot()) { $0.hasSuffix(".jsonl") }
-        let signature = FilesSignature.of(claudeLogs)
-        if force || signature != claudeSignature {
-            var parser = ClaudeLogParser()
-            for url in claudeLogs {
-                if let data = try? fileSource.contents(of: url) { parser.consume(data) }
+    /// Points the loader at new log folders, discarding everything indexed so far.
+    func configure(roots: LogRoots) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard roots.claudeProjects != claudeRoot || roots.codexHome != codexHome || claudeIndex.trackedFileCount == 0 else { return }
+        claudeRoot = roots.claudeProjects
+        codexHome = roots.codexHome
+        claudeIndex = ClaudeUsageIndex()
+        codexIndex = CodexUsageIndex()
+    }
+
+    var watchedPaths: [String] {
+        lock.lock()
+        defer { lock.unlock() }
+        return [claudeRoot.path, codexHome.appendingPathComponent("sessions").path,
+         codexHome.appendingPathComponent("archived_sessions").path, paths.supportDirectory.path]
+    }
+
+    func load(now: Date, enabled: (claude: Bool, codex: Bool) = (true, true), checkHook: Bool = true,
+              progress: (@Sendable (Double) -> Void)? = nil) -> (ToolState, ToolState) {
+        lock.lock()
+        defer { lock.unlock() }
+
+        // Disabled tools are not read at all.
+        let claudeFiles = enabled.claude ? fileSource.files(under: claudeRoot) { $0.hasSuffix(".jsonl") } : []
+        let codexFiles = enabled.codex ? ["sessions", "archived_sessions"].flatMap {
+            fileSource.files(under: codexHome.appendingPathComponent($0), where: CodexUsageProvider.isRollout)
+        } : []
+
+        var reporter: ((Int) -> Void)?
+        if let progress {
+            let total = max(1, (claudeFiles + codexFiles).compactMap { fileSource.stat($0)?.size }.reduce(0, +))
+            var done = 0, lastReported = 0.0
+            reporter = { bytes in
+                done += bytes
+                let fraction = min(1, Double(done) / Double(total))
+                if fraction - lastReported >= 0.02 { lastReported = fraction; progress(fraction) }
             }
-            claudeRecords = parser.records
-            claudeSignature = signature
         }
+        claudeIndex.update(files: claudeFiles, source: fileSource, onRead: reporter)
+        codexIndex.update(files: codexFiles, source: fileSource, onRead: reporter)
+        if now.timeIntervalSince(lastPrune) > 3600 {
+            claudeIndex.prune(before: now - Self.retention)
+            codexIndex.prune(before: now - Self.retention)
+            lastPrune = now
+        }
+
+        if checkHook || hookStatus == nil {
+            hookStatus = StatuslineInstaller(settingsURL: claudeRoot.deletingLastPathComponent().appendingPathComponent("settings.json"),
+                                             paths: paths, hookSource: HookLocator.bundledHook).status()
+        }
+
+        let aggregator = UsageAggregator()
         let cache = ClaudeStatuslineCache(fileURL: paths.rateLimitCache, fileSource: fileSource)
         let claudeSnapshot: UsageSnapshot
         switch cache.read(now: now) {
-        case .available(let windows): claudeSnapshot = UsageSnapshot(limits: windows, records: claudeRecords)
-        case .unavailable(let reason): claudeSnapshot = UsageSnapshot(records: claudeRecords, limitsIssue: reason)
+        case .available(let windows): claudeSnapshot = UsageSnapshot(limits: windows, records: claudeIndex.records)
+        case .unavailable(let reason): claudeSnapshot = UsageSnapshot(records: claudeIndex.records, limitsIssue: reason)
         }
-        let claude = ToolState.make(tool: .claude, snapshot: claudeSnapshot, hookStatus: installer.status(),
-                                    aggregator: aggregator, now: now)
-        let codex = ToolState.make(tool: .codex, snapshot: CodexUsageProvider().snapshot(), hookStatus: nil,
-                                   aggregator: aggregator, now: now)
-        return (claude, codex)
+        let codexLimits = codexIndex.limits
+        let codexSnapshot = UsageSnapshot(limits: codexLimits, records: codexIndex.records, limitsIssue: codexLimits.isEmpty ? .noData : nil)
+        return (
+            ToolState.make(tool: .claude, snapshot: claudeSnapshot, hookStatus: hookStatus, aggregator: aggregator, now: now,
+                           isEnabled: enabled.claude),
+            ToolState.make(tool: .codex, snapshot: codexSnapshot, hookStatus: nil, aggregator: aggregator, now: now,
+                           isEnabled: enabled.codex)
+        )
     }
 }
 
@@ -88,5 +240,17 @@ enum HookLocator {
             Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("token-glance-hook"),
         ]
         return candidates.compactMap { $0 }.first { FileManager.default.isExecutableFile(atPath: $0.path) }
+    }
+}
+
+enum HookErrorText {
+    static func describe(_ error: Error) -> String {
+        switch error as? StatuslineInstaller.InstallerError {
+        case .settingsUnreadable: String(localized: "settings.json could not be read as JSON. Nothing was changed.")
+        case .settingsNotWritable: String(localized: "settings.json is not writable. Nothing was changed.")
+        case .hookSourceMissing: String(localized: "The hook program is missing from the app bundle. Rebuild with scripts/bundle-app.sh.")
+        case .notInstalled: String(localized: "The hook is not installed.")
+        case nil: error.localizedDescription
+        }
     }
 }

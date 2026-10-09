@@ -6,35 +6,60 @@ import Foundation
 /// and the same response can reappear in other files (resumed sessions, subagents). Lines are
 /// deduplicated globally by `message.id` + `requestId`, keeping the snapshot with the highest
 /// `output_tokens` (the final one). See docs/log-schemas.md §1.2.
-public struct ClaudeLogParser {
-    private struct Key: Hashable {
+public struct ClaudeLogParser: LineConsumer {
+    struct Key: Hashable {
         let messageID: String
         let requestID: String?
     }
 
-    private var best: [Key: UsageRecord] = [:]
+    private(set) var best: [Key: UsageRecord] = [:]
     private let timestamps = TimestampParser()
+    private let decoder = JSONDecoder()
 
     public init() {}
 
     /// Feeds the contents of one JSONL file. Lines that are not usable assistant lines are ignored.
     public mutating func consume(_ data: Data) {
-        let decoder = JSONDecoder()
-        for line in JSONLines.lines(in: data) {
-            // Cheap pre-filter: most lines are attachments, user turns, etc.
-            guard line.range(of: Self.assistantMarker) != nil,
-                  let entry = try? decoder.decode(Line.self, from: line),
-                  let record = record(from: entry)
-            else { continue }
-            let key = Key(messageID: record.messageID, requestID: entry.requestId)
-            if let existing = best[key], existing.usage.output >= record.value.usage.output { continue }
-            best[key] = record.value
-        }
+        for line in JSONLines.lines(in: data) { consume(line: line) }
+    }
+
+    /// Feeds one line. Within a parser, a key keeps the first line with the highest `output_tokens`.
+    public mutating func consume(line: Data) {
+        // Cheap pre-filter: most lines are attachments, user turns, etc.
+        guard line.range(of: Self.assistantMarker) != nil,
+              let entry = try? decoder.decode(Line.self, from: line),
+              let record = record(from: entry)
+        else { return }
+        let key = Key(messageID: record.messageID, requestID: entry.requestId)
+        if let existing = best[key], existing.usage.output >= record.value.usage.output { return }
+        best[key] = record.value
     }
 
     /// Deduplicated records, ordered by time.
     public var records: [UsageRecord] {
-        best.values.sorted { ($0.timestamp, $0.model) < ($1.timestamp, $1.model) }
+        Self.sorted(best.values)
+    }
+
+    /// Merges per-file parsers in path order with the same rule as parsing the files one after
+    /// another: a later file replaces a key only with a strictly higher `output_tokens`.
+    static func merged<S: Sequence>(_ parsers: S) -> [UsageRecord] where S.Element == ClaudeLogParser {
+        var merged: [Key: UsageRecord] = [:]
+        for parser in parsers {
+            for (key, record) in parser.best {
+                if let existing = merged[key], existing.usage.output >= record.usage.output { continue }
+                merged[key] = record
+            }
+        }
+        return sorted(merged.values)
+    }
+
+    /// Forgets records older than `cutoff`.
+    public mutating func prune(before cutoff: Date) {
+        best = best.filter { $0.value.timestamp >= cutoff }
+    }
+
+    private static func sorted<S: Sequence>(_ records: S) -> [UsageRecord] where S.Element == UsageRecord {
+        records.sorted(by: UsageRecord.precedes)
     }
 
     private static let assistantMarker = Data(#""assistant""#.utf8)

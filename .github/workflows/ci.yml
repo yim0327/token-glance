@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.4.app
+          swift --version
+
+      - name: Build
+        run: swift build
+
+      - name: Test
+        # scripts/test.sh is plain `swift test` with Xcode. Guard against a run that silently
+        # executes zero tests (what happens with Command Line Tools only) by checking the count.
+        run: |
+          set -o pipefail
+          ./scripts/test.sh 2>&1 | tee test.log
+          count=$(sed -n 's/.*Test run with \([0-9][0-9]*\) tests.*passed.*/\1/p' test.log | tail -1)
+          echo "tests run: ${count:-0}"
+          if [ "${count:-0}" -lt 50 ]; then
+            echo "::error::expected at least 50 tests to run, got ${count:-0}"
+            exit 1
+          fi
+
+      - name: Bundle app
+        run: ./scripts/bundle-app.sh

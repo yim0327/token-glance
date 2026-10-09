@@ -5,13 +5,17 @@ import TokenGlanceCore
 /// so they stay exact while the popover is open and never re-read files.
 struct PopoverView: View {
     let store: UsageStore
+    let openSettings: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ToolSection(state: store.claude)
-            Divider()
-            ToolSection(state: store.codex)
-            Divider()
+            if let progress = store.scanProgress {
+                ProgressView(value: progress) { Text("Indexing logs…").font(.caption) }
+            }
+            ForEach(store.states.filter(\.isEnabled), id: \.tool) { state in
+                ToolSection(state: state)
+                Divider()
+            }
             footer
         }
         .padding(14)
@@ -26,14 +30,15 @@ struct PopoverView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Button("Refresh") { store.refresh(force: true) }
+            Button("Settings…", action: openSettings)
+            Button("Refresh") { store.refresh(checkHook: true) }
                 .disabled(store.isRefreshing)
             Button("Quit") { NSApplication.shared.terminate(nil) }
         }
     }
 
     private func freshness(now: Date) -> String {
-        guard let refreshed = store.states.compactMap(\.refreshedAt).max() else { return String(localized: "Loading…") }
+        guard let refreshed = store.lastRefresh else { return String(localized: "Loading…") }
         return String(localized: "Updated \(DisplayFormat.relativeAge(of: refreshed, now: now))")
     }
 }
@@ -63,8 +68,8 @@ private struct ToolSection: View {
 
     private var hookWarning: String {
         switch state.hookStatus {
-        case .overwritten: String(localized: "Hook replaced — reinstall in Settings (coming in M4)")
-        case .notInstalled: String(localized: "Statusline hook not installed")
+        case .overwritten: String(localized: "Hook replaced — Repair in Settings")
+        case .notInstalled: String(localized: "Hook not installed — Install in Settings")
         case .hookMissing: String(localized: "Hook binary missing")
         case .settingsUnreadable: String(localized: "settings.json unreadable")
         case .installed, nil: ""

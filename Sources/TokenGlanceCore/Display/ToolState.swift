@@ -46,6 +46,13 @@ public struct ToolState: Equatable, Sendable {
         self.refreshedAt = refreshedAt
     }
 
+    /// Equal apart from `refreshedAt`.
+    public func sameContent(as other: ToolState) -> Bool {
+        var copy = other
+        copy.refreshedAt = refreshedAt
+        return copy == self
+    }
+
     public var displayName: String {
         switch tool {
         case .claude: "Claude"

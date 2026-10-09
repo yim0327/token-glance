@@ -7,7 +7,10 @@ cd "$(dirname "$0")/.."
 
 config="${CONFIG:-release}"
 bundle_id="io.github.yim0327.token-glance"
-version="$(sed -n 's/.*static let version = "\(.*\)".*/\1/p' Sources/TokenGlanceCore/TokenGlanceCore.swift)"
+# Single source of truth for the version: the VERSION file (e.g. 0.1.0). The build number is the
+# commit count, so every build from a later commit sorts higher.
+version="$(tr -d ' \n' < VERSION)"
+build="$(git rev-list --count HEAD 2>/dev/null || echo 1)"
 
 swift build -c "$config" --product TokenGlanceApp
 swift build -c "$config" --product token-glance-hook
@@ -33,7 +36,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
     <key>CFBundleDisplayName</key><string>Token Glance</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>${version}</string>
-    <key>CFBundleVersion</key><string>${version}</string>
+    <key>CFBundleVersion</key><string>${build}</string>
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>LSUIElement</key><true/>
     <key>NSHumanReadableCopyright</key><string>MIT License. Not affiliated with Anthropic or OpenAI.</string>
