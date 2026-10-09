@@ -115,6 +115,8 @@ M1 재검증 (2026-10-09): codex-cli 0.155.1, 실제 rollout 1개 파일 / 60 �
 - `${CODEX_HOME:-~/.codex}/sessions/YYYY/MM/DD/rollout-YYYY-MM-DDTHH-MM-SS-<uuid>.jsonl` ✅ (날짜 디렉터리 + 로컬 시각 기반 파일명)
 - `~/.codex/archived_sessions/` ❓ 이 머신엔 없음 (바이너리 문자열엔 존재). 있으면 함께 탐색한다.
 - SQLite(`state_5.sqlite` `threads.rollout_path`)는 인덱스. 파서는 JSONL만 읽는다.
+- (2026-10-09 관찰) `thread_history_1.sqlite`가 생김: `thread_turns`/`thread_items`와 `thread_history_projection_state.next_rollout_byte_offset`로 rollout을 **투영**한 것으로 보이며, rollout JSONL은 계속 기록됨. `threads.history_mode` 관찰값은 `paginated`. 이 DB가 rollout 없이 단독으로 쓰이는 경우가 있는지는 ❓.
+- (2026-10-09 관찰) Codex는 세션 동안 rollout 파일을 열어 둔 채 이어 쓰며, FSEvents는 생성 이벤트만 보고하고 이어 쓰기는 보고하지 않음 → 앱은 최근 rollout을 stat 폴링 (`docs/perf.md`).
 
 ### 2.2 라인 공통 / 타입 분포
 

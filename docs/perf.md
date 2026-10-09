@@ -113,3 +113,31 @@ until the popover was opened.
 Opening the popover raised the footprint to a 163 MB transient peak, then 43 MB while open, and
 CPU to ~1% while it stays open (1-second countdown redraws). Candidates: drop the hosting
 controller when the popover closes, tick only the countdown text, update freshness every 30 s.
+
+## Codex live updates, follow-up (2026-10-09)
+
+Symptom: Codex token totals stopped updating again during real use.
+
+Observed (probe: times, event kinds, byte counts, `token_count` direction only):
+
+- Existing, most recent session: updated within ~1–2 s (the first fix works).
+- **New session:** the rollout's creation event triggered a refresh before Codex wrote any
+  `token_count`. The file then had no recorded growth, so it was not in the active set; its usage
+  appeared only with the 5-minute poll (observed 7 s by coincidence; up to 5 min).
+- **Older session used again / after an app restart:** not the newest file and no growth seen by
+  this process, so not watched either. One observation updated after 5.4 s only because an
+  unrelated Claude log event happened to trigger a refresh.
+
+Fix: files that appear after the first scan count as just grown, and every rollout modified within
+24 hours is stat-polled every 2 s (sizes only; reading stays incremental).
+
+After the fix (real Codex use, single app instance, build 10):
+
+| Case | `token_count` written | App updated | Delay |
+|---|---|---|---|
+| New session | 17:08:56.71 | 17:08:56.74 | 0.03 s |
+| Most recent existing session | 17:08:23.30 | 17:08:24.74 | 1.4 s |
+| Older session resumed after restart | 17:11:27.31 | 17:11:28.74 | 1.4 s |
+
+5 minutes including these: CPU 0.25% average (max 1.2% per 5 s), footprint 24 MB average,
+44.9 MB peak; 7 active-Codex refreshes (avg 15 ms), 25 FSEvents refreshes (avg 14 ms).
