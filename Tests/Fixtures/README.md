@@ -11,7 +11,8 @@ against a real sample yet.
 | File | Source of structure | Notes |
 |---|---|---|
 | `claude-usage-sample.jsonl` | Claude Code 2.1.295 project logs (verified) | 11 lines |
-| `codex-token-count-sample.synthetic.jsonl` | codex-cli 0.155.1 binary field names + public format (unverified) | 7 lines |
+| `codex-token-count-sample.jsonl` | codex-cli 0.155.1 rollout (verified in M1) | 11 lines |
+| `codex-edge-cases.synthetic.jsonl` | same structure; cases **not observed** in real logs | 8 lines |
 | `claude-statusline-stdin-sample.json` | Claude Code 2.1.295 statusline stdin (verified) | with `rate_limits` |
 | `claude-statusline-stdin-no-rate-limits.synthetic.json` | same, `rate_limits` key removed (absence shape unverified) | |
 
@@ -33,18 +34,44 @@ All timestamps are relative to `T0 = 2026-10-08T01:00:00Z` (epoch `1791421200`).
 
 Totals after dedupe (A + B + C + F):
 
-| input | output | cache_creation | cache_read |
-|---|---|---|---|
-| 21 | 794 | 3500 | 58000 |
+| input | output | cache_creation | cache_read | thinking (reasoning) |
+|---|---|---|---|---|
+| 21 | 794 | 3500 | 58000 | 120 |
 
-### `codex-token-count-sample.synthetic.jsonl`
+Per model: `claude-sonnet-5` 8/184/2000/35000, `claude-opus-5-5` 3/410/500/18000 (thinking 120),
+`claude-haiku-4-5-20251001` 10/200/1000/5000.
 
-- First `token_count` has `info: null` (rate limits only).
-- Three turns, plus one repeated cumulative snapshot after turn 2 (must not be double counted).
-- Final session totals (delta sum == last `total_token_usage`):
-  `input 25000, cached_input 43000, output 1550, reasoning_output 450`.
-- Latest `rate_limits`: primary `20.5%` / 300 min / resets `T0 + 4h = 1791435600`;
-  secondary `27.0%` / 10080 min / resets `T0 + 5d = 1791853200`.
+### `codex-token-count-sample.jsonl`
+
+One session, three `token_count` events (each preceded by a `token_usage_record`), model switches
+from `gpt-6-sol` to `gpt-6-astra` before the third event. Codex `input_tokens` **includes**
+`cached_input_tokens`; normalized `input` below is `input_tokens - cached_input_tokens`.
+
+| | raw input | cached | output | reasoning | normalized input | cacheRead | cacheWrite |
+|---|---|---|---|---|---|---|---|
+| total | 25000 | 18500 | 1550 | 450 | 6500 | 18500 | 0 |
+| `gpt-6-sol` | 21000 | 15000 | 1300 | 450 | 6000 | 15000 | 0 |
+| `gpt-6-astra` | 4000 | 3500 | 250 | 0 | 500 | 3500 | 0 |
+
+- Latest `rate_limits` (observed `T0 + 6m`): 300 min `20.5%` resets `T0 + 4h = 1791435600`;
+  10080 min `27.0%` resets `T0 + 5d = 1791853200`.
+
+### `codex-edge-cases.synthetic.jsonl`
+
+Second session starting `T0 + 1h`, model `gpt-6-sol`, no cached tokens.
+
+| Line case | Expectation |
+|---|---|
+| `info: null` (with rate limits) | no tokens; rate limits still used |
+| first snapshot total 1000/100 | +1000 input, +100 output |
+| identical repeated snapshot | +0 |
+| cumulative **decreased** to 500/50 | fall back to `last_token_usage`: +500 / +50 |
+| total 800/80, last 300/30, `rate_limits: null` | +300 / +30; rate limits ignored |
+| malformed JSON line | skipped |
+
+- Session totals: input `1800`, output `180`.
+- Latest non-null `rate_limits` (observed `T0 + 1h2m`): 300 min `31.0%`, 10080 min `28.5%`
+  (same reset times as above). Across both Codex files this is the newest snapshot.
 
 ### `claude-statusline-stdin-sample.json`
 

@@ -2,7 +2,7 @@
 
 M0 검증 결과. 모든 확인은 **읽기 전용**으로, 키 이름·타입·값의 형태(자릿수, 문자 패턴)만 추출했다. 프롬프트/응답 본문, 경로, 식별자 값은 기록하지 않는다.
 
-- 검증일: 2026-10-09
+- 검증일: 2026-10-09 (Codex는 M1에서 재검증)
 - 환경: macOS 26.6.2 (arm64), Claude Code 2.1.295, codex-cli 0.155.1, oh-my-claudecode 5.6.1
 - 표기: ✅ 확인됨 / ⚠️ 예상과 다름 / ❓ 미확인
 
@@ -16,8 +16,9 @@ M0 검증 결과. 모든 확인은 **읽기 전용**으로, 키 이름·타입·
 | 7.2 `message.usage` 4개 필드 | ✅ | 추가 필드 다수 (아래 표) |
 | 7.2 `message.id` + `requestId` dedupe | ⚠️ | 키는 맞지만 **중복이 매우 많고, 중복 간 `output_tokens`가 다름** → "첫 줄 채택" 금지, 키별 최댓값(=마지막 줄) 채택. 파일 간 중복도 존재 |
 | 7.1 "로컬 로그에는 한도 정보가 없다" | ⚠️ | 한도 **도달 시**에만 assistant 라인에 `quotaLimits` (resetsAt 포함, % 없음) 기록됨 |
-| 7.3 `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` | ❓ | 이 머신에 `~/.codex/sessions` 없음 (Codex 세션 실행 이력 0). 실제 샘플 미확보 |
-| 7.3 `token_count` / `rate_limits` 필드명 | ❓(간접 근거) | codex 바이너리 문자열에 필드명 존재, `resets_in_seconds`는 없음 |
+| 7.3 `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` | ✅ | M1 재검증. 파일명 `rollout-<local datetime>-<uuid>.jsonl` |
+| 7.3 `token_count` / `rate_limits` 필드 | ✅ | primary=300분, secondary=10080분, `resets_at` epoch 초. 신규: `cache_write_input_tokens`, `token_usage_record` 라인 |
+| 7.3 Codex input 의미 | ⚠️ | `input_tokens`가 `cached_input_tokens`를 포함 (Claude와 다름) |
 | OMC HUD stdin/rate_limits 처리 | ✅ | stdin + **비공식 OAuth usage API 병행** (아래) |
 
 ---
@@ -57,7 +58,7 @@ M0 검증 결과. 모든 확인은 **읽기 전용**으로, 키 이름·타입·
 | `message.usage.cache_read_input_tokens` | int | ✅ | |
 | `message.usage.cache_creation.ephemeral_5m_input_tokens` | int | ✅ | 신규 (분류용) |
 | `message.usage.cache_creation.ephemeral_1h_input_tokens` | int | ✅ | 신규 |
-| `message.usage.output_tokens_details.thinking_tokens` | int | ✅ | 일부 라인에만 (5,524/7,225) |
+| `message.usage.output_tokens_details.thinking_tokens` | int | ✅ | 일부 라인에만 (5,524/7,225). 관찰 5,640/5,640에서 `≤ output_tokens` → output에 포함으로 추정 |
 | `message.usage.server_tool_use.{web_search_requests,web_fetch_requests}` | int | ✅ | 일부 라인 |
 | `message.usage.service_tier`, `speed`, `inference_geo` | string\|null | ✅ | 무시 |
 | `message.usage.iterations`, `fallback_credit` | array/null | ✅ | 무시 |
@@ -101,39 +102,69 @@ M0 검증 결과. 모든 확인은 **읽기 전용**으로, 키 이름·타입·
 
 ## 2. Codex CLI
 
-### 2.1 로컬 상태 ❓
+M1 재검증 (2026-10-09): codex-cli 0.155.1, 실제 rollout 1개 파일 / 60 라인, 파싱 실패 0. 키·타입·형태만 확인.
 
-- `~/.codex/sessions/` **없음**. `CODEX_HOME` 미설정.
-- `~/.codex/` 에는 SQLite DB들(`state_5.sqlite`, `logs_2.sqlite`, `goals_1`, `memories_1`, `queue_1`)과 `config.toml`, `auth.json`(읽지 않음) 등이 있다.
-- `state_5.sqlite` `threads` 테이블: **0행**, `logs_2.sqlite` `logs`: **0행** → 이 머신에서 Codex 세션이 실행된 적 없음.
-- `threads` 스키마에 `rollout_path TEXT NOT NULL`, `tokens_used INTEGER`, `cli_version`, `model` 컬럼이 있고, `rollout_migration_*` 테이블이 있다 → **rollout JSONL 파일은 여전히 존재하며 SQLite는 인덱스 역할**로 추정. 경로 형식은 미확인.
-- 바이너리 문자열에 `archived_sessions` 존재 → 보관된 세션은 별도 디렉터리(`~/.codex/archived_sessions/`)일 가능성. 탐색 대상에 포함 검토.
+### 2.1 경로 ✅
 
-### 2.2 `token_count` 이벤트 (간접 근거만) ❓
+- `${CODEX_HOME:-~/.codex}/sessions/YYYY/MM/DD/rollout-YYYY-MM-DDTHH-MM-SS-<uuid>.jsonl` ✅ (날짜 디렉터리 + 로컬 시각 기반 파일명)
+- `~/.codex/archived_sessions/` ❓ 이 머신엔 없음 (바이너리 문자열엔 존재). 있으면 함께 탐색한다.
+- SQLite(`state_5.sqlite` `threads.rollout_path`)는 인덱스. 파서는 JSONL만 읽는다.
 
-codex 0.155.1 바이너리 문자열 검색 결과(필드명 존재 여부만):
+### 2.2 라인 공통 / 타입 분포
 
-| 문자열 | 존재 |
-|---|---|
-| `token_count`, `total_token_usage`, `last_token_usage` | 있음 |
-| `rate_limits`, `used_percent`, `window_minutes`, `resets_at` | 있음 |
-| `cached_input_tokens`, `reasoning_output_tokens`, `model_context_window`, `plan_type`, `credits` | 있음 |
-| `resets_in_seconds` (구버전 필드) | **없음** → `resets_at` 사용 |
-| `wham/usage` | 있음 (비공식 API, 기본 OFF) |
+공통 최상위 키: `timestamp` (ISO 8601 UTC, ms, `Z`), `type`, `payload`, `ordinal` (int, 신규 ⚠️).
 
-예상 구조(공개 소스 기준, **실제 샘플로 미검증**):
+| `type` / `payload.type` | 개수 | 용도 |
+|---|---|---|
+| `session_meta` | 1 | `payload.{id, session_id, cwd, cli_version, originator, source, model_provider, timestamp}` — 경로·ID는 저장 금지 |
+| `turn_context` | 2 | **`payload.model`** (턴 모델), `effort`, `cwd` 등 |
+| `event_msg` / `token_count` | 6 | 토큰 누적 + rate_limits |
+| `token_usage_record` ⚠️ | 6 | 응답 단위 usage (아래 2.4) |
+| `event_msg` / `task_started`, `task_complete`, `item_completed`, `thread_settings_applied` | 2/2/13/3 | 무시 |
+| `response_item` / `message`, `reasoning`, `custom_tool_call(_output)` | 11/4/4/4 | 본문 — 읽지 않음 |
+| `world_state` | 2 | 무시 |
 
-```
-{"timestamp": ISO8601, "type": "event_msg", "payload": {
-  "type": "token_count",
-  "info": null | { "total_token_usage": Usage, "last_token_usage": Usage, "model_context_window": int },
-  "rate_limits": { "primary":   { "used_percent": float, "window_minutes": int, "resets_at": int(epoch s) },
-                   "secondary": { ... }, "plan_type"?: string, "credits"?: object } } }
-Usage = { input_tokens, cached_input_tokens, output_tokens, reasoning_output_tokens, total_tokens }
-```
+### 2.3 `event_msg` / `token_count` ✅
 
-- 미확인 사항: 실제 경로/파일명, `info: null` 이벤트 빈도, 동일 누적값 반복 이벤트 존재 여부, `resets_at` 단위(초 추정), `primary`/`secondary`가 항상 5h/7d인지(`window_minutes`로 판별해야 함).
-- **조치**: Codex 세션을 한 번 실행한 뒤 재검증 (M1 시작 전 권장). 그전까지 fixture는 synthetic.
+| 필드 | 타입 | 상태 | 형태 / 비고 |
+|---|---|---|---|
+| `payload.info` | object\|null | ✅ (null ❓) | 관찰 6/6 모두 object. null 이벤트는 관찰되지 않음 → 방어적으로 처리 |
+| `payload.info.total_token_usage` | Usage | ✅ | 세션 누적 |
+| `payload.info.last_token_usage` | Usage | ✅ | 직전 이벤트 이후 증가분. **관찰된 모든 연속 쌍에서 `total[i] - total[i-1] == last[i]`**, 첫 이벤트는 `total == last` |
+| `payload.info.model_context_window` | int | ✅ | |
+| `payload.rate_limits.primary.used_percent` | float | ✅ | 0~100 |
+| `payload.rate_limits.primary.window_minutes` | int | ✅ | `300` (5h) |
+| `payload.rate_limits.primary.resets_at` | int | ✅ | Unix epoch **초** (10자리) |
+| `payload.rate_limits.secondary.*` | | ✅ | `window_minutes = 10080` (7d), 나머지 동일 |
+| `payload.rate_limits.limit_id` | string | ⚠️ 신규 | `"codex"` |
+| `payload.rate_limits.limit_name`, `individual_limit`, `rate_limit_reached_type`, `spend_control_reached` | null | ⚠️ 신규 | 관찰값 모두 null |
+| `payload.rate_limits.plan_type` | string | ✅ | 예: `plus` |
+| `payload.rate_limits.credits.{has_credits, unlimited, balance}` | bool/bool/string | ⚠️ 신규 | `balance`는 숫자 문자열 |
+
+Usage 객체: `input_tokens`, `cached_input_tokens`, **`cache_write_input_tokens`** (⚠️ 신규), `output_tokens`, `reasoning_output_tokens`, `total_tokens`.
+
+- 관계 (관찰 6/6): `total_tokens == input_tokens + output_tokens`, `cached_input_tokens ≤ input_tokens`, `reasoning_output_tokens ≤ output_tokens`.
+  → **input은 cached를 포함**, output은 reasoning을 포함. Claude와 의미가 다르므로 정규화 필요 (`input(non-cached) = input - cached`).
+- 동일 누적값 반복 이벤트: 관찰 0건 ❓ (샘플이 작음). 파서는 delta 0으로 처리.
+- `info == null` 이벤트: 관찰 0건 ❓. 파서는 토큰은 건너뛰고 `rate_limits`만 사용.
+- 누적값 감소(리셋/컴팩션 등): 관찰 0건 ❓. 감소 시 `last_token_usage`로 대체.
+
+### 2.4 `token_usage_record` ⚠️ (예상 밖)
+
+`payload.{thread_id, turn_id, root_turn_id, session_id, response_id}` (ID — 저장 금지) + `payload.usage`, `payload.turn_token_usage`, `payload.thread_token_usage` (각각 Usage 객체). 각 `token_count` 직전에 1개씩 나타난다.
+`token_count`만으로 집계가 성립하므로 M1에서는 사용하지 않는다. `response_id`는 향후 dedupe 키 후보.
+
+### 2.5 모델명 ✅
+
+- `turn_context.payload.model` (턴마다). `token_count`에는 모델이 없으므로 **직전 `turn_context`의 모델**에 귀속시킨다.
+- 한 세션 안에서 모델이 바뀔 수 있음 (관찰: 2개 턴, 서로 다른 모델).
+- `event_msg/thread_settings_applied`, `world_state`에도 모델 필드가 있으나 사용하지 않는다.
+
+### 2.6 미확인 (Codex)
+
+- `info: null`, 반복 스냅샷, 누적 감소의 실제 발생 여부 (세션 1개만 관찰).
+- 세션 재개(resume) 시 같은 파일에 append인지 새 파일인지, fork 시 누적값 복제 여부.
+- `archived_sessions` 경로 구조.
 
 ---
 
@@ -207,7 +238,7 @@ Claude Code ──stdin──▶ token-glance-hook
 
 | 항목 | 검증 방법 | 시점 |
 |---|---|---|
-| Codex rollout 경로·`token_count` 실제 구조 | Codex 세션 1회 실행 후 같은 방식으로 키/타입 추출 | M1 전 |
+| Codex `info: null`·반복 스냅샷·누적 감소, resume/fork 동작 | 세션이 더 쌓인 뒤 재검증 | 수시 |
 | `rate_limits` 최소 Claude Code 버전 | changelog 확인 | M2 |
 | stdin에 `rate_limits`가 없을 때의 형태 | API 키 사용자 또는 첫 응답 전 stdin 캡처 | M2 |
 | Claude Code 취소 시그널과 자식 프로세스 정리 | 훅 프로토타입으로 측정 | M2 |
