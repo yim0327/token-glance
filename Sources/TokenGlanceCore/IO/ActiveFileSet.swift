@@ -9,17 +9,27 @@ public struct ActiveFileSet: Sendable {
     public let window: TimeInterval
     private var sizes: [URL: Int] = [:]
     private var lastGrowth: [URL: Date] = [:]
+    /// False until the first update; files present then are not treated as new.
+    private var hasBaseline = false
 
     public init(window: TimeInterval) {
         self.window = window
     }
 
     /// Records the sizes seen by the latest refresh.
+    ///
+    /// A file that appears after the first update (a new session) counts as just grown: Codex creates
+    /// the file before it writes any usage, so it must be watched from the moment it shows up.
     public mutating func update(sizes newSizes: [URL: Int], now: Date) {
-        for (url, size) in newSizes where sizes[url] != nil && sizes[url] != size {
-            lastGrowth[url] = now
+        for (url, size) in newSizes {
+            if let previous = sizes[url] {
+                if previous != size { lastGrowth[url] = now }
+            } else if hasBaseline {
+                lastGrowth[url] = now
+            }
         }
         sizes = newSizes
+        hasBaseline = true
         lastGrowth = lastGrowth.filter { newSizes[$0.key] != nil }
         referenceTime = now
     }

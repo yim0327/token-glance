@@ -187,6 +187,28 @@ struct CodexIncrementalTests {
         #expect(index.records.reduce(TokenUsage.zero) { $0 + $1.usage } == TokenUsage(input: 8300, output: 1730, cacheRead: 18500, reasoning: 450))
     }
 
+    /// A session file that appears after the first sync and then grows in partial chunks ends up
+    /// identical to a full parse (the new-session path that previously waited for the slow poll).
+    @Test(arguments: 0..<20)
+    func sessionCreatedAfterFirstSyncMatchesFullParse(seed: UInt64) throws {
+        var rng = SplitMix64(state: seed)
+        let first = try Fixtures.data("codex-token-count-sample.jsonl")
+        let second = try Fixtures.data("codex-edge-cases.synthetic.jsonl")
+        var tree = MemoryTree(root: "/c")
+        var index = CodexUsageIndex()
+        tree.set("2026/10/08/rollout-a.jsonl", first)
+        index.update(files: tree.list(), source: tree.source)
+        var cut = 0
+        while cut < second.count {
+            cut = min(second.count, cut + Int.random(in: 1...250, using: &rng))
+            tree.set("2026/10/09/rollout-b.jsonl", second.prefix(cut))  // new date folder, new session
+            index.update(files: tree.list(), source: tree.source)
+        }
+        let full = fullCodex(tree)
+        #expect(index.records == full.records)
+        #expect(index.limits == full.limits)
+    }
+
     @Test func rotatedSessionFileIsReparsedAndDeletedFileDropsItsData() throws {
         var tree = MemoryTree(root: "/c")
         var index = CodexUsageIndex()
