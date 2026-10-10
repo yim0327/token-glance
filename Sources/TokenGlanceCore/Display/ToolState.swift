@@ -103,7 +103,8 @@ public struct ToolState: Equatable, Sendable {
             if hadReset && state.session == nil {
                 state.unavailableReason = .awaitingFreshLimit
             }
-            state.limitSource = "Local logs"
+            // Without online checks local logs are the only source, so no source is named; the
+            // online fallback names it. The observation time is kept for that fallback.
             state.limitObservedAt = snapshot.limits.map(\.observedAt).max()
         }
         return state
