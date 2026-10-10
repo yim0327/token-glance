@@ -177,3 +177,20 @@ framework caches; not investigated further). Growth over many open/close cycles 
 
 Codex live updates on the M5 build (real use): new session 0.7 s, resumed previous-day
 session 0.5 s, most recent open session 0.7 s.
+
+## Codex online limit checks (separate work, 2026-10-10)
+
+The optional App Server path is off by default. With it enabled on the pre-M5 integration build,
+an approved separate app and its App Server child ran for 303 seconds (60 samples, 5 seconds apart).
+CPU is the average of CPU time deltas; footprint is the sum of both processes' physical footprints.
+
+| Process | Average CPU | Max 5-second CPU | Average footprint | Max sampled footprint |
+|---|---:|---:|---:|---:|
+| App | 0.53% | 1.39% | 26.7 MB | 33.0 MB |
+| App Server child | 0.11% | 1.98% | 43.5 MB | 79.0 MB |
+| Combined | **0.64%** | — | **70.3 MB** | **105.0 MB** |
+
+The combined CPU met the < 1% target. Combined footprint exceeded the < 50 MB target; the child
+was the larger part. This run predates integration with M5, so the final branch needs a separate
+measurement. New/resumed Codex sessions were covered by synthetic regression tests only, as
+requested; their actual behavior with online checks remains unverified.

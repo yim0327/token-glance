@@ -176,6 +176,24 @@ Usage 객체: `input_tokens`, `cached_input_tokens`, **`cache_write_input_tokens
 
 ---
 
+### 2.7 Codex App Server 온라인 한도 (M5 전 별도 작업)
+
+**인터페이스 확인:** 설치된 codex-cli 0.162.0의 `generate-json-schema` 결과에서 `account/rateLimits/read`, `account/rateLimits/updated`, `account/usage/read` 메서드가 확인됐다. 공식 [App Server 문서](https://learn.chatgpt.com/docs/app-server)는 stdio의 줄 단위 JSON 메시지(`jsonrpc` 헤더 생략)와 `initialize` → `initialized` 절차를 설명한다. 사용자 승인 후 단일 stdio 연결에서 계정 유형을 확인하고 한도·사용량을 각각 한 번 조회했다. 원문·실제 수치·식별자는 출력하거나 저장하지 않았다.
+
+| 응답 항목 | 스키마상 의미 | 실제 계정 검증 |
+|---|---|---|
+| `rateLimits` / `rateLimitsByLimitId` | 단일 또는 여러 한도 버킷. 여러 `limitId`를 합치거나 임의 선택하지 않음 | 단일 버킷 관찰; 다중은 합성 테스트 |
+| `primary` / `secondary` | 윈도우 슬롯. 이름이 아닌 `windowDurationMins`로 구분 | 300분·10080분 관찰 |
+| `usedPercent` | 해당 윈도우의 사용률 | 숫자형 관찰; 값은 기록하지 않음 |
+| `resetsAt` | 초기화 시각. null 가능; 시각 경과만으로 복구 확정 금지 | 숫자형 관찰; 값은 기록하지 않음 |
+| `accountId` | null 가능. 다른 계정의 스냅샷 결합 방지용으로만 메모리에서 사용 | 존재만 확인; 값은 기록하지 않음 |
+
+- 응답에 알 수 없는 필드나 null 윈도우가 있어도 유효한 버킷만 분리해 처리한다. 값이 없거나 로그인 필요/미지원이면 사유를 표시하고 로컬 로그 스냅샷으로 폴백한다.
+- 실제 `account/usage/read` 응답에서 `summary`의 `lifetimeTokens`, `peakDailyTokens`, 실행 시간·연속 사용 일수 필드는 숫자형이고, `dailyUsageBuckets`는 `startDate`·`tokens`를 가진 배열이었다. `threadUsage`는 null이었다. 실제 수치·날짜·버킷 개수는 기록하지 않았다. 일별 버킷의 시간대·보존 기간·포함 활동 범위, Aside 귀속은 **미확인**이다. 서버 사용량을 로컬 토큰 합계에 더하지 않는다.
+- 승인된 조회의 인증 유형은 ChatGPT였다. API-key 로그인과 로그인 필요 상태는 합성 응답으로 검증한다.
+
+---
+
 ## 3. Claude statusline
 
 ### 3.1 stdin JSON ✅
