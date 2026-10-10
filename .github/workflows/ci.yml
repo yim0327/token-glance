@@ -32,5 +32,6 @@ jobs:
             exit 1
           fi
 
-      - name: Bundle app
-        run: ./scripts/bundle-app.sh
+      - name: Bundle and package
+        # Same checks as a release (version, architectures, string tables, signature, zip).
+        run: ./scripts/package-release.sh
