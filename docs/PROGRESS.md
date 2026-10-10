@@ -5,10 +5,11 @@ Updated: 2026-10-11
 ## Status
 
 - M0–M6 are merged to `main` (PR #1–#13). CI passes on `main`.
-- No tag and no GitHub Release exist yet. `VERSION` is `0.1.0`.
+- **v0.1.0 is published**: https://github.com/yim0327/token-glance/releases/tag/v0.1.0
+  (tag `v0.1.0` on `5c99b09`, build 23). `VERSION` is `0.1.0`.
 - Release-blocker fixes and the public-docs cleanup are merged (PR #14).
 - Final pre-release check done (see "Verified in the real app"); build requirements, release notes
-  and these records corrected before tagging (`docs/pre-release-corrections`).
+  and these records corrected before tagging (PR #17).
 
 ## Done
 
@@ -145,14 +146,34 @@ quit-while-running cases used a fake `claude` placed first in `PATH`. It never a
 SIGTERM and starts a grandchild, which is harsher than the real tool but is not Claude Code itself;
 it writes nothing. The app was started from a terminal with that `PATH`, not from Finder.
 
-## Next (release)
+## v0.1.0 release (2026-10-10 UTC)
 
-1. Tag `v0.1.0` on the reviewed `main` commit and push it (approval).
-2. Review the draft Release the workflow creates: notes, the zip and `.sha256`, the checksum
-   against the CI log, arm64, ad hoc signature, version and build number.
-3. Publish the Release (approval).
-4. Download verification on an Apple Silicon Mac: download through a browser (quarantine set),
-   `shasum -a 256 -c`, move to `/Applications`, open, blocked, **Open Anyway**, launches.
+- Annotated tag `v0.1.0` on `5c99b09d94897fa8731d0e3a41cf1e1547b693b3` (= `origin/main`, `VERSION`
+  0.1.0), build 23 (commit count).
+- Release workflow run 38072913605 passed every step (tag = `VERSION`, build, 277 tests, package,
+  draft). SHA-256 printed by CI and in the `.sha256` file:
+  `3ad205eaac1bf15c68355dd1d5bca5beb8e78da1d6897307c2180210104ab2e2` (differs from local builds,
+  as expected for another toolchain).
+- Draft review: two assets (zip 1,229,521 bytes, `.sha256` 100 bytes); notes byte for byte equal to
+  `docs/releases/v0.1.0.md`; downloaded copy: checksum OK, app and hook arm64, ad hoc signed,
+  `codesign --verify --strict --deep` passes, 0.1.0 / build 23, ko/en string tables, both mark SVGs
+  byte for byte equal to the sources, no home or CI paths in the binaries.
+- Published 2026-10-10T17:47:47Z, not a pre-release. Without a token: the release page answers 200,
+  `releases/latest` (web and API) points to `v0.1.0`, both assets download from the public URLs and
+  `shasum -a 256 -c` is OK; the README Releases link opens.
+- Download check on the development Mac (macOS 26.6.2), files downloaded with a web browser: the zip
+  and the unzipped app carried the quarantine attribute; checksum OK; `spctl --assess` rejected the
+  app (not notarized, expected); opening it was blocked, and after **Open Anyway** (password) it ran
+  from `/Applications/TokenGlance.app` with no App Translocation mount. A first attempt that moved
+  the app with `mv` in Terminal ran it from an App Translocation path instead; removing it, unzipping
+  again and dragging it in Finder gave the result above. README and release notes now say to drag
+  it in Finder.
+
+## Next (after v0.1.0)
+
+- Pick from "Later (LOW)" below; no release blockers are open.
+- Release workflow (found in the final check, not changed): raise the minimum test count from 50,
+  and check that the tag commit is on `main`.
 
 ## Later (LOW)
 
@@ -183,7 +204,7 @@ it writes nothing. The app was started from a terminal with that `PATH`, not fro
 
 - Building with a Swift 5.10 toolchain (`Package.swift` declares 5.10; builds and tests were run with
   Swift 6.1 on CI and 6.3 locally).
-
+- "Open at login" and hook installation while the app runs from an App Translocation path.
 - Claude Code versions other than 2.1.296; `weekly_scoped` (per-model weekly) rows.
 - Expired-login and 429 answers (synthetic tests only).
 - An npm-installed `codex` launched from Finder.

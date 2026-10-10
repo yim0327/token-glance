@@ -13,7 +13,8 @@ Claude Code & Codex usage limits at a glance, in your macOS menu bar.
 
 > **Apple Silicon(arm64) 전용 · macOS 14 이상 · 공증(notarization)되지 않은 앱**
 >
-> 첫 릴리스(v0.1.0)는 아직 게시되지 않았습니다. 게시 전에는 [소스에서 빌드](#소스에서-빌드)하세요.
+> 첫 릴리스 [v0.1.0](https://github.com/yim0327/token-glance/releases/tag/v0.1.0)이 게시되었습니다.
+> [릴리스에서 설치](#릴리스에서-설치)하거나 [소스에서 빌드](#소스에서-빌드)할 수 있습니다.
 
 Token Glance는 Claude Code와 Codex CLI의 **5시간 세션 한도**와 **주간 한도**가 얼마나 남았는지
 메뉴바에 두 줄로 보여줍니다. 클릭하면 초기화 시각과 사용 토큰을 담은 상세 패널이 열립니다.
@@ -44,7 +45,7 @@ Token Glance는 Claude Code와 Codex CLI의 **5시간 세션 한도**와 **주�
 
 #### 릴리스에서 설치
 
-[Releases](https://github.com/yim0327/token-glance/releases)에 릴리스가 게시되면:
+[Releases](https://github.com/yim0327/token-glance/releases)의 최신 릴리스에서:
 
 1. `TokenGlance-<버전>-macos-arm64.zip`과 같은 이름의 `.sha256` 파일을 내려받습니다.
 2. 두 파일이 있는 폴더에서 체크섬을 확인합니다.
@@ -53,13 +54,17 @@ Token Glance는 Claude Code와 Codex CLI의 **5시간 세션 한도**와 **주�
    shasum -a 256 -c TokenGlance-0.1.0-macos-arm64.zip.sha256
    ```
 
-3. 압축을 풀고 `TokenGlance.app`을 `/Applications`로 옮깁니다.
+3. Finder에서 zip을 더블클릭해 압축을 풀고, `TokenGlance.app`을 Finder에서 **응용 프로그램**
+   (`/Applications`) 폴더로 끌어다 놓습니다. 터미널의 `mv`로 옮겼을 때는 앱이 App Translocation
+   경로(macOS가 정한 임시 위치)에서 실행되는 것이 관찰됐습니다. "로그인 시 열기"는 앱 위치에
+   묶이므로 옮긴 뒤에 켭니다([문제 해결](#문제-해결)).
 4. 앱을 엽니다. 공증되지 않은 앱이라 macOS가 처음 실행을 막습니다. **시스템 설정 › 개인정보 보호
    및 보안**에서 Token Glance 항목의 **그래도 열기**를 누르고 확인합니다. 체크섬이 일치한 파일에만
    이렇게 하세요.
 
-릴리스 zip은 게시 전에 로컬에서 체크섬·서명·리소스·실행을 확인하지만, 내려받은 파일이 거치는
-Gatekeeper 확인을 대신하지는 않습니다.
+릴리스 zip은 게시 전에 로컬에서 체크섬·서명·리소스·실행을 확인했고, v0.1.0은 게시 후 웹 브라우저로
+내려받은 파일로 체크섬과 **그래도 열기** 흐름도 확인했습니다(macOS 26.6.2, 한 대). 이 확인이 각
+Mac에서 내려받은 파일이 거치는 Gatekeeper 확인을 대신하지는 않습니다.
 
 #### 소스에서 빌드
 
@@ -202,7 +207,8 @@ Claude 마크와 OpenAI Blossom은 어느 서비스의 수치인지 구분하기
 
 > **Apple Silicon (arm64) only · macOS 14 or later · not notarized**
 >
-> The first release (v0.1.0) has not been published yet. Until then, [build from source](#from-source).
+> The first release, [v0.1.0](https://github.com/yim0327/token-glance/releases/tag/v0.1.0), is published.
+> [Install it from the release](#from-a-release) or [build from source](#from-source).
 
 Token Glance shows how much of the **5-hour session limit** and the **weekly limit** you have left in
 Claude Code and Codex CLI, as a two-line menu bar label. Click it for a details panel with reset times
@@ -233,7 +239,7 @@ You need an Apple Silicon Mac, macOS 14 or later, and Claude Code or Codex CLI.
 
 #### From a release
 
-Once a release is published on the [Releases](https://github.com/yim0327/token-glance/releases) page:
+From the latest release on the [Releases](https://github.com/yim0327/token-glance/releases) page:
 
 1. Download `TokenGlance-<version>-macos-arm64.zip` and the `.sha256` file with the same name.
 2. In the folder with both files, check the checksum.
@@ -242,13 +248,19 @@ Once a release is published on the [Releases](https://github.com/yim0327/token-g
    shasum -a 256 -c TokenGlance-0.1.0-macos-arm64.zip.sha256
    ```
 
-3. Unzip and move `TokenGlance.app` to `/Applications`.
+3. Unzip it by double-clicking the zip in Finder, then drag `TokenGlance.app` in Finder into the
+   **Applications** folder (`/Applications`). When the app was moved with `mv` in Terminal instead, it
+   was observed running from an App Translocation path (a temporary location chosen by macOS).
+   "Open at login" is tied to the app's location, so turn it on after moving the app
+   ([Troubleshooting](#troubleshooting)).
 4. Open it. The app is not notarized, so macOS blocks the first launch. In **System Settings ›
    Privacy & Security**, choose **Open Anyway** for Token Glance and confirm. Do this only for a
    file whose checksum matched.
 
-The release zip is checked locally before publishing (checksum, signature, resources, launch), but
-that does not replace the Gatekeeper check a downloaded file goes through.
+The release zip was checked locally before publishing (checksum, signature, resources, launch), and
+after v0.1.0 was published, a copy downloaded with a web browser was checked as well (checksum and
+the **Open Anyway** flow, macOS 26.6.2, one Mac). That does not replace the Gatekeeper check a
+downloaded file goes through on each Mac.
 
 #### From source
 
