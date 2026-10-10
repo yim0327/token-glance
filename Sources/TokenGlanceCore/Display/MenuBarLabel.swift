@@ -17,13 +17,10 @@ public struct MenuBarLabel: Equatable, Sendable {
 
     public var lines: [Line]
 
-    /// Lines show the session (5h) window. Enabled tools with data get a line; if none has data,
-    /// every enabled tool shows "--".
+    /// Lines show the session (5h) window. Every enabled tool gets a line; one without a session
+    /// value shows "--".
     public static func make(states: [ToolState], mode: PercentMode) -> MenuBarLabel {
-        let enabled = states.filter(\.isEnabled)
-        let withData = enabled.filter { $0.session != nil || !$0.onlineBucketRows.isEmpty }
-        let shown = withData.isEmpty ? enabled : withData
-        let lines = shown.map {
+        let lines = states.filter(\.isEnabled).map {
             Line(tool: $0.tool, text: DisplayFormat.percentText($0.session, mode: mode), severity: DisplayFormat.severity($0.session))
         }
         return MenuBarLabel(lines: lines)

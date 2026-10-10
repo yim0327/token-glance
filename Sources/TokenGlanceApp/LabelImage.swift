@@ -17,7 +17,7 @@ enum LabelImage {
         let twoLines = lines.count > 1
         let font = twoLines ? font : singleLineFont
         let badge = twoLines ? badgeSize : 11
-        let textWidth = lines.map { NSAttributedString(string: $0.text, attributes: [.font: font]).size().width }.max() ?? 0
+        let textWidth = lines.map { width(of: $0, font: font) }.max() ?? 0
         let size = NSSize(width: ceil(badge + gap + textWidth) + 1, height: height)
 
         let image = NSImage(size: size, flipped: false) { _ in
@@ -29,7 +29,11 @@ enum LabelImage {
                 let textSize = text.size()
                 let textY = rowY + (rowHeight - textSize.height) / 2
                 drawBadge(letter(line.tool), in: NSRect(x: 0, y: rowY + (rowHeight - badge) / 2, width: badge, height: badge))
-                text.draw(at: NSPoint(x: badge + gap, y: textY))
+                if line.severity == .unavailable {
+                    drawDashes(x: badge + gap, baselineY: textY - font.descender, font: font)
+                } else {
+                    text.draw(at: NSPoint(x: badge + gap, y: textY))
+                }
             }
             return true
         }
@@ -39,10 +43,37 @@ enum LabelImage {
 
     static func color(_ severity: Severity) -> NSColor {
         switch severity {
-        case .normal: .labelColor
+        case .normal, .unavailable: .labelColor
         case .warning: .systemOrange
         case .critical: .systemRed
-        case .unavailable: .secondaryLabelColor
+        }
+    }
+
+    /// A missing value is drawn as two bars, each as wide as a digit, because a thin "--" in the
+    /// small label font is barely visible.
+    private static func dashMetrics(font: NSFont) -> (digit: CGFloat, spacing: CGFloat, thickness: CGFloat) {
+        let digit = NSAttributedString(string: "0", attributes: [.font: font]).size().width
+        return (digit, max(1, digit * 0.3), max(1.5, (font.pointSize * 0.17).rounded()))
+    }
+
+    private static func width(of line: MenuBarLabel.Line, font: NSFont) -> CGFloat {
+        guard line.severity == .unavailable else {
+            return NSAttributedString(string: line.text, attributes: [.font: font]).size().width
+        }
+        let metrics = dashMetrics(font: font)
+        return metrics.digit * 2 + metrics.spacing
+    }
+
+    private static func drawDashes(x: CGFloat, baselineY: CGFloat, font: NSFont) {
+        let metrics = dashMetrics(font: font)
+        let midY = baselineY + font.capHeight / 2 - metrics.thickness / 2
+        color(.unavailable).setFill()
+        // The first bar sits a little to the right; a clear gap still separates the two.
+        let offsets = [metrics.spacing / 2, metrics.digit + metrics.spacing]
+        for originOffset in offsets {
+            let originX = x + originOffset
+            let rect = NSRect(x: originX, y: midY, width: metrics.digit - metrics.spacing / 2, height: metrics.thickness)
+            NSBezierPath(roundedRect: rect, xRadius: metrics.thickness / 2, yRadius: metrics.thickness / 2).fill()
         }
     }
 

@@ -33,9 +33,12 @@ struct MenuBarLabelTests {
         #expect(label.lines.map(\.severity) == [.warning, .critical])
     }
 
-    @Test func singleLineWhenOnlyOneToolHasData() {
+    @Test func toolWithoutDataShowsDashes() {
         let label = MenuBarLabel.make(states: [state(.claude, session: 38), state(.codex, session: nil, issue: .noData)], mode: .remaining)
-        #expect(label.lines == [.init(tool: .claude, text: "62%", severity: .normal)])
+        #expect(label.lines == [
+            .init(tool: .claude, text: "62%", severity: .normal),
+            .init(tool: .codex, text: "--", severity: .unavailable),
+        ])
     }
 
     @Test func singleLineWhenOnlyOneToolEnabled() {
@@ -59,6 +62,26 @@ struct MenuBarLabelTests {
         #expect(label.lines == [.init(tool: .claude, text: "100%", severity: .normal)])
     }
 
+    @Test func codexKeepsItsLineWhileWaitingAfterSessionReset() {
+        let codex = state(.codex, session: nil, weekly: 86, issue: .awaitingFreshLimit)
+        let label = MenuBarLabel.make(states: [state(.claude, session: 5), codex], mode: .remaining)
+        #expect(label.lines == [
+            .init(tool: .claude, text: "95%", severity: .normal),
+            .init(tool: .codex, text: "--", severity: .unavailable),
+        ])
+    }
+
+    @Test func codexSessionResetWithValidWeeklyAwaitsFreshLimit() {
+        let aggregator = UsageAggregator(calendar: Calendar(identifier: .gregorian))
+        let session = LimitWindow(kind: .session, usedPercent: 43, resetsAt: now - 60, observedAt: now - 3600)
+        let weekly = LimitWindow(kind: .weekly, usedPercent: 86, resetsAt: now + 86_400, observedAt: now - 3600)
+        let codex = ToolState.make(tool: .codex, snapshot: UsageSnapshot(limits: [session, weekly]), hookStatus: nil,
+                                   aggregator: aggregator, now: now)
+        #expect(codex.session == nil)
+        #expect(codex.weekly?.usedPercent == 86)
+        #expect(codex.unavailableReason == .awaitingFreshLimit)
+    }
+
     @Test func toolStateFromSnapshotPicksActionableReason() {
         let aggregator = UsageAggregator(calendar: Calendar(identifier: .gregorian))
         let empty = UsageSnapshot(limitsIssue: .noData)
@@ -72,6 +95,16 @@ struct MenuBarLabelTests {
         #expect(ok.unavailableReason == nil)
         #expect(ok.session?.usedPercent == 10)
         #expect(ok.refreshedAt == now)
+    }
+}
+
+struct UsageSummaryTests {
+    @Test func hasTokensWhenTodayOrWeekIsNonZero() {
+        let interval = DateInterval(start: Fixtures.t0 - 86_400, end: Fixtures.t0)
+        var summary = UsageSummary(today: .zero, todayByModel: [:], week: .zero, weekByModel: [:], weekInterval: interval, limits: [])
+        #expect(!summary.hasTokens)
+        summary.week = TokenUsage(input: 10, output: 0, cacheRead: 0, cacheWrite: 0)
+        #expect(summary.hasTokens)
     }
 }
 

@@ -67,10 +67,6 @@ private struct ToolSection: View {
                 }
                 Spacer()
             }
-            if let reason = state.unavailableReason, state.session == nil, state.weekly == nil,
-               state.onlineBucketRows.isEmpty {
-                Text(l10n.unavailable(reason)).font(.callout).foregroundStyle(.secondary)
-            }
             if state.tool == .codex && !state.onlineBucketRows.isEmpty {
                 ForEach(Array(state.onlineBucketRows.enumerated()), id: \.offset) { entry in
                     Text(l10n("popover.online.bucket", entry.offset + 1)).font(.subheadline.weight(.semibold))
@@ -85,8 +81,9 @@ private struct ToolSection: View {
                     }
                 }
             } else {
-                if let session = state.session { LimitRow(title: l10n.windowName(.session), status: session, l10n: l10n) }
-                if let weekly = state.weekly { LimitRow(title: l10n.windowName(.weekly), status: weekly, l10n: l10n) }
+                // Both windows keep their rows; an unknown value is a gray bar with "--/--".
+                LimitRow(title: l10n.windowName(.session), status: state.session, missingReason: missing, l10n: l10n)
+                LimitRow(title: l10n.windowName(.weekly), status: state.weekly, missingReason: missing, l10n: l10n)
             }
             if state.tool == .codex || state.limitSource != nil {
                 if let source = state.limitSource {
@@ -109,8 +106,16 @@ private struct ToolSection: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            if let summary = state.summary { TokenTable(summary: summary, l10n: l10n) }
+            // An empty token table is left out while a limit value is unknown.
+            if let summary = state.summary, missing == nil || summary.hasTokens {
+                TokenTable(summary: summary, l10n: l10n)
+            }
         }
+    }
+
+    /// Why a limit row has no value; shown under that row's gray bar.
+    private var missing: String? {
+        state.onlineBucketRows.isEmpty ? l10n.missingLimitsMessage(state) : nil
     }
 
     private var hookWarning: String {
@@ -171,25 +176,30 @@ private struct ToolSection: View {
 
 private struct LimitRow: View {
     let title: String
-    let status: LimitStatus
+    let status: LimitStatus?
+    var missingReason: String?
     let l10n: Localizer
 
     var body: some View {
-        let reading = DisplayFormat.reading(status)
         VStack(alignment: .leading, spacing: 3) {
             HStack {
                 Text(title).font(.subheadline.weight(.medium))
                 Spacer()
-                Text(l10n("popover.usedLeft", reading.used, reading.left))
+                Text(status.map { l10n("popover.usedLeft", DisplayFormat.reading($0).used, DisplayFormat.reading($0).left) } ?? "--/--")
                     .font(.subheadline.monospacedDigit())
                     .foregroundStyle(tint)
             }
-            ProgressView(value: Double(reading.used), total: 100).tint(tint)
-            resetLine.font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+            ProgressView(value: status.map { Double(DisplayFormat.reading($0).used) } ?? 0, total: 100).tint(tint)
+            if let status {
+                resetLine(status).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+            } else if let missingReason {
+                Text(missingReason).font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
-    @ViewBuilder private var resetLine: some View {
+    @ViewBuilder private func resetLine(_ status: LimitStatus) -> some View {
         if let resetsAt = status.resetsAt {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 Text(l10n("popover.resets", l10n.resetTime(resetsAt), l10n.clockCountdown(to: resetsAt, now: context.date)))
@@ -205,7 +215,8 @@ private struct LimitRow: View {
         switch DisplayFormat.severity(status) {
         case .warning: .orange
         case .critical: .red
-        case .normal, .unavailable: .accentColor
+        case .normal: .accentColor
+        case .unavailable: .secondary
         }
     }
 }
