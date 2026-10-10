@@ -49,11 +49,14 @@ public struct ToolState: Equatable, Sendable {
     public var limitWindows: [LimitWindow] = []
     /// Daily totals for the last 14 days (see `UsageHistory`).
     public var history: [DailyUsage] = []
-    /// Codex limit provenance; token totals still come from local logs.
+    /// Limit provenance (Codex, and Claude while its online option is on); token totals still come
+    /// from local logs.
     public var limitSource: String?
     public var limitObservedAt: Date?
     public var onlineFailure: String?
     public var onlineBucketRows: [OnlineBucketRow] = []
+    /// Claude only: the hook cache values when they differ from the account query being shown.
+    public var otherSourceLimits: [LimitStatus] = []
 
     public init(tool: Tool, isEnabled: Bool = true, summary: UsageSummary? = nil, unavailableReason: UnavailableReason? = nil,
                 hookStatus: StatuslineInstaller.Status? = nil, refreshedAt: Date? = nil) {
