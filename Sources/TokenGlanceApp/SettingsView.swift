@@ -4,8 +4,10 @@ import TokenGlanceCore
 import TokenGlanceText
 
 /// Hosts `SettingsView` in a regular window (the app has no Dock icon or main menu).
+/// The window and its SwiftUI view are released when closed, so a closed window keeps no
+/// observation of the store (and costs no rendering).
 @MainActor
-final class SettingsWindowController {
+final class SettingsWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private let store: UsageStore
 
@@ -20,6 +22,7 @@ final class SettingsWindowController {
             let window = NSWindow(contentViewController: host)
             window.styleMask = [.titled, .closable]
             window.isReleasedWhenClosed = false
+            window.delegate = self
             window.center()
             self.window = window
         }
@@ -27,6 +30,11 @@ final class SettingsWindowController {
         Task { await store.updateNotificationAuthorization() }
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        window?.contentViewController = nil
+        window = nil
     }
 }
 
@@ -223,7 +231,7 @@ private struct HookSection: View {
     var body: some View {
         let l10n = store.localizer
         Section(l10n("hook.section")) {
-            let status = store.claude.hookStatus
+            let status = store.hookStatus
             HStack {
                 Label(statusText(status, l10n), systemImage: status == .installed ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                     .foregroundStyle(status == .installed ? Color.green : Color.orange)

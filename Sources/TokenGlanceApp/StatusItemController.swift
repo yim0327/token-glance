@@ -7,7 +7,7 @@ import TokenGlanceText
 
 /// Owns the menu bar item: renders the label from the store and toggles the popover.
 @MainActor
-final class StatusItemController: NSObject {
+final class StatusItemController: NSObject, NSPopoverDelegate {
     private let store: UsageStore
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let popover = NSPopover()
@@ -26,25 +26,9 @@ final class StatusItemController: NSObject {
             button.action = #selector(togglePopover)
         }
         popover.behavior = .transient
-        let settingsWindow = SettingsWindowController(store: store)
-        let historyWindow = HistoryWindowController(store: store)
-        self.settingsWindow = settingsWindow
-        self.historyWindow = historyWindow
-        let host = NSHostingController(rootView: PopoverView(
-            store: store,
-            openSettings: { [weak self] in
-                self?.popover.performClose(nil)
-                settingsWindow.show()
-            },
-            openHistory: { [weak self] in
-                self?.popover.performClose(nil)
-                historyWindow.show()
-            }
-        ))
-        // Without this the popover keeps its initial size and clips SwiftUI content that is taller,
-        // e.g. once data arrives after launch.
-        host.sizingOptions = [.preferredContentSize]
-        popover.contentViewController = host
+        popover.delegate = self
+        settingsWindow = SettingsWindowController(store: store)
+        historyWindow = HistoryWindowController(store: store)
         render()
         // The tooltip's "resets in …" is time-based; recompute it each minute (the image is only
         // redrawn when the label actually changes).
@@ -82,8 +66,34 @@ final class StatusItemController: NSObject {
         if popover.isShown {
             popover.performClose(nil)
         } else {
+            popover.contentViewController = makePopoverContent()
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }
+    }
+
+    /// The popover's SwiftUI view is built on each show and released on close: a hidden popover
+    /// otherwise keeps its once-a-second countdowns running and re-lays itself out (measured at
+    /// about 2% CPU with the popover closed).
+    private func makePopoverContent() -> NSViewController {
+        let host = NSHostingController(rootView: PopoverView(
+            store: store,
+            openSettings: { [weak self] in
+                self?.popover.performClose(nil)
+                self?.settingsWindow?.show()
+            },
+            openHistory: { [weak self] in
+                self?.popover.performClose(nil)
+                self?.historyWindow?.show()
+            }
+        ))
+        // Without this the popover keeps its initial size and clips SwiftUI content that is taller,
+        // e.g. once data arrives after launch.
+        host.sizingOptions = [.preferredContentSize]
+        return host
+    }
+
+    func popoverDidClose(_ notification: Notification) {
+        popover.contentViewController = nil
     }
 }

@@ -24,6 +24,8 @@ final class UsageStore {
     /// Builds all user-facing text; replaced when the language setting changes (no restart needed).
     private(set) var localizer: Localizer
     private(set) var notificationAuthorization: Notifier.Authorization = .notDetermined
+    /// Claude hook state, kept apart from `claude` so the settings window only re-renders when it changes.
+    private(set) var hookStatus: StatuslineInstaller.Status?
 
     var percentMode: PercentMode { settings.percentMode }
 
@@ -221,6 +223,7 @@ final class UsageStore {
             let claudeChanged = !claude.sameContent(as: self.claude) || self.claude.refreshedAt == nil
             let codexChanged = !codex.sameContent(as: self.codex) || self.codex.refreshedAt == nil
             if claudeChanged { self.claude = claude }
+            if claude.hookStatus != self.hookStatus { self.hookStatus = claude.hookStatus }
             if codexChanged { self.codex = codex }
             log.info("state: claude changed \(claudeChanged, privacy: .public), codex changed \(codexChanged, privacy: .public)")
             self.lastRefresh = Date()
