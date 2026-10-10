@@ -45,7 +45,9 @@ Token Glance를 어떤 필요에서 출발해 어떤 순서로 만들었는지, 
 | M6 ([#12](https://github.com/yim0327/token-glance/pull/12), [#13](https://github.com/yim0327/token-glance/pull/13)) | 반복 사용 측정, 릴리스 자동화, 서비스 마크 | 로컬 zip 검증까지 마쳤습니다 |
 | 릴리스 전 수정 ([#14](https://github.com/yim0327/token-glance/pull/14)) | 자식 프로세스 정리, 값 결합, 문서 정리 | 회귀 테스트 14개 중 10개는 수정 전 코드에서 실패하는 것을 확인했습니다. 테스트 275개 |
 
-v0.1.0 태그와 GitHub Release는 아직 만들지 않았습니다.
+태그 전 문서 정정([#17](https://github.com/yim0327/token-glance/pull/17)) 뒤 v0.1.0 태그를 달고
+[GitHub Release](https://github.com/yim0327/token-glance/releases/tag/v0.1.0)를 게시했습니다. 게시 후
+웹 브라우저로 내려받은 파일로 체크섬과 "그래도 열기" 흐름을 확인했습니다.
 
 ## 3. 문제 해결 사례
 
@@ -179,8 +181,9 @@ AI가 HUD 소스를 분석한 결과는 다음과 같습니다([log-schemas §3.
 
 ## 5. 현재 한계와 후속 작업
 
-- **릴리스:** v0.1.0 태그 push와 Release 게시가 남았습니다. 게시 후에는 다운로드한 zip의 체크섬과
-  Gatekeeper "그래도 열기" 흐름을 확인합니다.
+- **릴리스:** v0.1.0을 게시했고, 내려받은 zip의 체크섬과 Gatekeeper "그래도 열기" 흐름을 한 대의
+  Mac(macOS 26.6.2)에서 확인했습니다. 터미널 `mv`로 옮긴 앱은 App Translocation 경로에서
+  실행됐고, Finder로 옮기니 `/Applications`에서 실행됐습니다.
 - **미검증:**
   - Claude Code 2.1.296 외 버전
   - 로그인 만료·429 응답의 실제 형태(합성 테스트만 함)
