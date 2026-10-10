@@ -1,6 +1,5 @@
 import AppKit
 import TokenGlanceCore
-import TokenGlanceText
 
 /// Draws the one- or two-line menu bar label (see docs/adr/0001-menubar-rendering.md).
 ///
@@ -93,38 +92,17 @@ enum LabelImage {
     /// path is drawn as supplied, scaled uniformly to fit `rect` by its own bounds (the file's
     /// empty margin is not kept; there is no room for it at this size).
     private static func drawMark(_ tool: Tool, in rect: NSRect) {
-        guard let path = markPaths[tool] ?? nil, let context = NSGraphicsContext.current?.cgContext else {
+        guard let path = ServiceMarkPath.fitted(tool, in: rect, flipped: true),
+              let context = NSGraphicsContext.current?.cgContext
+        else {
             drawBadge(letter(tool), in: rect)
             return
         }
-        let bounds = path.boundingBoxOfPath
-        let scale = min(rect.width / bounds.width, rect.height / bounds.height)
         context.saveGState()
-        context.translateBy(x: rect.midX, y: rect.midY)
-        context.scaleBy(x: scale, y: -scale) // SVG y grows downwards
-        context.translateBy(x: -bounds.midX, y: -bounds.midY)
         context.addPath(path)
         context.setFillColor(NSColor.labelColor.cgColor)
         context.fillPath(using: .winding)
         context.restoreGState()
-    }
-
-    private static let markPaths: [Tool: CGPath?] = Dictionary(uniqueKeysWithValues: Tool.allCases.map { tool in
-        (tool, ServiceMarks.mark(for: tool).map { cgPath($0.path) })
-    })
-
-    private static func cgPath(_ segments: [SVGPath.Segment]) -> CGPath {
-        let path = CGMutablePath()
-        func point(_ p: SVGPath.Point) -> CGPoint { CGPoint(x: p.x, y: p.y) }
-        for segment in segments {
-            switch segment {
-            case .move(let p): path.move(to: point(p))
-            case .line(let p): path.addLine(to: point(p))
-            case .curve(let c1, let c2, let end): path.addCurve(to: point(end), control1: point(c1), control2: point(c2))
-            case .close: path.closeSubpath()
-            }
-        }
-        return path
     }
 
     /// Fallback when a mark file is missing or unreadable: a filled circle with the letter knocked out.

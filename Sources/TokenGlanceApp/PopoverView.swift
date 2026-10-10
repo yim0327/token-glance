@@ -58,6 +58,11 @@ private struct ToolSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
+                if ServiceMarkPath.path(for: state.tool) != nil {
+                    ServiceMarkShape(tool: state.tool)
+                        .frame(width: 15, height: 15)
+                        .accessibilityHidden(true) // the name next to it is the label
+                }
                 Text(state.tool == .claude ? l10n("tool.claudeCode") : l10n("tool.codex")).font(.headline)
                 if state.hookNeedsAttention {
                     Label(hookWarning, systemImage: "exclamationmark.triangle.fill")
