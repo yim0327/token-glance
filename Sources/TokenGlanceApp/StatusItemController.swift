@@ -89,3 +89,64 @@ final class StatusItemController: NSObject {
         return host
     }
 }
+
+#if TG_STRESS
+/// Measurement builds only (`swift build -Xswiftc -DTG_STRESS`, never in releases): opens and
+/// closes the details panel, settings and history windows through their normal code paths, so
+/// repeated use can be measured without UI automation. See docs/perf.md.
+///
+/// `plan` is a comma-separated list of `kind:count` (kind: panel, settings, history). After every
+/// 10th cycle and at the end of each step the driver logs a checkpoint and rests `rest` seconds.
+extension StatusItemController {
+    func runStressPlan(_ plan: String, rest: Double, initialRest: Double, finalRest: Double) {
+        let log = Logger(subsystem: "io.github.yim0327.token-glance", category: "stress")
+        let steps = plan.split(separator: ",").compactMap { part -> (String, Int)? in
+            let pair = part.split(separator: ":")
+            guard pair.count == 2, let count = Int(pair[1]), count > 0 else { return nil }
+            return (String(pair[0]), count)
+        }
+        func checkpoint(_ name: String) {
+            let windows = NSApp.windows
+            log.notice("stress checkpoint \(name, privacy: .public) windows \(windows.count, privacy: .public) visible \(windows.filter(\.isVisible).count, privacy: .public)")
+        }
+        Task { @MainActor in
+            checkpoint("start")
+            try? await Task.sleep(for: .seconds(initialRest))
+            checkpoint("baseline")
+            for (kind, count) in steps {
+                for cycle in 1...count {
+                    stressOpen(kind)
+                    try? await Task.sleep(for: .seconds(1.5))
+                    stressClose(kind)
+                    try? await Task.sleep(for: .seconds(1))
+                    if cycle % 10 == 0 || cycle == count {
+                        checkpoint("\(kind) \(cycle)/\(count) closed")
+                        try? await Task.sleep(for: .seconds(rest))
+                        checkpoint("\(kind) \(cycle)/\(count) rested")
+                    }
+                }
+            }
+            try? await Task.sleep(for: .seconds(finalRest))
+            checkpoint("done")
+        }
+    }
+
+    private func stressOpen(_ kind: String) {
+        switch kind {
+        case "panel": if !panel.isShown { togglePanel() }
+        case "settings": settingsWindow?.show()
+        case "history": historyWindow?.show()
+        default: break
+        }
+    }
+
+    private func stressClose(_ kind: String) {
+        switch kind {
+        case "panel": panel.close()
+        case "settings": settingsWindow?.closeForStress()
+        case "history": historyWindow?.closeForStress()
+        default: break
+        }
+    }
+}
+#endif

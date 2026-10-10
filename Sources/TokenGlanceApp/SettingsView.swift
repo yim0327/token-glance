@@ -41,6 +41,15 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     }
 }
 
+#if TG_STRESS
+extension SettingsWindowController {
+    /// Measurement builds only: closes the window the way its close button does.
+    func closeForStress() {
+        window?.performClose(nil)
+    }
+}
+#endif
+
 struct SettingsView: View {
     static let width: CGFloat = 520
     static let idealHeight: CGFloat = 760

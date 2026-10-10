@@ -37,6 +37,15 @@ final class HistoryWindowController: NSObject, NSWindowDelegate {
     }
 }
 
+#if TG_STRESS
+extension HistoryWindowController {
+    /// Measurement builds only: closes the window the way its close button does.
+    func closeForStress() {
+        window?.performClose(nil)
+    }
+}
+#endif
+
 /// Daily tokens per tool for the last 14 days, from the totals already kept in memory.
 ///
 /// The chart reads a snapshot of the daily totals taken when the window opens and checked every

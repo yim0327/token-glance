@@ -39,6 +39,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.store = store
         statusItem = StatusItemController(store: store)
         store.start()
+        #if TG_STRESS
+        let env = ProcessInfo.processInfo.environment
+        if let plan = env["TG_STRESS"] {
+            statusItem?.runStressPlan(plan, rest: Double(env["TG_STRESS_REST"] ?? "") ?? 60,
+                                      initialRest: Double(env["TG_STRESS_INITIAL_REST"] ?? "") ?? 180,
+                                      finalRest: Double(env["TG_STRESS_FINAL_REST"] ?? "") ?? 180)
+        }
+        #endif
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {

@@ -27,6 +27,20 @@ struct DisplayFormatTests {
         #expect(DisplayFormat.percentText(nil, mode: .used) == "--")
     }
 
+    @Test func gaugeFollowsTheMenuBarMode() {
+        #expect(DisplayFormat.gaugePercent(status(38), mode: .remaining) == 62)
+        #expect(DisplayFormat.gaugePercent(status(38), mode: .used) == 38)
+        #expect(DisplayFormat.gaugePercent(status(37.5), mode: .remaining) == 62) // same rounding as the text
+        #expect(DisplayFormat.gaugePercent(status(140), mode: .remaining) == 0)
+        #expect(DisplayFormat.gaugePercent(status(-3), mode: .used) == 0)
+        // An unknown value stays an empty gray bar in both modes.
+        #expect(DisplayFormat.gaugePercent(nil, mode: .remaining) == 0)
+        #expect(DisplayFormat.gaugePercent(nil, mode: .used) == 0)
+        // Online windows without a LimitStatus use the same rule.
+        #expect(DisplayFormat.gaugePercent(usedPercent: 25, mode: .remaining) == 75)
+        #expect(DisplayFormat.gaugePercent(usedPercent: 25, mode: .used) == 25)
+    }
+
     @Test func severityThresholdsUseRemainingPercent() {
         #expect(DisplayFormat.severity(status(69)) == .normal)    // 31 left
         #expect(DisplayFormat.severity(status(70)) == .warning)   // 30 left

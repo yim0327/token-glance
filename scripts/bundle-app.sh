@@ -6,17 +6,24 @@ set -eu
 cd "$(dirname "$0")/.."
 
 config="${CONFIG:-release}"
+# Optional: extra `swift build` flags (e.g. SWIFT_FLAGS="-Xswiftc -DTG_STRESS" for the measurement
+# build described in docs/perf.md) and another output folder (OUT_DIR, default dist).
+swift_flags="${SWIFT_FLAGS:-}"
+out_dir="${OUT_DIR:-dist}"
 bundle_id="io.github.yim0327.token-glance"
 # Single source of truth for the version: the VERSION file (e.g. 0.1.0). The build number is the
 # commit count, so every build from a later commit sorts higher.
 version="$(tr -d ' \n' < VERSION)"
 build="$(git rev-list --count HEAD 2>/dev/null || echo 1)"
 
-swift build -c "$config" --product TokenGlanceApp
-swift build -c "$config" --product token-glance-hook
-bin="$(swift build -c "$config" --show-bin-path)"
+# shellcheck disable=SC2086 # swift_flags is a list of flags
+swift build -c "$config" $swift_flags --product TokenGlanceApp
+# shellcheck disable=SC2086
+swift build -c "$config" $swift_flags --product token-glance-hook
+# shellcheck disable=SC2086
+bin="$(swift build -c "$config" $swift_flags --show-bin-path)"
 
-app="dist/TokenGlance.app"
+app="$out_dir/TokenGlance.app"
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin/TokenGlanceApp" "$app/Contents/MacOS/TokenGlance"

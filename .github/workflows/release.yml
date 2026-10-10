@@ -1,0 +1,66 @@
+name: Release
+
+# Runs only when a version tag is pushed (a maintainer step). It never publishes: the GitHub
+# Release is created as a draft for review.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  draft-release:
+    runs-on: macos-15
+    permissions:
+      contents: write # create the draft release and upload its files
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the build number is the commit count
+
+      - name: Check the tag matches VERSION
+        run: |
+          version="$(tr -d ' \n' < VERSION)"
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match VERSION $version"
+            exit 1
+          fi
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.4.app
+          swift --version
+
+      - name: Build
+        run: swift build
+
+      - name: Test
+        run: |
+          set -o pipefail
+          ./scripts/test.sh 2>&1 | tee test.log
+          count=$(sed -n 's/.*Test run with \([0-9][0-9]*\) tests.*passed.*/\1/p' test.log | tail -1)
+          echo "tests run: ${count:-0}"
+          if [ "${count:-0}" -lt 50 ]; then
+            echo "::error::expected at least 50 tests to run, got ${count:-0}"
+            exit 1
+          fi
+
+      - name: Package
+        run: ./scripts/package-release.sh
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="docs/releases/$GITHUB_REF_NAME.md"
+          if [ ! -f "$notes" ]; then
+            echo "::error::missing release notes $notes"
+            exit 1
+          fi
+          gh release create "$GITHUB_REF_NAME" dist/release/*.zip dist/release/*.zip.sha256 \
+            --draft --verify-tag --title "Token Glance $GITHUB_REF_NAME" --notes-file "$notes"

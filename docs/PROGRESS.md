@@ -49,9 +49,39 @@ Updated: 2026-10-10
 | Codex live tracking with the online option on: new session, resumed session, resume after app restart | app log only: Codex state updated 1–2 s after each rollout write (16:47–16:49, no other Codex activity); label change not reported by the user |
 | Codex source line hidden when the option is off | user-confirmed |
 
+- M6 release preparation (branch `chore/m6-release`, PR pending review):
+  - Repeated window use measured (93 open/close cycles): footprint settles at 42–45 MB after first
+    use, no per-cycle growth; CPU 0.77% over the run; lifetime peak 48.5 MB (`docs/perf.md`).
+  - Measurement-only driver behind `-DTG_STRESS` (not in release builds).
+  - `scripts/package-release.sh` (zip + SHA-256, version/arch/resources/signature checks), run in CI.
+  - `.github/workflows/release.yml`: `v*` tag = VERSION → tests → package → **draft** Release.
+  - Local install check of the zip: checksum, ad hoc signature, arm64, string tables, launch,
+    `--print-state`; hook install/overwritten/repair/uninstall in a temporary profile.
+  - PRD v1.0, README screenshots (panel and history, English/Korean), install and Gatekeeper steps.
+  - Real-app regression checks passed (language, panel closing, toggles, refresh, test banner,
+    Codex new/same/resumed-after-restart sessions 0.49–1.0 s).
+
+- Release wrap-up on PR #12 (2026-10-10):
+  - Details panel: limit source and observation time on separate lines (English line was cut off).
+  - Details panel gauges follow the menu bar mode (remaining = what is left, used = what is used);
+    `DisplayFormat.gaugePercent` with tests. Checked in the real app in remaining mode.
+  - Memory after the layout fix (separate copy, online off, 61 panel cycles): settled 28–30 MB,
+    lifetime peak 39.0 MB, no per-cycle growth (`docs/perf.md`).
+  - README split into a Korean section (top) and an English section (bottom) with language links;
+    each section shows only its own screenshots. Other-project mentions removed from both.
+    CLAUDE.md README rule updated to match.
+  - Screenshots retaken after both panel changes (user-approved): panel and history in Korean and
+    English, plus the menu bar label (`menubar.png`); dark mode, online checks on, real usage.
+  - `./scripts/test.sh`: 255 tests in 40 suites pass.
+
 ## Next
 
-- M6: README screenshots, release automation, distribution check.
+
+- M6 (needs approval): merge the M6 PR, push tag `v0.1.0`, review the draft Release, publish.
+- After publishing: download the zip on a Mac and check the Gatekeeper "Open Anyway" flow.
+- Screenshot method (for later updates): the status item is hosted by Control Center on macOS 26;
+  capture its screen rectangle (`screencapture -R`) for the label, and windows by id (`-l`) while
+  they are on screen (the panel releases its content when it closes).
 - Fix now (small PRs, not started):
   1. Child process robustness: wait for the App Server / Claude Code child to exit on quit (or kill
      its process group), cap buffered stdout lines, close stdout only after EOF.
