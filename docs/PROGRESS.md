@@ -6,8 +6,7 @@ Updated: 2026-10-11
 
 - M0–M6 are merged to `main` (PR #1–#13). CI passes on `main`.
 - No tag and no GitHub Release exist yet. `VERSION` is `0.1.0`.
-- Release-blocker fixes and the public-docs cleanup are on `fix/release-blockers` (PR #14, pending
-  review).
+- Release-blocker fixes and the public-docs cleanup are merged (PR #14).
 
 ## Done
 
@@ -74,6 +73,10 @@ Updated: 2026-10-11
   fields verified on one machine only), the AI-tool note in the PRD, the source-analysis numbers
   behind the statusline-ordering rule (`docs/log-schemas.md` §3.2), the original wording on where
   the Blossom file came from, and per-PR review fixes, causes, contrast values and test counts here.
+- Development notes (`docs/development.md`, Korean): starting point, milestones and plan changes,
+  three cases (Codex update gaps, incremental parsing and repeated-use performance, the chaining
+  hook and settings protection), how AI tools were used and what was checked by hand, current
+  limits. Linked from both README sections.
 
 ## Verified in the real app
 
@@ -99,9 +102,8 @@ fixes (automated tests only).
 
 ## Next (release blockers)
 
-1. Review and merge the `fix/release-blockers` PR (approval).
-2. Push tag `v0.1.0` (approval), review the draft Release and its notes, publish (approval).
-3. After publishing: download the zip on a Mac and check the checksum and the Gatekeeper
+1. Push tag `v0.1.0` (approval), review the draft Release and its notes, publish (approval).
+2. After publishing: download the zip on a Mac and check the checksum and the Gatekeeper
    "Open Anyway" flow.
 
 ## Later (LOW)
