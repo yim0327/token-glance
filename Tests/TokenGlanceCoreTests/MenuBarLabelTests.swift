@@ -82,6 +82,17 @@ struct MenuBarLabelTests {
         #expect(codex.unavailableReason == .awaitingFreshLimit)
     }
 
+    @Test func localCodexShowsSourceOnlyAfterOnlineFallback() {
+        let aggregator = UsageAggregator(calendar: Calendar(identifier: .gregorian))
+        let window = LimitWindow(kind: .session, usedPercent: 10, resetsAt: now + 60, observedAt: now - 30)
+        let local = ToolState.make(tool: .codex, snapshot: UsageSnapshot(limits: [window]), hookStatus: nil, aggregator: aggregator, now: now)
+        #expect(local.limitSource == nil)
+        #expect(local.limitObservedAt == now - 30)
+        let fallback = CodexOnlinePresentation.fallback(local, reason: "Account query timed out", now: now)
+        #expect(fallback.limitSource == "Local logs")
+        #expect(fallback.limitObservedAt == now - 30)
+    }
+
     @Test func toolStateFromSnapshotPicksActionableReason() {
         let aggregator = UsageAggregator(calendar: Calendar(identifier: .gregorian))
         let empty = UsageSnapshot(limitsIssue: .noData)
