@@ -16,7 +16,7 @@ struct PopoverView: View {
                 ProgressView(value: progress) { Text(l10n("popover.indexing")).font(.caption) }
             }
             ForEach(store.states.filter(\.isEnabled), id: \.tool) { state in
-                ToolSection(state: state, l10n: l10n)
+                ToolSection(state: state, mode: store.percentMode, l10n: l10n)
                 Divider()
             }
             footer(l10n)
@@ -52,6 +52,7 @@ struct PopoverView: View {
 
 private struct ToolSection: View {
     let state: ToolState
+    let mode: PercentMode
     let l10n: Localizer
 
     var body: some View {
@@ -71,19 +72,19 @@ private struct ToolSection: View {
                 ForEach(Array(state.onlineBucketRows.enumerated()), id: \.offset) { entry in
                     Text(l10n("popover.online.bucket", entry.offset + 1)).font(.subheadline.weight(.semibold))
                     if let session = entry.element.session {
-                        LimitRow(title: l10n.windowName(.session), status: session, l10n: l10n)
+                        LimitRow(title: l10n.windowName(.session), status: session, mode: mode, l10n: l10n)
                     }
                     if let weekly = entry.element.weekly {
-                        LimitRow(title: l10n.windowName(.weekly), status: weekly, l10n: l10n)
+                        LimitRow(title: l10n.windowName(.weekly), status: weekly, mode: mode, l10n: l10n)
                     }
                     ForEach(Array(entry.element.otherWindows.enumerated()), id: \.offset) { window in
-                        OtherWindowRow(window: window.element, l10n: l10n)
+                        OtherWindowRow(window: window.element, mode: mode, l10n: l10n)
                     }
                 }
             } else {
                 // Both windows keep their rows; an unknown value is a gray bar with "--/--".
-                LimitRow(title: l10n.windowName(.session), status: state.session, missingReason: missing, l10n: l10n)
-                LimitRow(title: l10n.windowName(.weekly), status: state.weekly, missingReason: missing, l10n: l10n)
+                LimitRow(title: l10n.windowName(.session), status: state.session, missingReason: missing, mode: mode, l10n: l10n)
+                LimitRow(title: l10n.windowName(.weekly), status: state.weekly, missingReason: missing, mode: mode, l10n: l10n)
             }
             if state.tool == .codex || state.limitSource != nil {
                 if let source = state.limitSource {
@@ -181,6 +182,7 @@ private struct LimitRow: View {
     let title: String
     let status: LimitStatus?
     var missingReason: String?
+    let mode: PercentMode
     let l10n: Localizer
 
     var body: some View {
@@ -192,7 +194,8 @@ private struct LimitRow: View {
                     .font(.subheadline.monospacedDigit())
                     .foregroundStyle(tint)
             }
-            ProgressView(value: status.map { Double(DisplayFormat.reading($0).used) } ?? 0, total: 100).tint(tint)
+            // The bar fills like the menu bar number reads: what is left, or what is used.
+            ProgressView(value: Double(DisplayFormat.gaugePercent(status, mode: mode)), total: 100).tint(tint)
             if let status {
                 resetLine(status).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
             } else if let missingReason {
@@ -226,6 +229,7 @@ private struct LimitRow: View {
 
 private struct OtherWindowRow: View {
     let window: OnlineWindowRow
+    let mode: PercentMode
     let l10n: Localizer
 
     var body: some View {
@@ -237,7 +241,7 @@ private struct OtherWindowRow: View {
                 Text(l10n("popover.usedLeft", Int(used.rounded()), Int((100 - used).rounded())))
                     .font(.subheadline.monospacedDigit())
             }
-            ProgressView(value: used, total: 100)
+            ProgressView(value: Double(DisplayFormat.gaugePercent(usedPercent: window.usedPercent, mode: mode)), total: 100)
             if let resetsAt = window.resetsAt {
                 Text(l10n("popover.online.resets", l10n.resetTime(resetsAt)))
                     .font(.caption).foregroundStyle(.secondary)

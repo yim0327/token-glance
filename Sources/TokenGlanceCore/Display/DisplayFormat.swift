@@ -42,6 +42,18 @@ public enum DisplayFormat {
         return "\(mode == .remaining ? reading.left : reading.used)%"
     }
 
+    /// Filled part of a details-panel gauge (0...100): what is left in `.remaining` mode, what is
+    /// used in `.used` mode, so the bar reads the same way as the menu bar number. Unknown = empty.
+    public static func gaugePercent(_ status: LimitStatus?, mode: PercentMode) -> Int {
+        guard let status else { return 0 }
+        return gaugePercent(usedPercent: status.usedPercent, mode: mode)
+    }
+
+    public static func gaugePercent(usedPercent: Double, mode: PercentMode) -> Int {
+        let used = Int(min(max(usedPercent, 0), 100).rounded())
+        return mode == .remaining ? 100 - used : used
+    }
+
     public static func severity(_ status: LimitStatus?) -> Severity {
         guard let status else { return .unavailable }
         let left = reading(status).left
