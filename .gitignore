@@ -15,8 +15,9 @@ Package.resolved
 # macOS
 .DS_Store
 
-# Local agent state (oh-my-claudecode)
+# Local agent state (oh-my-claudecode, oh-my-codex)
 .omc/
+.omx/
 
 # Never commit real logs or credentials
 *.local.jsonl
