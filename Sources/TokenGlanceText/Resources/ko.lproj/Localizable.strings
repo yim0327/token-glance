@@ -184,3 +184,23 @@
 "notify.body.reset" = "새 윈도우에서 %d%% 남음.";
 "notify.test.title" = "Token Glance 테스트 알림";
 "notify.test.body" = "알림이 정상 동작합니다.";
+
+/* Claude online limits */
+"popover.online.hookCache" = "훅 캐시";
+"popover.online.hookValue" = "%@ %d%% 사용";
+"popover.online.hookDiffers" = "훅 캐시 값이 다름: %@ (관측 %@). 계정 조회 값을 표시합니다.";
+"popover.online.outdated" = "계정 조회 결과가 오래됨";
+"popover.online.claude.disabled" = "Claude 온라인 한도 조회 꺼짐";
+"popover.online.claude.executableUnavailable" = "Claude Code 실행 파일을 찾을 수 없음";
+"popover.online.claude.launchFailed" = "Claude Code를 시작할 수 없음";
+"popover.online.claude.subscriptionRequired" = "Claude 구독 로그인이 필요함 (API 키·클라우드 공급자 로그인에는 플랜 한도가 없음)";
+"popover.online.claude.unavailable" = "Claude Code가 지금 플랜 사용량을 읽지 못함 (로그인 만료, 요청 제한 또는 오프라인)";
+"popover.online.claude.unsupported" = "설치된 Claude Code가 사용량 조회를 지원하지 않음. Claude Code를 업데이트하세요";
+"popover.online.claude.disconnected" = "Claude Code가 응답 전에 종료됨";
+"settings.claudeOnline.section" = "Claude 온라인 한도";
+"settings.claudeOnline.toggle" = "Claude 플랜 한도 온라인 조회";
+"settings.claudeOnline.explain" = "켜면 Token Glance가 약 5분마다 설치된 Claude Code를 프롬프트 없이 백그라운드에서 실행해 플랜 한도를 읽습니다. Claude Code는 자기 로그인을 사용하며, 바뀔 수 있는 비공식 엔드포인트로 Anthropic 서버에 요청합니다. 실패하면 훅 캐시 값을 표시합니다. 토큰 합계는 계속 로컬 로그를 사용합니다.";
+"settings.claudeOnline.consentTitle" = "Claude 온라인 한도 조회를 켤까요?";
+"settings.claudeOnline.consentBody" = "• 외부 요청: 약 5분마다, 그리고 새로고침할 때 Token Glance가 설치된 Claude Code를 프롬프트 없이 실행하고, Claude Code가 Anthropic 서버에 플랜 사용량을 요청합니다.\n\n• 로그인 정보는 읽기 전용: Claude Code가 이미 가진 로그인을 사용합니다. Token Glance는 토큰이나 Keychain 항목을 읽거나 저장하거나 바꾸지 않습니다. 다만 Claude Code 자체는 평소처럼 로그인을 갱신할 수 있습니다.\n\n• 공식 지원 경로 아님: Claude Code의 실험적 요청과 문서화되지 않은 서버 엔드포인트를 사용합니다. 예고 없이 바뀌거나 동작하지 않을 수 있으며, 실패하면 훅 캐시 값을 표시합니다.\n\n• 약관: 이 사용이 계정에 적용되는 약관에서 허용되는지 확인할 책임은 사용자에게 있습니다.\n\n• 끄면 진행 중인 요청을 포함해 즉시 중단됩니다.";
+"settings.claudeOnline.enable" = "켜기";
+"settings.claudeOnline.cancel" = "취소";

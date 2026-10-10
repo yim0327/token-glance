@@ -312,6 +312,43 @@ Claude Code ──stdin──▶ token-glance-hook (no args)
 
 ---
 
+### 3.5 Claude Code `get_usage` 온라인 한도 (M5와 분리된 작업)
+
+**경로 조사 (Claude Code 2.1.296, 2026-10-10):**
+
+| 경로 | 문서 | 판단 |
+|---|---|---|
+| statusline stdin `rate_limits.five_hour/seven_day` | 공식 문서 (statusline) | 기본 경로 (3.1). Claude Code 실행 중에만 갱신 |
+| Agent SDK `/usage` 프롬프트 → `usage_report` | 공식 SDK 레퍼런스, "experimental: its shape may change" | 로컬 트랜스크립트 스캔이 함께 돌 수 있어 사용하지 않음 |
+| control 요청 `get_usage` (`skip_behaviors`) | 무문서. SDK 메서드명 `usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET`. 스키마 설명: "For callers that need only the plan rate limits, such as a usage meter" | **사용**. 옵션 기본 OFF |
+| `GET /api/oauth/usage` 직접 호출 | 무문서 | 앱이 토큰을 읽어야 하므로 사용하지 않음 (Legal and compliance: 자격증명 수집·중개 금지) |
+
+**자격증명 구조 (값은 읽지 않음):** login 키체인의 일반 암호 `Claude Code-credentials`. Claude Code는 `/usr/bin/security find-generic-password … -w`로 읽고 `add-generic-password -U`로 다시 쓴다(로그인 갱신 시 수정일 변경). 내용은 `claudeAiOauth` 키 아래의 토큰·만료·scope 등이다(실행 파일 문자열로 확인). 이 머신에는 `~/.claude/.credentials.json`이 없다. Token Glance는 둘 다 접근하지 않는다.
+
+**실제 검증 (사용자 승인 3회, 원문·수치 미출력):**
+
+1. `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` + `--safe-mode`: `initialize`·`get_usage` 모두 success(0.43초), `rate_limits_available: true`이지만 `rate_limits: null`. 이 env가 usage 조회까지 막는다.
+2. env 없이 `--safe-mode`: 1.17초, 디버그 로그에 `GET /api/oauth/usage` 1회와 200 응답. `rate_limits` 객체 반환.
+3. `DISABLE_TELEMETRY`·`DISABLE_ERROR_REPORTING`·`DISABLE_AUTOUPDATER` + `--safe-mode`: 0.55초, "Usage read answered from a snapshot 17s old; endpoint not asked". Claude Code가 자체 스냅샷으로 재요청을 줄인다.
+
+세 번 모두 exit 0, stderr 0바이트, 세션 파일 미생성(`--no-session-persistence`). 1회 비용: 약 0.3초 CPU, 최대 RSS 약 229MB(자식).
+
+**응답 구조 (`control_response.response.response`):**
+
+| 필드 | 관찰 |
+|---|---|
+| `session` | 이 자식 세션의 비용·사용량(항상 0). 사용하지 않음 |
+| `subscription_type` | 문자열. 저장·표시하지 않음 |
+| `rate_limits_available` | bool. false면 API 키/3P/scope 부족 → "구독 로그인 필요" |
+| `rate_limits` | 객체 또는 null(조회 실패: 만료·429·오프라인을 구분하지 않음) |
+| `rate_limits.limits[]` | `kind`, `group`, `percent`(정수 관찰), `resets_at`(ISO 8601 문자열), `severity`, `is_active`, `scope`(null). 관찰한 kind/group: `session/session`, `weekly_all/weekly`. 스키마 설명상 `weekly_scoped`도 있다. 스키마 설명: "Classify a row on this, never on a label" |
+| `rate_limits.five_hour` / `seven_day` | `utilization`(정수), `resets_at`(문자열) 및 달러 관련 null 필드. `limits[]`가 없을 때만 사용 |
+| 기타 | `extra_usage`, `spend`, `seven_day_breakdown`, `model_scoped` 및 코드명 키 다수(대부분 null). 모두 무시 |
+| `behaviors` | `skip_behaviors: true`이면 null |
+
+- **윈도우 길이 필드가 없다.** `kind`로만 구분하고, 알 수 없는 kind·중복 kind는 표시하지 않는다.
+- stdout에는 `system/ui_invalidate` 같은 다른 메시지가 섞일 수 있어 `request_id`로 응답을 고르고 나머지 줄은 건너뛴다.
+
 ## 4. 미확인 목록 (후속 검증)
 
 | 항목 | 검증 방법 | 시점 |
@@ -322,3 +359,7 @@ Claude Code ──stdin──▶ token-glance-hook (no args)
 | Claude Code가 실제로 보내는 취소 시그널 종류 | 훅 SIGTERM/SIGINT 시 자식 그룹 정리는 확인됨(3.3). Claude Code가 SIGKILL을 쓰면 자식이 끝까지 실행됨 — 실제 시그널은 미확인 | 수시 |
 | OMC HUD 실제 실행 시간 | 미측정(직접 실행 시 네트워크 호출 가능). 실제 사용에서 표시 이상 없음 | 수시 |
 | `quotaLimits.rateLimitType`의 주간 값 이름 | 주간 한도 도달 시 관찰 | 수시 |
+| `get_usage`를 지원하는 최소 Claude Code 버전, 이후 버전의 변경 | 2.1.296에서만 확인. 미지원이면 "업데이트 필요"로 표시 | 수시 |
+| `get_usage` 자식이 로그인 갱신 시 Keychain ACL을 바꾸는지 | 앱은 Keychain에 접근하지 않음. Claude Code 자체 동작이며 미확인 | 수시 |
+| `rate_limits: null`의 실제 원인(만료/429/오프라인) 구분 | Claude Code가 알려주지 않음. 합성 테스트로만 처리 확인 | 수시 |
+| `weekly_scoped` 행과 `scope`가 있는 응답 | 해당 플랜·모델 사용 시 관찰 | 수시 |

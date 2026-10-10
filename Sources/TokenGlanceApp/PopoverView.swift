@@ -88,21 +88,25 @@ private struct ToolSection: View {
                 if let session = state.session { LimitRow(title: l10n.windowName(.session), status: session, l10n: l10n) }
                 if let weekly = state.weekly { LimitRow(title: l10n.windowName(.weekly), status: weekly, l10n: l10n) }
             }
-            if state.tool == .codex {
+            if state.tool == .codex || state.limitSource != nil {
                 if let source = state.limitSource {
                     HStack(spacing: 4) {
-                        Text(l10n("popover.online.source", source == "Account query"
-                                  ? l10n("popover.online.accountQuery") : l10n("popover.online.localLogs")))
+                        Text(l10n("popover.online.source", sourceName(source)))
                         if let observedAt = state.limitObservedAt {
                             Text(l10n("popover.online.observed", l10n.resetTime(observedAt)))
                         }
                     }
                     .font(.caption2).foregroundStyle(.secondary)
                 }
+                if !state.otherSourceLimits.isEmpty {
+                    Text(hookComparison).font(.caption2).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 if let failure = state.onlineFailure {
-                    Text(l10n("popover.online.failure", onlineFailure(failure)) + " "
-                         + l10n("popover.online.localIdentityUnverified"))
+                    Text(l10n("popover.online.failure", onlineFailure(failure))
+                         + (state.tool == .codex ? " " + l10n("popover.online.localIdentityUnverified") : ""))
                         .font(.caption).foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             if let summary = state.summary { TokenTable(summary: summary, l10n: l10n) }
@@ -119,9 +123,34 @@ private struct ToolSection: View {
         }
     }
 
+    private func sourceName(_ source: String) -> String {
+        switch source {
+        case "Account query": l10n("popover.online.accountQuery")
+        case "Hook cache": l10n("popover.online.hookCache")
+        default: l10n("popover.online.localLogs")
+        }
+    }
+
+    /// The hook cache values that differ from the account query shown above them.
+    private var hookComparison: String {
+        let values = state.otherSourceLimits.map {
+            l10n("popover.online.hookValue", l10n.windowName($0.kind), Int($0.usedPercent.rounded()))
+        }.joined(separator: " · ")
+        let observed = state.otherSourceLimits.map(\.observedAt).max().map(l10n.resetTime) ?? "--"
+        return l10n("popover.online.hookDiffers", values, observed)
+    }
+
     private func onlineFailure(_ message: String) -> String {
         let key: String
         switch message {
+        case "Account query result is out of date": key = "popover.online.outdated"
+        case "Claude online limit checks disabled": key = "popover.online.claude.disabled"
+        case "Claude Code executable not found": key = "popover.online.claude.executableUnavailable"
+        case "Claude Code could not start": key = "popover.online.claude.launchFailed"
+        case "Claude subscription login required": key = "popover.online.claude.subscriptionRequired"
+        case "Claude Code could not read plan usage": key = "popover.online.claude.unavailable"
+        case "Installed Claude Code does not support usage reads": key = "popover.online.claude.unsupported"
+        case "Claude Code exited before answering": key = "popover.online.claude.disconnected"
         case "Waiting for account query": key = "popover.online.waiting"
         case "Account query returned no limit windows": key = "popover.online.noWindows"
         case "Codex login required": key = "popover.online.loginRequired"

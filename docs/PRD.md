@@ -55,7 +55,7 @@
 | 우선순위 | 방법 | 설명 | 비고 |
 |---|---|---|---|
 | **1 (기본)** | **Statusline 훅** | Claude Code는 statusline 스크립트에 stdin JSON으로 `rate_limits.five_hour / seven_day` 의 `used_percentage`, `resets_at`(Unix epoch)을 전달한다. 앱이 제공하는 작은 스크립트를 `statusLine`으로 등록하면, 스크립트가 해당 JSON을 앱의 캐시 파일에 기록하고 앱은 이를 감시(FSEvents)한다. | 공식 문서화된 기능. 네트워크/토큰 접근 불필요. Pro/Max 구독자 + 첫 API 응답 이후에만 값 존재. 필드 형태 확인됨(`used_percentage` 숫자(관찰값 정수, Double로 파싱), `resets_at` Unix **초**). Claude Code 2.1.295에서 존재 확인, 최소 버전은 미확인 |
-| 2 (옵션) | 비공식 OAuth Usage API | `GET api.anthropic.com/api/oauth/usage` (Keychain의 Claude Code 자격증명 사용). 응답에 `five_hour`, `seven_day`, 모델별 주간 한도 포함. | **비공식·무문서**, 429가 잦음, 자격증명 접근 필요. 미구현·보류. M5에서는 제외 |
+| 2 (옵션, 기본 OFF) | Claude Code `get_usage` 위임 조회 (§7.5) | 설치된 `claude`를 헤드리스 자식으로 실행해 control 요청 `get_usage`를 보낸다. Claude Code가 자기 로그인으로 서버의 usage 엔드포인트를 조회한다. 앱은 Keychain·토큰에 접근하지 않는다. | **공식 지원 경로 아님**: control 요청은 실험적(SDK 메서드명 `usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET`)이고 서버 엔드포인트는 무문서. 앱이 토큰으로 엔드포인트를 직접 호출하는 방식은 약관 문구(자격증명 수집·중개 금지) 때문에 쓰지 않는다 |
 
 - **훅 구현 규칙 (성능/정확도)**: Claude Code는 statusline 업데이트를 300ms 디바운스하고, 스크립트가 실행 중일 때 새 업데이트가 오면 진행 중인 스크립트를 **취소**한다. 따라서 (1) stdin을 먼저 읽어 **캐시 파일에 원자적으로(임시파일 → rename) 기록한 뒤**, (2) 그 다음에 기존 statusline(OMC 등)에 동일 stdin을 그대로 넘기고 출력을 전달한다. (3) 훅은 jq 의존 없이 Foundation만 사용하고 네트워크 호출은 하지 않는다. (4) **M2 구현 규칙**: 자식을 별도 프로세스 그룹으로 띄워 SIGTERM/SIGINT를 그룹 전체에 전달하고, 원본 바이트는 별도 스레드로 써서 자식이 stdin을 안 읽어도 막히지 않게 하며, 다른 파일 디스크립터는 상속하지 않는다. 지연을 줄이기 위해 fsync는 생략한다(원자적 rename만). 측정: release 빌드 p50 5.7ms / p95 7.3ms, 케이스에서 캐시 기록은 이어서 실행되는 명령보다 약 4.9ms 만에 완료. 채널 실행 시간을 측정해 예산(예: 훅 자체 < 20ms)을 테스트한다.
 - **개발 환경(예시)**: oh-my-claudecode(OMC) 설치 중. **확인됨**: `~/.claude/settings.json`의 statusLine은 `{"type":"command","command":"node ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hud/omc-hud.mjs"}` (OMC HUD). command는 쉘 변수 확장(`${...:-...}`)을 포함하므로, 체이닝 시 원본 command **문자열을 그대로 저장해 쉘에서 실행**한다(경로를 직접 해석하지 말 것). 원본은 백업 파일에 보관하고 제거 시 복원한다. OMC HUD는 node 프로세스라 시작 비용이 있고(수십 ms), 한도 캐시(기본 90초)가 만료되면 Keychain과 비공식 usage API 호출을 statusline 실행 경로에서 기다리므로 **수 초**까지 걸릴 수 있다(M0 분석). 훅은 반드시 그보다 앞에서 저장을 끝낸다. OMC 내부 캐시(`.omc/state/...`, `.usage-cache-*.json`)에는 의존하지 않는다(내부 형식, 프로젝트별 분산, 경로/세션명 포함, 비원자적 쓰기). 체이닝 시 받은 stdin 바이트를 재직렬화 없이 그대로 자식 stdin에 쓰고 반드시 close(EOF)한다. 따라서 **체이닝은 P0**로 격상한다. OMC가 업데이트/재설치로 statusLine을 덮어쓸 수 있으므로 훅 상태 점검(설치됨/덮어씁움)과 재설치 버튼도 제공한다.
@@ -97,6 +97,16 @@
 - 유효한 계정 조회 결과가 있으면 한도 표시에서 로컬 스냅샷보다 우선한다. 실패 시 사유와 함께 로컬 한도로 폴백한다. 출처와 마지막 관측 시각을 표시하고, 오래된 응답이나 다른 계정/버킷의 값을 섞지 않는다. 초기화 시각이 지났다는 이유만으로 실제 한도 복구를 확정하지 않는다.
 - 로컬 rollout에는 검증된 계정 식별자가 없으므로 폴백의 계정 귀속은 미확인으로 표시한다. 온라인 버킷과 로컬 스냅샷을 합치지 않는다.
 - 토큰 상세·모델별 집계는 로컬 로그만 사용한다. `account/usage/read`는 필드·기간·집계 범위 조사 대상으로만 두며 서버 토큰 합계를 로컬 합계에 더하지 않는다. Aside 귀속은 비교 검증 전까지 미확인이다.
+
+### 7.5 Claude 온라인 한도 조회 (M5와 분리된 작업)
+
+- 설정 **Claude 온라인 한도 조회**는 기본 OFF다. OFF에서는 자식 프로세스·네트워크 요청·자격증명 접근이 0이다. 켜기 전 동의 대화상자에 외부 요청, Claude Code 로그인의 읽기 전용 사용, 공식 지원 경로가 아님(변경 가능), 약관 확인은 사용자 책임, 끄면 즉시 중단을 명시한다.
+- 조사 결과(2026-10-10, Claude Code 2.1.296): 구독 한도를 읽는 **안정적인 공식 API는 없다**. 공식 문서에는 statusline stdin `rate_limits`(현재 기본 경로)와 Agent SDK의 `/usage` → `usage_report`(experimental)가 있다. 앱이 OAuth 토큰으로 `api/oauth/usage`를 직접 호출하는 방식은 Claude Code Legal and compliance의 "developers may not collect, store, or intermediate Claude.ai credentials or session tokens" 문구에 걸리므로 쓰지 않는다.
+- 구현: 조회 1회마다 `claude -p --input-format stream-json --output-format stream-json --verbose --no-session-persistence --safe-mode --strict-mcp-config`를 실행하고 `initialize`, `get_usage`(`skip_behaviors: true`)를 보낸 뒤 응답을 받으면 바로 종료한다. 프롬프트를 보내지 않으므로 모델 요청은 없다. `DISABLE_TELEMETRY`, `DISABLE_ERROR_REPORTING`, `DISABLE_AUTOUPDATER`를 켠다. `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`는 usage 조회까지 막으므로 설정하지 않는다. Claude 폴더 지정이 있으면 `CLAUDE_CONFIG_DIR`로 넘긴다.
+- 자격증명: 앱은 Keychain 항목(`Claude Code-credentials`)과 인증 파일을 읽거나 쓰지 않는다. 따라서 ad-hoc 서명 빌드마다 Keychain 권한 프롬프트가 생기지 않는다. 자식 Claude Code는 자기 동작대로 로그인을 갱신하고 Keychain에 다시 쓸 수 있으며, usage 스냅샷을 자기 상태에 캐시한다(엔드포인트 재요청을 스스로 줄임).
+- 갱신: 시작, 웨이크, 5분 폴링, 수동 새로고침, Claude 윈도우 초기화 시각. 타임아웃 20초, 진행 중 조회 공유(중복 방지), 실패 시 지수 백오프(60초부터 두 배, 최대 30분, 성공 시 초기화), 시작·웨이크 직후 일시적 실패는 5초·15초 뒤 재시도. 옵션 OFF·Claude 비활성화 시 진행 중 조회와 자식을 취소한다. Claude Code는 429 여부를 알려주지 않고 `rate_limits: null`로 답하므로 이를 "지금 읽을 수 없음"으로 표시하고 백오프한다.
+- 윈도우: `rate_limits.limits[]`의 `kind`로 구분한다(`session` → 세션, `weekly_all` → 주간). `weekly_scoped`(모델별)와 알 수 없는 kind는 무시하고, 같은 kind가 둘 이상이면 표시하지 않는다. `limits[]`가 없을 때만 `five_hour`/`seven_day`를 쓴다. 이 응답에는 윈도우 길이 필드가 없다.
+- 결합: 15분 이내의 유효한 온라인 값이 있으면 한도 표시에서 훅 캐시보다 우선한다. 실패·오래됨이면 훅 캐시로 폴백하고 사유, 출처, 마지막 관측 시각을 표시한다. 두 값을 평균·합산하지 않고, 훅 캐시 값이 다르면 팝오버에 함께 보여준다. 오래된 응답은 새 값을 덮어쓰지 않는다. 초기화 시각이 지난 윈도우는 0%로 표시하지 않고 새 관측을 기다린다(온라인·폴백 모두). 토큰 합계·모델별 집계는 로컬 로그만 쓴다.
 
 ## 8. 기능 요구사항
 
@@ -146,6 +156,7 @@
 - 현재 설정: 남은/사용 표시, 도구 켜기/끄기, 로그 경로, 로그인 시 실행, 훅 관리.
 - M5 설정: 알림 토글·임계값, 언어(시스템/한국어/영어). 비공식 API 옵션은 추가하지 않는다.
 - Codex 온라인 한도 조회 옵션은 기본 OFF이며 §7.4의 별도 작업에서 추가한다.
+- Claude 온라인 한도 조회 옵션은 기본 OFF이며 §7.5의 별도 작업에서 추가한다.
 - 로그인 등록/해제는 확인됨. 로그아웃·재로그인 후 자동 실행은 사용자 확인이 남아 있다.
 
 ### 8.5 알림 (P1, M5 계획)
@@ -177,7 +188,7 @@
 |---|---|
 | 성능 | idle CPU < 1%, 메모리 < 50MB, 증분 갱신 < 200ms. 메모리는 Activity Monitor의 메모리(physical footprint) 기준이며 순간 최고치는 별도 관리(RSS는 참고용). 조건·측정 방법은 `docs/perf.md` 참조 |
 | 프라이버시 | 프롬프트/응답 내용은 저장·전송하지 않음. 수치 메타데이터만 사용. 기본 설정에서 외부 네트워크 호출 0 |
-| 보안 | 앱/진단 스크립트는 인증 파일·Keychain을 직접 읽지 않음. Codex 온라인 옵션의 인증은 설치된 App Server에 위임. 토큰·계정 정보 저장 금지. 훅 관리 백업에는 사용자 설정이 포함되므로 권한 보호 |
+| 보안 | 앱/진단 스크립트는 인증 파일·Keychain을 직접 읽지 않음. Codex 온라인 옵션의 인증은 설치된 App Server에, Claude 온라인 옵션의 인증은 설치된 Claude Code에 위임. 토큰·계정 정보 저장 금지. 훅 관리 백업에는 사용자 설정이 포함되므로 권한 보호 |
 | 안정성 | 파싱 실패 라인 skip, 스키마 변경에 방어적, 값 누락 시 graceful degrade |
 | 권한 | dot-folder 읽기 필요 → App Sandbox OFF, 직접 배포 |
 | UI | 다크/라이트, Dock 아이콘 없음(`LSUIElement`), 한국어/영어 |
@@ -239,7 +250,8 @@
 
 | 리스크 | 대응 |
 |---|---|
-| Claude 한도는 statusline 훅 의존: Claude Code가 실행되어야 값 갱신 | 신선도 표시. 비공식 API는 미구현·보류 |
+| Claude 한도는 statusline 훅 의존: Claude Code가 실행되어야 값 갱신 | 신선도 표시. 선택 옵션으로 Claude Code `get_usage` 위임 조회(§7.5) |
+| Claude 온라인 조회 경로가 실험적·무문서 (변경·중단, 약관 해석) | 기본 OFF, 동의 문구에 명시, 실패 시 훅 캐시 폴백, 미지원 상태 표시 |
 | 기존 statusline 사용자 충돌 | 체이닝 + 백업/복원 + 동의 절차 |
 | 훅이 SIGKILL을 받으면 이어서 실행 중인 명령(OMC HUD)이 끝까지 실행됨 (가로채지 못함). Claude Code가 실제로 쓰는 취소 시그널은 미확인 | 실사용 중 고아 프로세스 관찰, 문서화 |
 | OMC 업데이트/재설치가 statusLine을 덮어쓸 수 있음 | `status()`로 감지, 앱 UI 경고 + `repair` |

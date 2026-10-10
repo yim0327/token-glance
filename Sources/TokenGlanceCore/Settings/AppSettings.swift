@@ -7,6 +7,8 @@ public struct AppSettings: Equatable, Sendable {
     public var codexEnabled = true
     /// Opt-in account limit reads through the installed Codex App Server.
     public var codexOnlineLimitsEnabled = false
+    /// Opt-in plan limit reads through the installed Claude Code (`get_usage`).
+    public var claudeOnlineLimitsEnabled = false
     /// Overrides `CLAUDE_CONFIG_DIR` (the folder that contains `projects/`). `nil` = default.
     public var claudeConfigDir: String?
     /// Overrides `CODEX_HOME` (the folder that contains `sessions/`). `nil` = default.
@@ -26,6 +28,7 @@ public struct AppSettings: Equatable, Sendable {
         public static let claudeEnabled = "claudeEnabled"
         public static let codexEnabled = "codexEnabled"
         public static let codexOnlineLimitsEnabled = "codexOnlineLimitsEnabled"
+        public static let claudeOnlineLimitsEnabled = "claudeOnlineLimitsEnabled"
         public static let claudeConfigDir = "claudeConfigDir"
         public static let codexHome = "codexHome"
         public static let language = "language"
@@ -52,6 +55,7 @@ public struct AppSettings: Equatable, Sendable {
         if let value = defaults.object(forKey: Keys.claudeEnabled) as? Bool { settings.claudeEnabled = value }
         if let value = defaults.object(forKey: Keys.codexEnabled) as? Bool { settings.codexEnabled = value }
         if let value = defaults.object(forKey: Keys.codexOnlineLimitsEnabled) as? Bool { settings.codexOnlineLimitsEnabled = value }
+        if let value = defaults.object(forKey: Keys.claudeOnlineLimitsEnabled) as? Bool { settings.claudeOnlineLimitsEnabled = value }
         settings.claudeConfigDir = defaults.object(forKey: Keys.claudeConfigDir) as? String
         settings.codexHome = defaults.object(forKey: Keys.codexHome) as? String
         if let language = defaults.string(forKey: Keys.language) { settings.language = language }
@@ -69,6 +73,7 @@ public struct AppSettings: Equatable, Sendable {
         defaults.set(settings.claudeEnabled, forKey: Keys.claudeEnabled)
         defaults.set(settings.codexEnabled, forKey: Keys.codexEnabled)
         defaults.set(settings.codexOnlineLimitsEnabled, forKey: Keys.codexOnlineLimitsEnabled)
+        defaults.set(settings.claudeOnlineLimitsEnabled, forKey: Keys.claudeOnlineLimitsEnabled)
         defaults.set(settings.claudeConfigDir, forKey: Keys.claudeConfigDir)
         defaults.set(settings.codexHome, forKey: Keys.codexHome)
         defaults.set(settings.language, forKey: Keys.language)

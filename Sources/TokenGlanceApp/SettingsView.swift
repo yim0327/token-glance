@@ -72,6 +72,21 @@ struct SettingsView: View {
             NotificationSection(store: store)
             LoginSection(l10n: l10n)
             HookSection(store: store)
+            Section(l10n("settings.claudeOnline.section")) {
+                Toggle(l10n("settings.claudeOnline.toggle"), isOn: Binding(
+                    get: { store.settings.claudeOnlineLimitsEnabled },
+                    set: { enabled in
+                        guard !enabled || confirmClaudeOnlineLimits(l10n) else { return }
+                        var settings = store.settings
+                        settings.claudeOnlineLimitsEnabled = enabled
+                        store.apply(settings)
+                    }
+                ))
+                .disabled(!store.settings.claudeEnabled)
+                Text(l10n("settings.claudeOnline.explain"))
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             Section(l10n("settings.codexOnline.section")) {
                 Toggle(l10n("settings.codexOnline.toggle"), isOn: Binding(
                     get: { store.settings.codexOnlineLimitsEnabled },
@@ -121,6 +136,16 @@ struct SettingsView: View {
         settings.claudeConfigDir = claudeDir
         settings.codexHome = codexDir
         store.apply(settings)
+    }
+
+    private func confirmClaudeOnlineLimits(_ l10n: Localizer) -> Bool {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = l10n("settings.claudeOnline.consentTitle")
+        alert.informativeText = l10n("settings.claudeOnline.consentBody")
+        alert.addButton(withTitle: l10n("settings.claudeOnline.enable"))
+        alert.addButton(withTitle: l10n("settings.claudeOnline.cancel"))
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     private func confirmCodexOnlineLimits(_ l10n: Localizer) -> Bool {

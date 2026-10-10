@@ -214,3 +214,29 @@ The Refresh button's real click path was not measured because macOS denied acces
 to the automation process. The source route and synthetic request/coalescing tests passed.
 New/resumed Codex sessions were covered by synthetic regression tests only, as requested; actual
 session use with online checks remains unverified.
+
+## Claude online limit checks (separate work, 2026-10-10)
+
+The optional path is off by default. Measured with approved separate app copies (own bundle id and
+preferences, removed afterwards), 5 minutes each (60 samples, 5 seconds apart), while this
+development session was writing logs. CPU is the average of CPU time deltas of the app process.
+Children were watched every 0.2 s; sockets were listed for the app process every 5 s.
+
+| Build, option | Average CPU | Max 5-second CPU | Average footprint | Peak footprint (vmmap) | Children | App sockets |
+|---|---:|---:|---:|---:|---:|---:|
+| `origin/main`, — (side by side) | 0.56% | 0.60% | 18.8 MB | 39.9 MB | 0 | 0 |
+| This branch, OFF (side by side) | 0.59% | 0.60% | 18.6 MB | 38.8 MB | 0 | 0 |
+| This branch, ON | 0.58% | 0.60% | 19.2 MB | 38.4 MB | see below | 0 |
+
+- With the option OFF the branch matches `main` within noise and starts no `claude` child and
+  opens no socket. (An earlier 5-minute OFF run during heavier log activity — 46 refreshes, a
+  build and a reviewer writing transcripts at the same time — averaged 0.94%, also with 0 children
+  and 0 sockets.)
+- With the option ON, two account queries ran (launch and the 5-minute poll), both successful.
+  Each query is a short-lived `claude` process: in the probe runs 0.55–1.2 s wall and ~0.3 s CPU;
+  in this run the watcher caught one child at 203 MB RSS and 0.48 s CPU (the other ended between
+  samples). That adds roughly 0.1–0.2% CPU averaged over the 5-minute interval, and a transient
+  ~200–230 MB resident process for about a second per query. The app's own footprint is unchanged;
+  unlike the Codex App Server, no child stays resident between queries.
+- The network traffic is the child's; the app process itself held no sockets.
+- Quitting the app left no `claude` child behind.

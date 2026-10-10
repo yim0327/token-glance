@@ -32,20 +32,30 @@ countdown, and tokens used today and this week (input / output / cache, top mode
 - English and Korean, following the system language by default or chosen in settings.
 - A 14-day history window with daily tokens per tool, from local logs.
 - Optional Codex online limit checks through the installed Codex App Server (off by default).
+- Optional Claude online limit checks through the installed Claude Code (off by default; uses an
+  experimental, unofficial path — see Privacy and Limitations).
 
 ## How it gets the numbers
 
 | | Limits (% and reset time) | Tokens |
 |---|---|---|
-| **Claude Code** | Claude Code passes them only to **statusline commands**. A small hook records them and then runs your existing statusline (e.g. oh-my-claudecode's HUD) with the same input. | `~/.claude/projects/**/*.jsonl` (respects `CLAUDE_CONFIG_DIR`) |
+| **Claude Code** | By default, Claude Code passes them only to **statusline commands**. A small hook records them and then runs your existing statusline (e.g. oh-my-claudecode's HUD) with the same input. With online checks enabled, a recent plan-limit answer from the installed Claude Code takes priority; failed checks fall back to the hook cache with a reason and last observation time. | `~/.claude/projects/**/*.jsonl` (respects `CLAUDE_CONFIG_DIR`); online answers never replace token totals. |
 | **Codex CLI** | By default, `token_count` events in `~/.codex/sessions/**/rollout-*.jsonl` (respects `CODEX_HOME`). With online checks enabled, valid account limits from the installed Codex App Server take priority; failed checks fall back to local limits with a reason and last observation time. | Local rollout files only; online usage totals are not added. |
 
 Details of the formats are in [docs/log-schemas.md](docs/log-schemas.md).
 
 ## Privacy
 
-- **Online checks off (default):** no app server process or online limit requests; limits and token totals come from local files.
-- **Online checks on:** after you consent in Settings, Token Glance starts the installed Codex App Server as a child process. Codex uses your existing login and may make network requests for account limits. Token Glance does not directly read authentication files or Keychain. Limits refresh every five minutes or on manual refresh; update notifications are an additional signal.
+- **Online checks off (default):** no child processes, network requests or credential access; limits and token totals come from local files.
+- **Claude online checks on:** after you consent in Settings, Token Glance starts the installed
+  `claude` about every five minutes (and on Refresh, launch, wake and a Claude window reset) in headless
+  mode with no prompt (`--safe-mode`, `--no-session-persistence`, telemetry off) and sends one
+  `get_usage` control request. Claude Code uses its own login and requests the plan usage from
+  Anthropic's servers through an undocumented endpoint. Token Glance never reads, stores or changes
+  the token, the Keychain item or the credentials file; Claude Code itself may refresh its login as it
+  normally does and keeps a short-lived usage snapshot in its own state. Only percentages and reset
+  times are kept, in memory. Turning the option off cancels a running check.
+- **Codex online checks on:** after you consent in Settings, Token Glance starts the installed Codex App Server as a child process. Codex uses your existing login and may make network requests for account limits. Token Glance does not directly read authentication files or Keychain. Limits refresh every five minutes or on manual refresh; update notifications are an additional signal.
 - Prompt and response text is never stored, logged or sent. Only numbers (token counts,
   percentages, reset times, model names) are used, and only in memory.
 - The hook writes just the limit values to
@@ -111,6 +121,12 @@ Design decisions: [docs/adr](docs/adr). Performance measurements: [docs/perf.md]
 - Codex online checks require an installed Codex version with the App Server rate-limit methods (verified in codex-cli 0.162.0). API-key logins do not provide ChatGPT subscription limits. Multiple limit buckets stay separate; missing values remain unavailable. Aside usage attribution to account limits is unverified.
 - Local rollout logs do not carry a verified account identity. A fallback limit may belong to a different account; the app labels its source and never combines it with account-limit buckets.
 - With online checks enabled, the App Server child can raise combined physical memory above the 50 MB target (59.7 MB average in one 5-minute measurement). See [performance notes](docs/perf.md).
+- Claude online checks are **not an official, supported API**. They use Claude Code's experimental
+  `get_usage` control request (verified on Claude Code 2.1.296), which reads an undocumented server
+  endpoint; either can change or stop without notice, and then the hook cache is shown. Whether this
+  use is allowed under the terms for your account is for you to check. API-key and cloud-provider
+  logins have no plan limits. Scoped weekly meters (per model) are not shown. Each check briefly runs
+  a `claude` process (about 0.3 s CPU and ~230 MB resident memory while it runs).
 
 ## Compared with similar tools
 
