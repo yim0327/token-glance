@@ -77,6 +77,11 @@ Updated: 2026-10-11
   three cases (Codex update gaps, incremental parsing and repeated-use performance, the chaining
   hook and settings protection), how AI tools were used and what was checked by hand, current
   limits. Linked from both README sections.
+- Generic hook status wording (`fix/generic-hook-status-wording`): the overwritten-hook texts
+  (`reason.hookOverwritten`, `hook.status.overwritten`) no longer name a third-party tool; the
+  example is now "another tool changed the statusline" in both languages. A string-table test
+  rejects known third-party tool names in Korean and English values. Behavior unchanged.
+  `./scripts/test.sh`: 277 tests in 43 suites pass.
 
 ## Verified in the real app
 
@@ -117,8 +122,6 @@ fixes (automated tests only).
 - Log the Codex online outcome like `claude online: …` (there is no Codex online log line).
 - Memory: combined footprint with Codex online checks is about 60 MB against the 50 MB target
   (`docs/perf.md`).
-- The hook status text "Replaced by another statusline (e.g. an OMC update)" names a specific tool;
-  consider a neutral example.
 - Light-mode panel screenshots (`docs/images/panel-*-light.png`) predate the light-mode color change
   and are no longer used by the README.
 - Screenshot method for later updates: on macOS 26 the status item is hosted by Control Center;
