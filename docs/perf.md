@@ -7,7 +7,7 @@ reference only (it includes shared framework pages).
 ## Method
 
 - Bundled release app (`./scripts/bundle-app.sh`), launched with `open`, measured for 5 minutes
-  while a Claude Code session is actively writing logs (this development session).
+  while a Claude Code session on the same Mac is actively writing logs (development work).
 - CPU: cumulative CPU time from `ps -o time=` sampled every 5s. Average = ΔCPU / Δwall;
   "max 5s" = highest 5-second interval. (`ps %cpu` is a decaying average and is not used.)
 - Memory: `footprint <pid>` every 5s (average, max sampled), `vmmap --summary` at the end for
@@ -181,7 +181,7 @@ session 0.5 s, most recent open session 0.7 s.
 ## Codex online limit checks (separate work, 2026-10-10)
 
 The optional App Server path is off by default. With it enabled on the pre-M5 integration build,
-an approved separate app and its App Server child ran for 303 seconds (60 samples, 5 seconds apart).
+a separate app copy and its App Server child ran for 303 seconds (60 samples, 5 seconds apart).
 CPU is the average of CPU time deltas; footprint is the sum of both processes' physical footprints.
 
 | Process | Average CPU | Max 5-second CPU | Average footprint | Max sampled footprint |
@@ -193,7 +193,7 @@ CPU is the average of CPU time deltas; footprint is the sum of both processes' p
 The combined CPU met the < 1% target. Combined footprint exceeded the < 50 MB target; the child
 was the larger part. This run predates integration with M5.
 
-The M5-integrated build was then measured with the same approved separate-app method for 303
+The M5-integrated build was then measured with the same separate-app-copy method for 303
 seconds (60 samples). The App Server account-limit read succeeded. The probe used a temporary
 diagnostic build that printed only option booleans and query success; those diagnostics were
 removed from the final source and bundle.
@@ -212,25 +212,25 @@ no App Server child. Both temporary preference domains were removed afterwards.
 
 The Refresh button's real click path was not measured because macOS denied accessibility access
 to the automation process. The source route and synthetic request/coalescing tests passed.
-New/resumed Codex sessions were covered by synthetic regression tests only, as requested; actual
-session use with online checks remains unverified.
+New/resumed Codex sessions were covered by synthetic regression tests only in this run; see the
+M6 regression checks below for real sessions.
 
 ## Claude online limit checks (separate work, 2026-10-10)
 
-The optional path is off by default. Measured with approved separate app copies (own bundle id and
-preferences, removed afterwards), 5 minutes each (60 samples, 5 seconds apart), while this
-development session was writing logs. CPU is the average of CPU time deltas of the app process.
+The optional path is off by default. Measured with separate app copies (own bundle id and
+preferences, removed afterwards), 5 minutes each (60 samples, 5 seconds apart), while a Claude
+Code session on the same Mac was writing logs. CPU is the average of CPU time deltas of the app process.
 Children were watched every 0.2 s; sockets were listed for the app process every 5 s.
 
 | Build, option | Average CPU | Max 5-second CPU | Average footprint | Peak footprint (vmmap) | Children | App sockets |
 |---|---:|---:|---:|---:|---:|---:|
-| `origin/main`, — (side by side) | 0.56% | 0.60% | 18.8 MB | 39.9 MB | 0 | 0 |
-| This branch, OFF (side by side) | 0.59% | 0.60% | 18.6 MB | 38.8 MB | 0 | 0 |
-| This branch, ON | 0.58% | 0.60% | 19.2 MB | 38.4 MB | see below | 0 |
+| Previous `main` build, — (side by side) | 0.56% | 0.60% | 18.8 MB | 39.9 MB | 0 | 0 |
+| Online-checks build, OFF (side by side) | 0.59% | 0.60% | 18.6 MB | 38.8 MB | 0 | 0 |
+| Online-checks build, ON | 0.58% | 0.60% | 19.2 MB | 38.4 MB | see below | 0 |
 
-- With the option OFF the branch matches `main` within noise and starts no `claude` child and
+- With the option OFF the new build matches the previous one within noise and starts no `claude` child and
   opens no socket. (An earlier 5-minute OFF run during heavier log activity — 46 refreshes, a
-  build and a reviewer writing transcripts at the same time — averaged 0.94%, also with 0 children
+  build and a second Claude Code session writing logs at the same time — averaged 0.94%, also with 0 children
   and 0 sockets.)
 - With the option ON, two account queries ran (launch and the 5-minute poll), both successful.
   Each query is a short-lived `claude` process: in the probe runs 0.55–1.2 s wall and ~0.3 s CPU;
@@ -253,7 +253,7 @@ The driver opens and closes each window through the app's normal code paths (ope
 after the last close. Online checks were turned off for the run (the default) and restored after.
 Footprint: `footprint --sample 1` (1-second samples). CPU: `ps` CPU-time deltas every 5 s, averaged
 over each rest from 10 s after the close. "Settled" is the median footprint 10–30 s before the end
-of each rest. Claude Code (this session) was writing logs throughout.
+of each rest. A Claude Code session on the same Mac was writing logs throughout.
 
 The driver's checkpoints were logged at info level, which macOS keeps only in memory; the first
 half had expired when the run ended. Rows marked * use times reconstructed from the fixed
@@ -292,11 +292,11 @@ may be off by a few seconds. Checkpoints are now logged at notice level.
 
 | Check | Result |
 |---|---|
-| Korean ↔ English switch without restart; settings window scrolls | user-confirmed |
-| Panel closes on Esc, outside click and item click | user-confirmed |
-| Claude / Codex toggles off → on show again immediately | user-confirmed |
-| Refresh button, history chart | user-confirmed |
-| Notification test banner | user-confirmed |
+| Korean ↔ English switch without restart; settings window scrolls | checked by hand |
+| Panel closes on Esc, outside click and item click | checked by hand |
+| Claude / Codex toggles off → on show again immediately | checked by hand |
+| Refresh button, history chart | checked by hand |
+| Notification test banner | checked by hand |
 | Codex new session / same session / resumed after app restart | app updated 0.49 s / 0.70 s / 1.0 s after the `token_count` write (probe: times and byte counts only) |
 | Threshold-crossing notification | automated tests only (no real limit was used up for it) |
 
@@ -311,7 +311,7 @@ repeated panel use still does not grow memory:
   a bar value and was not measured separately.
 - Plan: `TG_STRESS=panel:1,panel:30,panel:30`, rests 30 s, 60 s before the first open and after the
   last close (8.6 minutes, 61 open/close cycles). Footprint: `footprint --sample 1`; CPU: `ps` CPU
-  time every 5 s; `vmmap --summary` at the end. Claude Code (this session) was writing logs.
+  time every 5 s; `vmmap --summary` at the end. A Claude Code session on the same Mac was writing logs.
 - The driver's checkpoints were not found with `log show` for this process; the open/close cadence
   (first open at +61 s, then ~2.5 s cycles) is visible in the 1-second footprint samples.
 
@@ -328,3 +328,31 @@ repeated panel use still does not grow memory:
 Only the panel was exercised (no settings or history window), so the numbers are not directly
 comparable with the 93-cycle run above (42–45 MB settled, 48.5 MB peak after all three windows).
 The changed lines are drawn only with online checks on; that state was not part of this run.
+
+## Release-blocker fixes: online checks on, quit (2026-10-11)
+
+Check that the child-process fixes leave nothing behind and do not change the app's cost. Method:
+release builds of the fix branch and of the previous `main`, each as a separate copy with its own
+bundle id and preferences (both online checks on, set before launch; removed afterwards), launched
+with `open -n`, 5 minutes, no window opened. A Claude Code session on the same Mac was writing logs.
+App CPU from `ps` CPU-time deltas, app footprint with `footprint` every 5 s; direct children listed
+every 0.2 s (`pgrep -P`), with their process groups. The app was then quit through Apple Events and
+each child process group was checked with `ps -g`.
+
+| Build (run) | App CPU avg | App footprint avg / max sampled | Settled at the end | Children seen | Left after quit |
+|---|---:|---:|---:|---|---|
+| Fix (1) | — (sampling bug) | — | — | `codex` App Server, 2 × `claude` | none |
+| Fix (2) | 0.10% | 35.0 / 42 MB | 34 MB | `codex` App Server, 1 × `claude` | none |
+| Previous `main` | 0.04% | 25.9 / 37 MB | 24 MB | `codex` App Server, 2 × `claude` | none |
+| Fix (3) | — | — / 38 MB | 17 MB | `codex` App Server, 1 × `claude` | none |
+
+- The settled footprint moved between 17 and 34 MB across fix runs and was 24 MB on `main`: the
+  difference is within run-to-run variation (memory returned to the system at different times),
+  not a growth. Max 5-second app CPU in run 2 was 2.0%.
+- A `claude` child lives about a second, so the 0.2 s listing can miss it. In a separate 25-second
+  launch of the fix copy the log showed the launch query (`claude online: ok, 2 windows`).
+- RSS of the `codex` App Server child (reference only, not footprint): about 166 MB average in run 2;
+  a `claude` child up to about 226 MB while it runs.
+- The app exited within a second of the quit request; no process remained in any child's process
+  group. Turning an option off through the settings window was not repeated (covered by
+  automated tests).

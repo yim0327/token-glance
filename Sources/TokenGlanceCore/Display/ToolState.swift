@@ -75,6 +75,16 @@ public struct ToolState: Equatable, Sendable {
         return copy == self
     }
 
+    /// Account limits can arrive before the first local index has built a summary. They go into an
+    /// empty one; `refreshedAt` stays nil until the index finishes, and no token totals are shown.
+    func withSummaryForLimits(now: Date) -> ToolState {
+        guard summary == nil else { return self }
+        var state = self
+        state.summary = UsageSummary(today: TokenUsage(), todayByModel: [:], week: TokenUsage(), weekByModel: [:],
+                                     weekInterval: DateInterval(start: now, duration: 0), limits: [])
+        return state
+    }
+
     public var session: LimitStatus? { summary?.limits.first { $0.kind == .session } }
     public var weekly: LimitStatus? { summary?.limits.first { $0.kind == .weekly } }
 

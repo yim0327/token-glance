@@ -32,7 +32,7 @@ public enum CodexOnlinePresentation {
         guard rows.contains(where: { $0.session != nil || $0.weekly != nil || !$0.otherWindows.isEmpty }) else {
             return fallback(local, reason: "Account query returned no limit windows", now: now)
         }
-        var state = local
+        var state = local.withSummaryForLimits(now: now)
         state.limitSource = "Account query"
         state.limitObservedAt = result.observedAt
         state.onlineFailure = nil

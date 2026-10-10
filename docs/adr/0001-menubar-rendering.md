@@ -18,8 +18,8 @@ menu bar 33pt tall, 2x Retina, menu bar appearance `VibrantDark`).
 | Popover position | Built in (`.window` style) | `NSPopover.show(relativeTo:of:preferredEdge: .minY)` on the button; standard placement under the item |
 | Code size | Smallest | Small: one image builder + one controller (~100 lines) |
 
-How it was checked: the prototypes printed their status item frames; the user confirmed the real menu
-bar ("AppKit: two lines OK", "SwiftUI: only `C 62%`, one line, large, white"). `screencapture` was not
+How it was checked: the prototypes printed their status item frames, and the real menu bar was
+checked by eye (AppKit: two lines; SwiftUI: only `C 62%`, one line, large, white). `screencapture` was not
 usable because the terminal has no Screen Recording permission, and snapshots of the app's own
 status bar window come out blank on macOS 26 (the menu bar content is composited by the system).
 
@@ -31,13 +31,14 @@ Use option 2.
   Text uses `NSColor.labelColor`; warning/critical percentages use `systemOrange` / `systemRed`;
   missing values (`--`) use `secondaryLabelColor`. All are dynamic colors resolved at draw time,
   so no appearance observation is needed.
-- Tool glyphs were neutral circular badges (superseded 2026-10-10: the label now draws the Claude
-  mark and the OpenAI Blossom from their supplied SVG paths in `labelColor`, with these badges as
-  the fallback; see docs/trademarks.md). Originally: neutral circular badges with a knocked-out letter ("C", "X"), drawn in code. No
-  Anthropic/OpenAI logos. SF Symbols `c.circle.fill` / `x.circle.fill` exist and would also work,
+- Tool glyphs were neutral circular badges with a knocked-out letter ("C", "X"), drawn in code, with
+  no Anthropic/OpenAI logos. (Superseded 2026-10-10: the label now draws the Claude mark and the
+  OpenAI Blossom from their supplied SVG paths in `labelColor`, with these badges as the fallback;
+  see docs/trademarks.md.) SF Symbols `c.circle.fill` / `x.circle.fill` exist and would also work,
   but drawing the badge directly avoids a separate tinting pass at 8pt.
 - The popover is an `NSPopover` hosting SwiftUI content (`NSHostingController`). SwiftUI is still
-  used for everything inside the popover.
+  used for everything inside the popover. (Superseded in M5: the details open in a borderless panel
+  instead of `NSPopover`, for memory reasons; see PRD §8.2 and docs/perf.md.)
 
 ## Consequences
 

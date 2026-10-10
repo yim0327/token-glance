@@ -80,4 +80,19 @@ struct CodexOnlinePresentationTests {
         ], observedAt: now + 60))
         #expect(CodexOnlinePresentation.newer(changed, than: latest) == changed)
     }
+
+    @Test func accountLimitsArrivingBeforeTheFirstLocalScanAreShownAndKept() throws {
+        let result = try #require(CodexAccountLimits.decode([
+            "rateLimits": ["primary": ["usedPercent": 60, "windowDurationMins": 300, "resetsAt": 1_001_000]],
+        ], observedAt: now))
+        let early = CodexOnlinePresentation.apply(result, to: ToolState(tool: .codex), now: now)
+        #expect(early.session?.usedPercent == 60)
+        #expect(early.limitWindows.map(\.usedPercent) == [60])
+        #expect(early.limitSource == "Account query")
+        #expect(early.refreshedAt == nil)
+        #expect(early.summary?.hasTokens == false)
+        // The first scan then brings an older local value; the account query is still shown.
+        let scanned = CodexOnlinePresentation.apply(result, to: localState(), now: now)
+        #expect(scanned.session?.usedPercent == 60)
+    }
 }

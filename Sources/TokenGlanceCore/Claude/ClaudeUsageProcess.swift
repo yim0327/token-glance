@@ -1,5 +1,4 @@
 import Foundation
-import Darwin
 
 /// Starts the installed `claude` headless for one control request over stdio. Claude Code reads
 /// its own login; this app never opens the Keychain item or credentials file.
@@ -14,89 +13,34 @@ public final class ClaudeProcessTransport: ClaudeControlTransport, @unchecked Se
 
     private let executableURL: URL?
     private let configDir: URL?
-    private let process = Process()
-    private let input = Pipe()
-    private let output = Pipe()
-    private let lock = NSLock()
-    private var closed = false
-    private let lines = LineQueue(limit: 4_194_304)
+    private let arguments: [String]
+    private let child: StdioChild
 
     /// `configDir` is the Claude folder override from settings (passed as `CLAUDE_CONFIG_DIR`).
-    public init(executableURL: URL? = nil, configDir: URL? = nil) {
+    /// `arguments` and `grace` (time to exit after SIGTERM before a kill) are replaced only in tests.
+    public init(executableURL: URL? = nil, configDir: URL? = nil, arguments: [String]? = nil, grace: TimeInterval = 2) {
         self.executableURL = executableURL
         self.configDir = configDir
+        self.arguments = arguments ?? Self.arguments
+        child = StdioChild(lineLimit: 4_194_304, overflow: ClaudeUsageFailure.invalidResponse, grace: grace)
     }
 
     public func start() throws {
         guard let executable = executableURL ?? Self.findClaudeExecutable() else {
             throw ClaudeUsageFailure.executableUnavailable
         }
-        process.executableURL = executable
-        process.arguments = Self.arguments
-        process.environment = Self.childEnvironment(executable: executable, configDir: configDir)
-        process.currentDirectoryURL = FileManager.default.temporaryDirectory
-        process.standardInput = input
-        process.standardOutput = output
-        process.standardError = FileHandle.nullDevice
-        let lines = lines
-        output.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            if data.isEmpty {
-                handle.readabilityHandler = nil
-                lines.finish()
-            } else {
-                lines.append(data)
-            }
-        }
-        do {
-            try process.run()
-        } catch {
-            output.fileHandleForReading.readabilityHandler = nil
-            lines.finish()
-            // Process errors can contain local paths. Expose only the safe category.
-            throw ClaudeUsageFailure.launchFailed
-        }
-        // A child that exits before reading must not kill the app with SIGPIPE; writes throw EPIPE instead.
-        _ = fcntl(input.fileHandleForWriting.fileDescriptor, F_SETNOSIGPIPE, 1)
+        // Process errors can contain local paths. Expose only the safe category.
+        try child.start(executable: executable, arguments: arguments,
+                        environment: Self.childEnvironment(executable: executable, configDir: configDir),
+                        directory: FileManager.default.temporaryDirectory,
+                        launchFailure: ClaudeUsageFailure.launchFailed)
     }
 
-    public func write(_ data: Data) throws {
-        try input.fileHandleForWriting.write(contentsOf: data)
-    }
-
-    public func readLine() async throws -> Data? {
-        try await lines.next()
-    }
-
-    public func exitStatus() async -> Int32? {
-        for _ in 0..<50 where process.isRunning {
-            try? await Task.sleep(for: .milliseconds(20))
-        }
-        return process.isRunning ? nil : process.terminationStatus
-    }
-
-    public func close() {
-        lock.lock()
-        defer { lock.unlock() }
-        guard !closed else { return }
-        closed = true
-        output.fileHandleForReading.readabilityHandler = nil
-        lines.finish()
-        try? input.fileHandleForWriting.close()
-        try? output.fileHandleForReading.close()
-        if process.isRunning {
-            process.terminate()
-            let child = process
-            DispatchQueue.global(qos: .utility).async {
-                let deadline = Date().addingTimeInterval(2)
-                while child.isRunning && Date() < deadline {
-                    Thread.sleep(forTimeInterval: 0.05)
-                }
-                if child.isRunning { _ = Darwin.kill(child.processIdentifier, SIGKILL) }
-                child.waitUntilExit()
-            }
-        }
-    }
+    public func write(_ data: Data) throws { try child.write(data) }
+    public func readLine() async throws -> Data? { try await child.readLine() }
+    public func exitStatus() async -> Int32? { await child.exitStatus() }
+    public func close() { child.close() }
+    public func waitUntilExited() async { await child.waitUntilExited() }
 
     private static var searchDirectories: [String] {
         let home = FileManager.default.homeDirectoryForCurrentUser.path

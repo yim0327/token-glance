@@ -3,7 +3,7 @@
 M0 검증 결과. 모든 확인은 **읽기 전용**으로, 키 이름·타입·값의 형태(자릿수, 문자 패턴)만 추출했다. 프롬프트/응답 본문, 경로, 식별자 값은 기록하지 않는다.
 
 - 검증일: 2026-10-09 (Codex는 M1에서 재검증)
-- 환경: macOS 26.6.2 (arm64), Claude Code 2.1.295, codex-cli 0.155.1, oh-my-claudecode 5.6.1
+- 환경: macOS 26.6.2 (arm64), Claude Code 2.1.295, codex-cli 0.155.1. 기존 statusline으로 서드파티 HUD 플러그인(oh-my-claudecode 5.6.1)이 설정된 상태에서 체이닝을 검증했다(3.2).
 - 표기: ✅ 확인됨 / ⚠️ 예상과 다름 / ❓ 미확인
 
 ## 요약
@@ -19,7 +19,7 @@ M0 검증 결과. 모든 확인은 **읽기 전용**으로, 키 이름·타입·
 | 7.3 `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` | ✅ | M1 재검증. 파일명 `rollout-<local datetime>-<uuid>.jsonl` |
 | 7.3 `token_count` / `rate_limits` 필드 | ✅ | primary=300분, secondary=10080분, `resets_at` epoch 초. 신규: `cache_write_input_tokens`, `token_usage_record` 라인 |
 | 7.3 Codex input 의미 | ⚠️ | `input_tokens`가 `cached_input_tokens`를 포함 (Claude와 다름) |
-| OMC HUD stdin/rate_limits 처리 | ✅ | stdin + **비공식 OAuth usage API 병행** (아래) |
+| 기존 statusline(서드파티 HUD)의 stdin/rate_limits 처리 | ✅ | stdin + 자체 API 조회 병행 (3.2) |
 
 ---
 
@@ -113,7 +113,7 @@ M1 재검증 (2026-10-09): codex-cli 0.155.1, 실제 rollout 1개 파일 / 60 �
 ### 2.1 경로 ✅
 
 - `${CODEX_HOME:-~/.codex}/sessions/YYYY/MM/DD/rollout-YYYY-MM-DDTHH-MM-SS-<uuid>.jsonl` ✅ (날짜 디렉터리 + 로컬 시각 기반 파일명)
-- `~/.codex/archived_sessions/` ❓ 이 머신엔 없음 (바이너리 문자열엔 존재). 있으면 함께 탐색한다.
+- `~/.codex/archived_sessions/` ❓ 검증 기기엔 없음 (바이너리 문자열엔 존재). 있으면 함께 탐색한다.
 - SQLite(`state_5.sqlite` `threads.rollout_path`)는 인덱스. 파서는 JSONL만 읽는다.
 - (2026-10-09 관찰) `thread_history_1.sqlite`가 생김: `thread_turns`/`thread_items`와 `thread_history_projection_state.next_rollout_byte_offset`로 rollout을 **투영**한 것으로 보이며, rollout JSONL은 계속 기록됨. `threads.history_mode` 관찰값은 `paginated`. 이 DB가 rollout 없이 단독으로 쓰이는 경우가 있는지는 ❓.
 - (2026-10-09 관찰) Codex는 세션 동안 rollout 파일을 열어 둔 채 이어 쓰며, FSEvents는 생성 이벤트만 보고하고 이어 쓰기는 보고하지 않음 → 앱은 최근 rollout을 stat 폴링 (`docs/perf.md`).
@@ -178,7 +178,7 @@ Usage 객체: `input_tokens`, `cached_input_tokens`, **`cache_write_input_tokens
 
 ### 2.7 Codex App Server 온라인 한도 (M5와 분리된 작업)
 
-**인터페이스 확인:** 설치된 codex-cli 0.162.0의 `generate-json-schema` 결과에서 `account/rateLimits/read`, `account/rateLimits/updated`, `account/usage/read` 메서드가 확인됐다. 공식 [App Server 문서](https://learn.chatgpt.com/docs/app-server)는 stdio의 줄 단위 JSON 메시지(`jsonrpc` 헤더 생략)와 `initialize` → `initialized` 절차를 설명한다. 사용자 승인 후 단일 stdio 연결에서 계정 유형을 확인하고 한도·사용량을 각각 한 번 조회했다. 원문·실제 수치·식별자는 출력하거나 저장하지 않았다.
+**인터페이스 확인:** 설치된 codex-cli 0.162.0의 `generate-json-schema` 결과에서 `account/rateLimits/read`, `account/rateLimits/updated`, `account/usage/read` 메서드가 확인됐다. 공식 [App Server 문서](https://learn.chatgpt.com/docs/app-server)는 stdio의 줄 단위 JSON 메시지(`jsonrpc` 헤더 생략)와 `initialize` → `initialized` 절차를 설명한다. 승인된 1회 진단으로 단일 stdio 연결에서 계정 유형을 확인하고 한도·사용량을 각각 한 번 조회했다. 원문·실제 수치·식별자는 출력하거나 저장하지 않았다.
 
 | 응답 항목 | 스키마상 의미 | 실제 계정 검증 |
 |---|---|---|
@@ -189,8 +189,8 @@ Usage 객체: `input_tokens`, `cached_input_tokens`, **`cache_write_input_tokens
 | `accountId` | null 가능. 다른 계정의 스냅샷 결합 방지용으로만 메모리에서 사용 | 존재만 확인; 값은 기록하지 않음 |
 
 - 응답에 알 수 없는 필드나 null 윈도우가 있어도 유효한 버킷만 분리해 처리한다. 값이 없거나 로그인 필요/미지원이면 사유를 표시하고 로컬 로그 스냅샷으로 폴백한다.
-- 실제 `account/usage/read` 응답에서 `summary`의 `lifetimeTokens`, `peakDailyTokens`, 실행 시간·연속 사용 일수 필드는 숫자형이고, `dailyUsageBuckets`는 `startDate`·`tokens`를 가진 배열이었다. `threadUsage`는 null이었다. 실제 수치·날짜·버킷 개수는 기록하지 않았다. 일별 버킷의 시간대·보존 기간·포함 활동 범위, Aside 귀속은 **미확인**이다. 서버 사용량을 로컬 토큰 합계에 더하지 않는다.
-- 승인된 조회의 인증 유형은 ChatGPT였다. API-key 로그인과 로그인 필요 상태는 합성 응답으로 검증한다.
+- 실제 `account/usage/read` 응답에서 `summary`의 `lifetimeTokens`, `peakDailyTokens`, 실행 시간·연속 사용 일수 필드는 숫자형이고, `dailyUsageBuckets`는 `startDate`·`tokens`를 가진 배열이었다. `threadUsage`는 null이었다. 실제 수치·날짜·버킷 개수는 기록하지 않았다. 일별 버킷의 시간대·보존 기간·포함 활동 범위, 로컬 로그에 남지 않는 사용의 귀속은 **미확인**이다. 서버 사용량을 로컬 토큰 합계에 더하지 않는다.
+- 진단 조회의 인증 유형은 ChatGPT였다. API-key 로그인과 로그인 필요 상태는 합성 응답으로 검증한다.
 
 ---
 
@@ -198,7 +198,7 @@ Usage 객체: `input_tokens`, `cached_input_tokens`, **`cache_write_input_tokens
 
 ### 3.1 stdin JSON ✅
 
-OMC HUD가 저장해 둔 실제 stdin 캐시 3개(최근 60일)에서 키/타입만 추출했다. 값은 기록하지 않는다.
+검증 기기의 서드파티 HUD가 저장해 둔 실제 stdin 캐시 3개(최근 60일)에서 키/타입만 추출했다. 값은 기록하지 않는다.
 
 | 필드 | 타입 | 상태 | 형태 / 비고 |
 |---|---|---|---|
@@ -217,27 +217,15 @@ OMC HUD가 저장해 둔 실제 stdin 캐시 3개(최근 60일)에서 키/타입
 - `rate_limits`가 **없는 경우의 형태**(키 부재 vs `null`)는 ❓ — 관찰된 3개 모두 존재. 파서는 둘 다 처리한다.
 - **훅이 캐시에 기록할 것**: `rate_limits` 하위 4개 값 + 관측 시각 + `version` 정도로 최소화. 경로·세션명·프롬프트 ID는 기록하지 않는다.
 
-### 3.2 oh-my-claudecode HUD 분석 (체이닝 입력)
+### 3.2 체이닝 검증 사례: 서드파티 HUD statusline
 
-`statusLine.command` = `node ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hud/omc-hud.mjs` (확인됨). 이 파일은 **로더 래퍼**이고 실제 로직은 `~/.claude/plugins/cache/omc/oh-my-claudecode/<latest-built-semver>/dist/hud/index.js` (현재 5.6.1)를 동적 import한다.
+M0 검증 기기에는 oh-my-claudecode 5.6.1의 HUD가 statusLine으로 설정돼 있었다(`node ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hud/….mjs`). Token Glance는 이 도구를 필요로 하지 않는다. 기존 statusline이 있는 사용자의 대표 사례로 분석했고, 아래 관찰이 체이닝 요구사항의 근거다.
 
-1. **rate_limits 출처: stdin + 네트워크 둘 다**
-   - stdin의 `rate_limits.five_hour/seven_day.used_percentage`, `resets_at`을 읽는다 (`resets_at`은 숫자면 `< 1e12`일 때 초로 간주, 문자열이면 ISO 파싱).
-   - 동시에 `getUsage()`로 **비공식 OAuth usage API** (`api.anthropic.com/api/oauth/usage`)를 호출한다. 자격증명은 macOS Keychain(`/usr/bin/security`, 2s timeout) → `~/.claude/.credentials.json` 순. 만료 시 토큰 refresh 요청 후 Keychain에 write-back.
-   - 병합: 같은 윈도우(`resets_at` 근접)면 stdin과 API 중 **큰 %** 채택, 아니면 stdin 우선.
-   - HUD 설정 `elements.rateLimits === false`이면 API 호출 안 함.
-2. **디스크 캐시**
-   - stdin 전체: `<worktree-root>/.omc/state/sessions/<CLAUDE_SESSION_ID>/hud-stdin-cache.json` (세션 ID 없으면 `<root>/.omc/state/hud-stdin-cache.json`). `JSON.stringify(stdin)` 그대로, **비원자적 `writeFileSync`**.
-   - API 결과: `${CLAUDE_CONFIG_DIR:-~/.claude}/plugins/oh-my-claudecode/.usage-cache-<source>.json` (`source`=`anthropic` 등). 키: `timestamp`(ms), `data`, `error`, `errorReason`, `source`, `rateLimited*`, `lastSuccessAt`, `rateLimitIdentity`, `credentialIdentity`, `rateLimitBackoffs`. 파일 락 사용.
-   - → Token Glance는 **이 캐시들에 의존하지 않는다** (OMC 내부 형식, 프로젝트별로 흩어짐, 경로·세션명 포함, 비원자적 쓰기). 자체 훅 캐시를 쓴다.
-3. **실행 시간 요인**
-   - `node` 프로세스 기동 + 다수 ESM 모듈 동적 import (수십 ms 이상 예상, 미측정).
-   - usage API: 캐시가 유효하면(기본 폴링 90s, 실패 15s, 네트워크 오류 2m, 429는 최대 5m 백오프) 호출 안 함. 만료 시 **Keychain exec + HTTPS(10s timeout)를 statusline 실행 경로에서 await** → 수백 ms~수 초 가능.
-   - 플러그인 캐시를 못 찾으면 `npm root -g` execFileSync(1.5s timeout) 폴백 (현재 환경에선 도달하지 않음).
-   - 그 외 동기 fs I/O (stdin 캐시 쓰기, 업데이트 체크 캐시 읽기 등).
-   - → PRD의 "훅이 먼저 저장을 끝낸다" 순서가 필수임을 재확인. Claude Code가 OMC 실행 중 다음 업데이트로 취소해도 우리 캐시는 이미 기록돼 있어야 한다.
-4. **stdin 읽기 방식**: `process.stdin.isTTY`면 null. 아니면 `for await` 로 **EOF까지 전부** 읽어 `JSON.parse`. 파싱 실패 시 null(진단 출력).
-   - → 체이닝 시 받은 stdin **바이트를 그대로** 자식 프로세스 stdin에 쓰고 **반드시 close(EOF)** 해야 한다. 재직렬화하지 말 것(필드 손실 방지).
+1. **command 형태**: 쉘 변수 확장을 포함한다 → 원본 문자열을 그대로 보관해 `/bin/sh -c`로 실행한다(경로 해석 금지).
+2. **한도 출처**: stdin의 `rate_limits`와 함께 자체적으로 비공식 OAuth usage API를 조회하고(자격증명은 Keychain → 인증 파일 순), 같은 윈도우(`resets_at` 근접)면 둘 중 큰 %를, 아니면 stdin 값을 표시한다 → Token Glance 값과 1%p 정도 다를 수 있다(아래 실제 환경 검증).
+3. **실행 시간**(소스 분석, 미측정): node 기동과 다수 ESM 모듈 동적 import에 수십 ms 이상, API 캐시(기본 90초, 실패 15초, 네트워크 오류 2분, 429는 최대 5분 백오프)가 만료되면 Keychain 접근(2초 타임아웃)과 HTTPS 요청(10초 타임아웃)을 statusline 실행 경로에서 기다려 수백 ms~수 초 걸릴 수 있다 → 훅은 기존 statusline을 실행하기 **전에** 캐시 저장을 끝낸다. Claude Code가 실행 중인 statusline을 다음 업데이트로 취소해도 캐시는 이미 기록돼 있어야 한다.
+4. **내부 캐시**: stdin 전체와 API 결과를 자체 경로에 비원자적으로 저장한다(프로젝트별로 흩어지고 경로·세션명 포함) → Token Glance는 다른 도구의 캐시를 읽지 않고 자체 훅 캐시를 쓴다.
+5. **stdin 읽기**: EOF까지 전부 읽어 `JSON.parse`한다 → 받은 stdin **바이트를 그대로** 자식 stdin에 쓰고 **반드시 close(EOF)** 한다. 재직렬화하지 않는다(필드 손실 방지).
 
 ### 3.3 체이닝 설계 (M2 구현)
 
@@ -273,14 +261,14 @@ Claude Code ──stdin──▶ token-glance-hook (no args)
 | 훅 + 체이닝 `cat >/dev/null` | 9.61ms | 11.24ms | |
 
 - 순서: 자식이 `sleep 3`인 경우에도 캐시 기록 완료(훅 시작 후 4.9ms)가 자식 시작보다 앞섬 ✅. 단위 테스트(`cacheIsWrittenBeforeChildStarts`)로도 고정.
-- 취소: SIGTERM/SIGINT → 자식과 복합 명령의 손자까지 종료, 좀비 0 ✅. **SIGKILL**은 가로챌 수 없어 자식이 끝까지 실행됨(고아, 좀비 아님) — OMC HUD는 자체 타임아웃 안에서 끝나므로 허용.
+- 취소: SIGTERM/SIGINT → 자식과 복합 명령의 손자까지 종료, 좀비 0 ✅. **SIGKILL**은 가로챌 수 없어 자식이 끝까지 실행됨(고아, 좀비 아님) — 검증한 HUD는 자체 타임아웃 안에서 끝나므로 허용.
 
-**실제 환경 검증 (2026-10-09, Claude Code 2.1.295 + OMC 5.6.1, 사용자 승인 후 설치)**
+**실제 환경 검증 (2026-10-09, Claude Code 2.1.295 + 3.2의 HUD statusline, 승인 후 개발 기기에 설치)**
 
-- `install` 후 settings.json 변경은 `statusLine.command` 한 줄뿐(다른 키 값·순서 동일, 텍스트 diff 확인). `statusline-backup.json`에 OMC command 원문 저장.
-- 실행 중 세션과 새 세션 모두에서 훅이 캐시를 기록(허용 키 4개만). OMC HUD 정상 출력(사용자 확인).
-- 수치: 5h는 캐시와 HUD 일치. 주간은 캐시 24% / HUD 25% — OMC HUD가 stdin 값과 비공식 OAuth usage API 값 중 큰 값을 표시하기 때문(3.2). 캐시는 Claude Code가 statusline에 넘긴 공식 값과 동일하다. API 값 자체는 OMC 캐시를 읽지 않는 원칙에 따라 확인하지 않음.
-- OMC HUD 체이닝 구간 실행 시간은 측정하지 않음(측정하려면 HUD를 직접 실행해야 하고, 그러면 네트워크 호출이 일어날 수 있음).
+- `install` 후 settings.json 변경은 `statusLine.command` 한 줄뿐(다른 키 값·순서 동일, 텍스트 diff 확인). `statusline-backup.json`에 기존 command 원문 저장.
+- 실행 중 세션과 새 세션 모두에서 훅이 캐시를 기록(허용 키 4개만). 기존 HUD 정상 출력(육안 확인).
+- 수치: 5h는 캐시와 HUD 일치. 주간은 캐시 24% / HUD 25% — HUD가 stdin 값과 자체 API 값 중 큰 값을 표시하기 때문(3.2). 캐시는 Claude Code가 statusline에 넘긴 값과 동일하다. API 값 자체는 다른 도구의 캐시를 읽지 않는 원칙에 따라 확인하지 않음.
+- HUD 체이닝 구간 실행 시간은 측정하지 않음(측정하려면 HUD를 직접 실행해야 하고, 그러면 네트워크 호출이 일어날 수 있음).
 
 ### 3.4 Token Glance 캐시 포맷 (M2)
 
@@ -323,9 +311,9 @@ Claude Code ──stdin──▶ token-glance-hook (no args)
 | control 요청 `get_usage` (`skip_behaviors`) | 무문서. SDK 메서드명 `usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET`. 스키마 설명: "For callers that need only the plan rate limits, such as a usage meter" | **사용**. 옵션 기본 OFF |
 | `GET /api/oauth/usage` 직접 호출 | 무문서 | 앱이 토큰을 읽어야 하므로 사용하지 않음 (Legal and compliance: 자격증명 수집·중개 금지) |
 
-**자격증명 구조 (값은 읽지 않음):** login 키체인의 일반 암호 `Claude Code-credentials`. Claude Code는 `/usr/bin/security find-generic-password … -w`로 읽고 `add-generic-password -U`로 다시 쓴다(로그인 갱신 시 수정일 변경). 내용은 `claudeAiOauth` 키 아래의 토큰·만료·scope 등이다(실행 파일 문자열로 확인). 이 머신에는 `~/.claude/.credentials.json`이 없다. Token Glance는 둘 다 접근하지 않는다.
+**자격증명 구조 (값은 읽지 않음):** login 키체인의 일반 암호 `Claude Code-credentials`. Claude Code는 `/usr/bin/security find-generic-password … -w`로 읽고 `add-generic-password -U`로 다시 쓴다(로그인 갱신 시 수정일 변경). 내용은 `claudeAiOauth` 키 아래의 토큰·만료·scope 등이다(실행 파일 문자열로 확인). 검증 기기에는 `~/.claude/.credentials.json`이 없었다. Token Glance는 둘 다 접근하지 않는다.
 
-**실제 검증 (사용자 승인 3회, 원문·수치 미출력):**
+**실제 검증 (승인된 진단 3회, 원문·수치 미출력):**
 
 1. `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` + `--safe-mode`: `initialize`·`get_usage` 모두 success(0.43초), `rate_limits_available: true`이지만 `rate_limits: null`. 이 env가 usage 조회까지 막는다.
 2. env 없이 `--safe-mode`: 1.17초, 디버그 로그에 `GET /api/oauth/usage` 1회와 200 응답. `rate_limits` 객체 반환.
@@ -357,7 +345,7 @@ Claude Code ──stdin──▶ token-glance-hook (no args)
 | `rate_limits` 최소 Claude Code 버전 | changelog 확인 | M2 |
 | stdin에 `rate_limits`가 없을 때의 형태 | API 키 사용자 또는 첫 응답 전 stdin 캡처 | M2 |
 | Claude Code가 실제로 보내는 취소 시그널 종류 | 훅 SIGTERM/SIGINT 시 자식 그룹 정리는 확인됨(3.3). Claude Code가 SIGKILL을 쓰면 자식이 끝까지 실행됨 — 실제 시그널은 미확인 | 수시 |
-| OMC HUD 실제 실행 시간 | 미측정(직접 실행 시 네트워크 호출 가능). 실제 사용에서 표시 이상 없음 | 수시 |
+| 3.2 HUD statusline의 실제 실행 시간 | 미측정(직접 실행 시 네트워크 호출 가능). 실제 사용에서 표시 이상 없음 | 수시 |
 | `quotaLimits.rateLimitType`의 주간 값 이름 | 주간 한도 도달 시 관찰 | 수시 |
 | `get_usage`를 지원하는 최소 Claude Code 버전, 이후 버전의 변경 | 2.1.296에서만 확인. 미지원이면 "업데이트 필요"로 표시 | 수시 |
 | `get_usage` 자식이 로그인 갱신 시 Keychain ACL을 바꾸는지 | 앱은 Keychain에 접근하지 않음. Claude Code 자체 동작이며 미확인 | 수시 |

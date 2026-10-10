@@ -7,10 +7,13 @@ public protocol ClaudeControlTransport: AnyObject, Sendable {
     func close()
     /// Exit status after EOF, or nil when unknown or still running.
     func exitStatus() async -> Int32?
+    /// Returns once a closed child has exited (or was killed).
+    func waitUntilExited() async
 }
 
 extension ClaudeControlTransport {
     public func exitStatus() async -> Int32? { nil }
+    public func waitUntilExited() async { }
 }
 
 /// Reads the plan limits through Claude Code's `get_usage` control request: one short-lived child
@@ -24,6 +27,8 @@ public actor ClaudeUsageClient {
     private let now: @Sendable () -> Date
     private let timeout: TimeInterval
     private var transport: (any ClaudeControlTransport)?
+    /// Children that may still be exiting after their read; `stop()` waits for all of them.
+    private var closing: [ObjectIdentifier: any ClaudeControlTransport] = [:]
     private var generation = 0
     private var timedOutGeneration: Int?
     private var inFlight: Task<Result<ClaudeAccountLimits, ClaudeUsageFailure>, Never>?
@@ -56,14 +61,23 @@ public actor ClaudeUsageClient {
         return result
     }
 
-    /// Ends a running read and its child process. The read then returns `.disconnected`.
-    public func stop() {
+    /// Ends a running read and its child process, and returns after the child has exited. The read
+    /// then returns `.disconnected`.
+    public func stop() async {
         generation += 1
         transport?.close()
         transport = nil
         inFlight?.cancel()
         inFlight = nil
         inFlightID = nil
+        for (id, connection) in closing {
+            await connection.waitUntilExited()
+            closing.removeValue(forKey: id)
+        }
+    }
+
+    private func forgetClosed(_ id: ObjectIdentifier) {
+        closing.removeValue(forKey: id)
     }
 
     private func performRead() async -> Result<ClaudeAccountLimits, ClaudeUsageFailure> {
@@ -80,6 +94,8 @@ public actor ClaudeUsageClient {
             return .failure(.launchFailed)
         }
         transport = connection
+        let connectionID = ObjectIdentifier(connection)
+        closing[connectionID] = connection
         let interval = timeout
         let timer = Task { [weak self] in
             try await Task.sleep(for: .seconds(interval))
@@ -88,6 +104,7 @@ public actor ClaudeUsageClient {
         defer {
             timer.cancel()
             connection.close()
+            Task { await connection.waitUntilExited(); self.forgetClosed(connectionID) }
             if generation == current { transport = nil }
         }
         do {

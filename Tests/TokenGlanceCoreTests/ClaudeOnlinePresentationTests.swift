@@ -108,4 +108,70 @@ struct ClaudeOnlinePresentationTests {
         #expect(ClaudeOnlinePresentation.apply(online([ClaudeLimitWindow(kind: .session, usedPercent: 1, resetsAt: nil)]),
                                                to: codex, now: now) == codex)
     }
+
+    @Test func onlineLimitsArrivingBeforeTheFirstLocalScanAreShownAndKept() {
+        let result = online([
+            ClaudeLimitWindow(kind: .session, usedPercent: 55, resetsAt: now + 1800),
+            ClaudeLimitWindow(kind: .weekly, usedPercent: 30, resetsAt: now + 90_000),
+        ])
+        let early = ClaudeOnlinePresentation.apply(result, to: ToolState(tool: .claude), now: now)
+        #expect(early.session?.usedPercent == 55)
+        #expect(early.weekly?.usedPercent == 30)
+        #expect(early.limitSource == ClaudeOnlinePresentation.accountQuery)
+        // No tokens were indexed yet, and the state says so.
+        #expect(early.refreshedAt == nil)
+        #expect(early.summary?.hasTokens == false)
+        // The first scan finishes later with older hook values: the account query still wins.
+        let scanned = ClaudeOnlinePresentation.apply(result, to: hookState(session: 40, weekly: 20), now: now)
+        #expect(scanned.session?.usedPercent == 55)
+        #expect(scanned.limitSource == ClaudeOnlinePresentation.accountQuery)
+    }
+
+    @Test func fresherHookWinsAfterAnOnlineWindowPassesItsReset() {
+        // Queried 10 minutes ago; its session window has reset since, its weekly window has not.
+        let result = online([
+            ClaudeLimitWindow(kind: .session, usedPercent: 70, resetsAt: now - 60),
+            ClaudeLimitWindow(kind: .weekly, usedPercent: 30, resetsAt: now + 90_000),
+        ], observedAt: now - 600)
+        // The hook saw the new session window after that (observed 30 s and 60 s ago).
+        let shown = ClaudeOnlinePresentation.apply(result, to: hookState(session: 5, weekly: 31), now: now)
+        #expect(shown.session?.usedPercent == 5)
+        // The weekly value comes from the same hook observation; sources are not mixed.
+        #expect(shown.weekly?.usedPercent == 31)
+        #expect(shown.limitSource == ClaudeOnlinePresentation.hookCache)
+        #expect(shown.limitObservedAt == now - 30)
+        #expect(shown.otherSourceLimits.isEmpty)
+    }
+
+    @Test func olderHookDoesNotReplaceTheQueryAfterAReset() {
+        let result = online([
+            ClaudeLimitWindow(kind: .session, usedPercent: 70, resetsAt: now - 1),
+            ClaudeLimitWindow(kind: .weekly, usedPercent: 30, resetsAt: now + 90_000),
+        ], observedAt: now - 5)
+        // Hook values observed before the query know nothing newer.
+        let shown = ClaudeOnlinePresentation.apply(result, to: hookState(session: 99, weekly: 20), now: now)
+        #expect(shown.limitSource == ClaudeOnlinePresentation.accountQuery)
+        #expect(shown.session == nil)
+        #expect(shown.weekly?.usedPercent == 30)
+    }
+
+    @Test func aHigherOrFresherHookPercentAloneDoesNotReplaceAValidQuery() {
+        let result = online([
+            ClaudeLimitWindow(kind: .session, usedPercent: 10, resetsAt: now + 1800),
+            ClaudeLimitWindow(kind: .weekly, usedPercent: 30, resetsAt: now + 90_000),
+        ], observedAt: now - 600)
+        let shown = ClaudeOnlinePresentation.apply(result, to: hookState(session: 90, weekly: 95), now: now)
+        #expect(shown.limitSource == ClaudeOnlinePresentation.accountQuery)
+        #expect(shown.session?.usedPercent == 10)
+        #expect(shown.weekly?.usedPercent == 30)
+    }
+
+    @Test func passedResetWithoutAFresherHookValueWaitsForTheNextQuery() {
+        let result = online([ClaudeLimitWindow(kind: .session, usedPercent: 70, resetsAt: now - 60)],
+                            observedAt: now - 600)
+        // The hook's own session window has also reset: nothing valid to show.
+        let shown = ClaudeOnlinePresentation.apply(result, to: hookState(session: 50, weekly: nil, sessionResetsAt: now - 10), now: now)
+        #expect(shown.session == nil)
+        #expect(shown.onlineFailure == "Waiting for account query")
+    }
 }
