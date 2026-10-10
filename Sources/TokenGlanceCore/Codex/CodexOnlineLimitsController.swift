@@ -19,6 +19,7 @@ public final class CodexOnlineLimitsController {
     private var readTask: Task<Void, Never>?
     private var stopTask: Task<Void, Never>?
     private var generation = 0
+    private var isShutDown = false
 
     public init(
         reader: any CodexLimitsReading,
@@ -35,10 +36,12 @@ public final class CodexOnlineLimitsController {
 
     /// Starts a read if the option is on and nothing is running; otherwise does nothing.
     public func refresh() {
-        guard isEnabled(), readTask == nil, stopTask == nil else { return }
+        guard !isShutDown, isEnabled(), readTask == nil, stopTask == nil else { return }
         let current = generation
         let reader = reader
         readTask = Task { [weak self] in
+            // A read cancelled before it reaches the client must not start an App Server child.
+            guard !Task.isCancelled else { return }
             let result = await reader.readLimits(enabled: true)
             guard let self, current == self.generation else { return }
             self.readTask = nil
@@ -65,8 +68,10 @@ public final class CodexOnlineLimitsController {
         }
     }
 
-    /// App shutdown: stops everything and waits for the App Server to be closed.
+    /// App shutdown: stops everything and waits for the App Server to be closed. Later refreshes
+    /// (wake, update notifications) are ignored.
     public func shutdown() async {
+        isShutDown = true
         generation += 1
         readTask?.cancel()
         readTask = nil

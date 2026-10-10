@@ -150,4 +150,24 @@ struct CodexOnlineLimitsControllerTests {
         #expect(harness.controller.isIdle)
         #expect(await harness.reader.stops == 1)
     }
+
+    @Test func refreshAfterShutdownIsIgnored() async throws {
+        let harness = Harness()
+        harness.enabled = true
+        await harness.controller.shutdown()
+        harness.controller.refresh()    // e.g. a wake or update notification during quit
+        try await harness.settle()
+        #expect(await harness.reader.reads == 0)
+    }
+
+    @Test func readCancelledBeforeStartingNeverReachesReader() async throws {
+        let harness = Harness()
+        harness.enabled = true
+        harness.controller.refresh()
+        harness.enabled = false
+        harness.controller.disable()    // same main-actor turn: the read task has not run yet
+        try await harness.settle()
+        #expect(await harness.reader.reads == 0)
+        #expect(await harness.reader.stops == 1)
+    }
 }
