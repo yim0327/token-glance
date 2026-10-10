@@ -175,6 +175,8 @@ Claude 온라인 조회는 `claude`를 `--safe-mode`, `--no-session-persistence`
 
 - [로그·훅 형식과 검증 기록](docs/log-schemas.md) · [성능 측정](docs/perf.md) ·
   [설계 결정(ADR)](docs/adr) · [제품 요구사항(PRD)](docs/PRD.md) · [진행 상황](docs/PROGRESS.md)
+- [개발 기록](docs/development.md): 단계별 진행, 실사용에서 발견한 문제와 수정, AI 도구와 작업한
+  방식
 - 빌드와 테스트: `swift build`, `./scripts/test.sh`(Command Line Tools만 있어도 테스트가 실제로
   실행됩니다).
 - 릴리스 패키징: `./scripts/package-release.sh`가 `dist/release`에 zip과 SHA-256을 만듭니다.
@@ -371,6 +373,8 @@ settings.json as `settings.json.token-glance-backup-<time>`.
 - [Log and hook formats, with verification notes](docs/log-schemas.md) ·
   [Performance measurements](docs/perf.md) · [Design decisions (ADRs)](docs/adr) ·
   [Product requirements (PRD, Korean)](docs/PRD.md) · [Progress](docs/PROGRESS.md)
+- [Development notes (Korean)](docs/development.md): milestones, problems found in real use and how
+  they were fixed, and how AI tools were used
 - Build and test: `swift build`, `./scripts/test.sh` (also runs the tests when only the Command Line
   Tools are installed).
 - Release packaging: `./scripts/package-release.sh` writes the zip and its SHA-256 to `dist/release`.
