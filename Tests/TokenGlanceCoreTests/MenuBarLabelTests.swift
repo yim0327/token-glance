@@ -33,9 +33,12 @@ struct MenuBarLabelTests {
         #expect(label.lines.map(\.severity) == [.warning, .critical])
     }
 
-    @Test func singleLineWhenOnlyOneToolHasData() {
+    @Test func toolWithoutDataShowsDashes() {
         let label = MenuBarLabel.make(states: [state(.claude, session: 38), state(.codex, session: nil, issue: .noData)], mode: .remaining)
-        #expect(label.lines == [.init(tool: .claude, text: "62%", severity: .normal)])
+        #expect(label.lines == [
+            .init(tool: .claude, text: "62%", severity: .normal),
+            .init(tool: .codex, text: "--", severity: .unavailable),
+        ])
     }
 
     @Test func singleLineWhenOnlyOneToolEnabled() {
