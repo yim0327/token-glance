@@ -1,8 +1,8 @@
 # Third-party marks
 
-Token Glance shows two third-party marks in its menu bar label, only to identify which service a
-number belongs to: the Claude mark next to the Claude Code value, the OpenAI Blossom next to the
-Codex value. The app's own name, icon and branding are not based on them.
+Token Glance shows two third-party marks, only to identify which service a number belongs to: in
+the menu bar label (the Claude mark next to the Claude Code value, the OpenAI Blossom next to the
+Codex value) and next to the tool names in the details panel. The app's own name, icon and branding are not based on them.
 
 - The marks and the names "Claude", "Anthropic", "OpenAI" and "Codex" are trademarks of their
   respective owners. All rights in them stay with those owners.
@@ -25,15 +25,18 @@ general Claude mark ("Claude Spark"), not the separate Claude Code logo in the s
 ## How they are drawn
 
 - The path of each file is drawn as is and scaled uniformly; nothing is redrawn, thickened or
-  reshaped. It is fitted to the 10 pt (two lines) or 13 pt (one line) square by the path's own
+  reshaped. It is fitted to a 10 pt (menu bar, two lines), 13 pt (menu bar, one line) or 15 pt
+  (details panel, next to the tool name) square by the path's own
   bounds, so the empty margin in the OpenAI file (its clear space) is not kept at this size.
-- Both are filled in one color, the system label color: white on a dark menu bar, black on a
-  light one, like a template image. For the Claude mark this differs from the supplied color
+- Both are filled in one color: the system label color in the menu bar (white on a dark menu bar,
+  black on a light one, like a template image) and the panel's primary text color in the details
+  panel. For the Claude mark this differs from the supplied color
   (Clay, `#D97757`); the press kit has no one-color version of this mark. For OpenAI it matches the
   supplied black and white variants. This one-color rendering is Token Glance's choice, not a
   variant approved by either owner.
 - Warning colors (orange, red) apply only to the numbers, never to the marks.
-- If a file is missing or cannot be read, the label falls back to the neutral "C" / "X" badges.
+- If a file is missing or cannot be read, the menu bar falls back to the neutral "C" / "X" badges
+  and the details panel shows the tool name alone.
 
 ## Conditions found (2026-10-10)
 

@@ -5,7 +5,7 @@
 macOS 메뉴바에서 Claude Code와 Codex 사용 한도를 한눈에 봅니다.
 Claude Code & Codex usage limits at a glance, in your macOS menu bar.
 
-<img src="docs/images/menubar.png" alt="Two-line menu bar label: C 52% / X 94%" width="102">
+<img src="docs/images/menubar.png" alt="Two-line menu bar label: Claude mark 27% / OpenAI mark 77%" width="104">
 
 ---
 
@@ -27,13 +27,16 @@ Token Glance는 Claude Code와 Codex CLI의 **5시간 세션** 한도와 **주�
 
 ### 스크린샷
 
-| 상세 패널 | 14일 기록 |
+| 상세 패널 (라이트) | 상세 패널 (다크) |
 |---|---|
-| <img src="docs/images/panel-ko.png" alt="상세 패널 (한국어, 온라인 조회 켬)" width="300"> | <img src="docs/images/history-ko.png" alt="기록 창 (한국어)" width="400"> |
+| <img src="docs/images/panel-ko-light.png" alt="상세 패널, 라이트 모드 (한국어, 온라인 조회 켬)" width="300"> | <img src="docs/images/panel-ko-dark.png" alt="상세 패널, 다크 모드 (한국어, 온라인 조회 켬)" width="300"> |
 
-macOS 26.6 다크 모드에서 **선택 기능인 온라인 조회를 켠 상태**로 찍었습니다. "한도 출처"와 "관측"
-줄은 이때만 보이며, 새로 설치하면 온라인 조회는 꺼져 있습니다. 숫자는 작성자 Mac의 실제
-사용량입니다.
+<img src="docs/images/history-ko.png" alt="14일 기록 창 (한국어, 다크 모드)" width="420">
+
+macOS 26.6에서 **선택 기능인 온라인 조회를 켠 상태**로 찍었습니다(기록 창은 다크 모드). "한도
+출처"와 "관측" 줄은 이때만 보이며, 새로 설치하면 온라인 조회는 꺼져 있습니다. 숫자는 작성자 Mac의
+실제 사용량입니다. 메뉴바의 주황 27%는 Claude 5시간 한도가 30% 이하로 남아 경고 색으로 표시된
+것입니다.
 
 ### 기능
 
@@ -214,13 +217,16 @@ countdown, and tokens used today and this week (input / output / cache, top mode
 
 ### Screenshots
 
-| Details panel | 14-day history |
+| Details panel (light) | Details panel (dark) |
 |---|---|
-| <img src="docs/images/panel-en.png" alt="Details panel (English, online checks on)" width="300"> | <img src="docs/images/history-en.png" alt="History window (English)" width="400"> |
+| <img src="docs/images/panel-en-light.png" alt="Details panel, light mode (English, online checks on)" width="300"> | <img src="docs/images/panel-en-dark.png" alt="Details panel, dark mode (English, online checks on)" width="300"> |
 
-Captured on macOS 26.6 in dark mode with the **optional online checks turned on**. The "Limit
-source" and "Observed" lines appear only then; a new install has the online checks off. The
-numbers are real usage on the author's Mac.
+<img src="docs/images/history-en.png" alt="14-day history window (English, dark mode)" width="420">
+
+Captured on macOS 26.6 with the **optional online checks turned on** (history window in dark mode).
+The "Limit source" and "Observed" lines appear only then; a new install has the online checks off.
+The numbers are real usage on the author's Mac. The orange 27% in the menu bar is the Claude 5-hour
+limit shown in the warning color at 30% left or less.
 
 ### Features
 

@@ -74,10 +74,23 @@ Updated: 2026-10-10
     English, plus the menu bar label (`menubar.png`); dark mode, online checks on, real usage.
   - `./scripts/test.sh`: 255 tests in 40 suites pass.
 
+- M6 release preparation merged (PR #12, squash `5d6d820`, 2026-10-10).
+- Service marks (PR #13, `feat/menubar-service-marks`, user request; trademark points open, see
+  `docs/trademarks.md`):
+  - Menu bar: Claude mark / OpenAI Blossom from the supplied SVGs (unchanged files), 10 pt (one
+    line 13 pt), `labelColor`; 1 pt between the lines; warning colors on the numbers only; C/X
+    badges as the fallback. `SVGPath` / `ServiceMarks` with tests; SVGs checked by packaging.
+  - Details panel: the same marks next to the tool names (15 pt).
+  - Dark mode panel: background dimmed (black 45%), lighter blue/orange/red; measured contrast
+    5.85 / 7.03 / 5.06 : 1 (was 1.46 / 2.88 / 1.69). Light mode unchanged, checked in the real app.
+  - README: menu bar label plus panels in light and dark for each language (user-approved);
+    history images unchanged.
+  - `./scripts/test.sh`: 261 tests in 42 suites pass.
+
 ## Next
 
-
-- M6 (needs approval): merge the M6 PR, push tag `v0.1.0`, review the draft Release, publish.
+- PR #13 (needs approval): merge, then push tag `v0.1.0` (approval), review the draft Release,
+  publish (approval).
 - After publishing: download the zip on a Mac and check the Gatekeeper "Open Anyway" flow.
 - Screenshot method (for later updates): the status item is hosted by Control Center on macOS 26;
   capture its screen rectangle (`screencapture -R`) for the label, and windows by id (`-l`) while
