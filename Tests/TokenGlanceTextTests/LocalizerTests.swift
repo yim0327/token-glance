@@ -129,6 +129,18 @@ struct TooltipTests {
         claude.summary?.limits = [LimitStatus(kind: .session, usedPercent: 0, resetsAt: nil, isReset: true, observedAt: now - 7200)]
         #expect(Localizer(.english).tooltip(states: [claude], mode: .remaining, now: now) == "Claude session 100% left (window reset)")
     }
+
+    @Test func multipleCodexBucketsDoNotLookLikeOneSessionLimit() {
+        var codex = state(.codex, session: nil)
+        codex.onlineBucketRows = [
+            OnlineBucketRow(title: "bucket 1", session: nil, weekly: nil),
+            OnlineBucketRow(title: "bucket 2", session: nil, weekly: nil),
+        ]
+        #expect(Localizer(.english).tooltip(states: [codex], mode: .remaining, now: now)
+                == "Codex: multiple account limit buckets; open Token Glance for each limit")
+        #expect(Localizer(.korean).tooltip(states: [codex], mode: .remaining, now: now)
+                .contains("버킷이 여러 개"))
+    }
 }
 
 struct ComposedTextTests {
