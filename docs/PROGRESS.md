@@ -6,7 +6,7 @@ Updated: 2026-10-11
 
 - M0–M6 are merged to `main` (PR #1–#13). CI passes on `main`.
 - No tag and no GitHub Release exist yet. `VERSION` is `0.1.0`.
-- Release-blocker fixes and the public-docs cleanup are on `fix/release-blockers` (PR pending
+- Release-blocker fixes and the public-docs cleanup are on `fix/release-blockers` (PR #14, pending
   review).
 
 ## Done
