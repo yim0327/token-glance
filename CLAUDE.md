@@ -43,7 +43,7 @@ swift test                # Xcode 환경 / CI
 - Core에는 UI 코드(AppKit/SwiftUI)를 넣지 않는다. 파일 I/O는 프로토콜로 추상화해 테스트에서 fixture를 주입한다.
 - 시간은 `Date` 주입으로 테스트 가능하게 한다 (카운트다운, resets_at 만료 처리).
 - Codex 토큰은 세션 누적값이므로 delta로 집계한다 (이중 집계 금지). Claude는 `message.id`+`requestId`로 dedupe.
-- M5 전 Codex 온라인 한도 조회는 별도 작업이다. 기본 OFF, stdio App Server, 계정 한도 %·초기화 시각만 조회한다. 토큰 상세·모델별 집계는 로컬 로그만 사용하며 서버 사용량을 합산하지 않는다. 여러 `limitId` 버킷을 임의로 합치지 않고 조회 실패 시 사유를 표시하며 로컬 한도로 폴백한다. Aside 사용분의 귀속은 검증 전까지 미확인이다.
+- M5와 분리된 Codex 온라인 한도 조회는 별도 작업이다. 기본 OFF, stdio App Server, 계정 한도 %·초기화 시각만 조회한다. 토큰 상세·모델별 집계는 로컬 로그만 사용하며 서버 사용량을 합산하지 않는다. 여러 `limitId` 버킷을 임의로 합치지 않고 조회 실패 시 사유를 표시하며 로컬 한도로 폴백한다. Aside 사용분의 귀속은 검증 전까지 미확인이다.
 - 훅(`token-glance-hook`)은 stdin을 읽자마자 캐시에 **원자적으로(임시파일 -> rename)** 쓰고, 그 다음에 기존 statusline을 실행한다. Claude Code는 실행 중 스크립트를 취소할 수 있으므로 순서를 바꾸지 않는다. 훅 자체 실행 시간은 20ms 이하를 목표로 한다.
 - 주석/문서는 한국어 또는 영어 모두 가능하나 README와 코드 식별자는 영어.
 

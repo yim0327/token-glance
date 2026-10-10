@@ -191,6 +191,26 @@ CPU is the average of CPU time deltas; footprint is the sum of both processes' p
 | Combined | **0.64%** | — | **70.3 MB** | **105.0 MB** |
 
 The combined CPU met the < 1% target. Combined footprint exceeded the < 50 MB target; the child
-was the larger part. This run predates integration with M5, so the final branch needs a separate
-measurement. New/resumed Codex sessions were covered by synthetic regression tests only, as
-requested; their actual behavior with online checks remains unverified.
+was the larger part. This run predates integration with M5.
+
+The M5-integrated build was then measured with the same approved separate-app method for 303
+seconds (60 samples). The App Server account-limit read succeeded. The probe used a temporary
+diagnostic build that printed only option booleans and query success; those diagnostics were
+removed from the final source and bundle.
+
+| Process | Average CPU | Max 5-second CPU | Average footprint | Max sampled footprint |
+|---|---:|---:|---:|---:|
+| App | 0.28% | 0.79% | 19.5 MB | 27.0 MB |
+| App Server child | 0.02% | 0.20% | 40.1 MB | 41.0 MB |
+| Combined | **0.30%** | — | **59.7 MB** | **68.0 MB** |
+
+Combined CPU met the < 1% target. Combined footprint remained **9.7 MB above** the < 50 MB
+target on average. The child is held open for update notifications between 5-minute polls.
+Restarting the separate app produced another successful account query; shutting it down removed
+the child. With the online preference removed, the same app started with the option OFF and had
+no App Server child. Both temporary preference domains were removed afterwards.
+
+The Refresh button's real click path was not measured because macOS denied accessibility access
+to the automation process. The source route and synthetic request/coalescing tests passed.
+New/resumed Codex sessions were covered by synthetic regression tests only, as requested; actual
+session use with online checks remains unverified.

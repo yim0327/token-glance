@@ -176,7 +176,7 @@ Usage 객체: `input_tokens`, `cached_input_tokens`, **`cache_write_input_tokens
 
 ---
 
-### 2.7 Codex App Server 온라인 한도 (M5 전 별도 작업)
+### 2.7 Codex App Server 온라인 한도 (M5와 분리된 작업)
 
 **인터페이스 확인:** 설치된 codex-cli 0.162.0의 `generate-json-schema` 결과에서 `account/rateLimits/read`, `account/rateLimits/updated`, `account/usage/read` 메서드가 확인됐다. 공식 [App Server 문서](https://learn.chatgpt.com/docs/app-server)는 stdio의 줄 단위 JSON 메시지(`jsonrpc` 헤더 생략)와 `initialize` → `initialized` 절차를 설명한다. 사용자 승인 후 단일 stdio 연결에서 계정 유형을 확인하고 한도·사용량을 각각 한 번 조회했다. 원문·실제 수치·식별자는 출력하거나 저장하지 않았다.
 
