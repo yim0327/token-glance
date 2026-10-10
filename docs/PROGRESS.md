@@ -71,16 +71,17 @@ Manual checks on the development Mac (2026-10-10), before the release-blocker fi
 | Language switch, panel closing, toggles, Refresh, test banner (M6 build) | checked by hand |
 | Codex new/same/resumed-after-restart sessions (M6 build) | 0.49–1.0 s after the write (probe) |
 
-The release-blocker fixes are covered by automated tests; a real-app check of quit/OFF with online
-checks on has not been repeated after them.
+After the release-blocker fixes (2026-10-11, separate app copies, both online checks on, 5 min):
+quit left no `codex` or `claude` process in any child process group; launch and poll queries
+succeeded; app CPU and settled footprint stayed within the run-to-run range of the previous `main`
+(`docs/perf.md`). Turning an option off through the settings window was not repeated after the
+fixes (automated tests only).
 
 ## Next (release blockers)
 
 1. Review and merge the `fix/release-blockers` PR (approval).
-2. Real-app check after the fixes, with online checks on: quit and option OFF leave no `codex`
-   or `claude` child; a short CPU/memory comparison with `docs/perf.md`.
-3. Push tag `v0.1.0` (approval), review the draft Release and its notes, publish (approval).
-4. After publishing: download the zip on a Mac and check the checksum and the Gatekeeper
+2. Push tag `v0.1.0` (approval), review the draft Release and its notes, publish (approval).
+3. After publishing: download the zip on a Mac and check the checksum and the Gatekeeper
    "Open Anyway" flow.
 
 ## Later (LOW)

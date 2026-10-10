@@ -328,3 +328,31 @@ repeated panel use still does not grow memory:
 Only the panel was exercised (no settings or history window), so the numbers are not directly
 comparable with the 93-cycle run above (42–45 MB settled, 48.5 MB peak after all three windows).
 The changed lines are drawn only with online checks on; that state was not part of this run.
+
+## Release-blocker fixes: online checks on, quit (2026-10-11)
+
+Check that the child-process fixes leave nothing behind and do not change the app's cost. Method:
+release builds of the fix branch and of the previous `main`, each as a separate copy with its own
+bundle id and preferences (both online checks on, set before launch; removed afterwards), launched
+with `open -n`, 5 minutes, no window opened. A Claude Code session on the same Mac was writing logs.
+App CPU from `ps` CPU-time deltas, app footprint with `footprint` every 5 s; direct children listed
+every 0.2 s (`pgrep -P`), with their process groups. The app was then quit through Apple Events and
+each child process group was checked with `ps -g`.
+
+| Build (run) | App CPU avg | App footprint avg / max sampled | Settled at the end | Children seen | Left after quit |
+|---|---:|---:|---:|---|---|
+| Fix (1) | — (sampling bug) | — | — | `codex` App Server, 2 × `claude` | none |
+| Fix (2) | 0.10% | 35.0 / 42 MB | 34 MB | `codex` App Server, 1 × `claude` | none |
+| Previous `main` | 0.04% | 25.9 / 37 MB | 24 MB | `codex` App Server, 2 × `claude` | none |
+| Fix (3) | — | — / 38 MB | 17 MB | `codex` App Server, 1 × `claude` | none |
+
+- The settled footprint moved between 17 and 34 MB across fix runs and was 24 MB on `main`: the
+  difference is within run-to-run variation (memory returned to the system at different times),
+  not a growth. Max 5-second app CPU in run 2 was 2.0%.
+- A `claude` child lives about a second, so the 0.2 s listing can miss it. In a separate 25-second
+  launch of the fix copy the log showed the launch query (`claude online: ok, 2 windows`).
+- RSS of the `codex` App Server child (reference only, not footprint): about 166 MB average in run 2;
+  a `claude` child up to about 226 MB while it runs.
+- The app exited within a second of the quit request; no process remained in any child's process
+  group. Turning an option off through the settings window was not repeated (covered by
+  automated tests).
