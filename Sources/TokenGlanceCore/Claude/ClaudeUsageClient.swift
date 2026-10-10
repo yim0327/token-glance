@@ -7,10 +7,13 @@ public protocol ClaudeControlTransport: AnyObject, Sendable {
     func close()
     /// Exit status after EOF, or nil when unknown or still running.
     func exitStatus() async -> Int32?
+    /// Returns once a closed child has exited (or was killed).
+    func waitUntilExited() async
 }
 
 extension ClaudeControlTransport {
     public func exitStatus() async -> Int32? { nil }
+    public func waitUntilExited() async { }
 }
 
 /// Reads the plan limits through Claude Code's `get_usage` control request: one short-lived child
@@ -24,6 +27,8 @@ public actor ClaudeUsageClient {
     private let now: @Sendable () -> Date
     private let timeout: TimeInterval
     private var transport: (any ClaudeControlTransport)?
+    /// The last child started, so `stop()` can wait for it to exit even after its read finished.
+    private var lastConnection: (any ClaudeControlTransport)?
     private var generation = 0
     private var timedOutGeneration: Int?
     private var inFlight: Task<Result<ClaudeAccountLimits, ClaudeUsageFailure>, Never>?
@@ -56,14 +61,16 @@ public actor ClaudeUsageClient {
         return result
     }
 
-    /// Ends a running read and its child process. The read then returns `.disconnected`.
-    public func stop() {
+    /// Ends a running read and its child process, and returns after the child has exited. The read
+    /// then returns `.disconnected`.
+    public func stop() async {
         generation += 1
         transport?.close()
         transport = nil
         inFlight?.cancel()
         inFlight = nil
         inFlightID = nil
+        await lastConnection?.waitUntilExited()
     }
 
     private func performRead() async -> Result<ClaudeAccountLimits, ClaudeUsageFailure> {
@@ -80,6 +87,7 @@ public actor ClaudeUsageClient {
             return .failure(.launchFailed)
         }
         transport = connection
+        lastConnection = connection
         let interval = timeout
         let timer = Task { [weak self] in
             try await Task.sleep(for: .seconds(interval))

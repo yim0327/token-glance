@@ -7,10 +7,13 @@ public protocol CodexAppServerTransport: AnyObject, Sendable {
     func close()
     /// Exit status after EOF, or nil when unknown or still running.
     func exitStatus() async -> Int32?
+    /// Returns once a closed child has exited (or was killed).
+    func waitUntilExited() async
 }
 
 extension CodexAppServerTransport {
     public func exitStatus() async -> Int32? { nil }
+    public func waitUntilExited() async { }
 }
 
 /// One read-only stdio connection. The caller owns the opt-in and polling schedule.
@@ -19,6 +22,8 @@ public actor CodexAppServerClient {
     private let now: @Sendable () -> Date
     private let timeout: TimeInterval
     private var transport: (any CodexAppServerTransport)?
+    /// The last closed connection, so `stop()` can wait for its child to exit.
+    private var closing: (any CodexAppServerTransport)?
     private var reader: Task<Void, Never>?
     private var pending: [Int: CheckedContinuation<[String: Any], Error>] = [:]
     private var nextID = 1
@@ -45,7 +50,7 @@ public actor CodexAppServerClient {
 
     public func readLimits(enabled: Bool = true) async -> Result<CodexAccountLimits, CodexAppServerFailure> {
         guard enabled else {
-            stop()
+            await stop()
             return .failure(.disabled)
         }
         if let inFlight { return await inFlight.value }
@@ -62,11 +67,13 @@ public actor CodexAppServerClient {
         return result
     }
 
-    public func stop() {
+    /// Ends the connection and returns after its App Server child has exited.
+    public func stop() async {
         resetConnection()
         inFlight?.cancel()
         inFlight = nil
         inFlightID = nil
+        await closing?.waitUntilExited()
     }
 
     private func resetConnection(failure: CodexAppServerFailure = .disconnected) {
@@ -74,7 +81,10 @@ public actor CodexAppServerClient {
         initialized = false
         reader?.cancel()
         reader = nil
-        transport?.close()
+        if let transport {
+            transport.close()
+            closing = transport
+        }
         transport = nil
         failPending(failure)
     }
