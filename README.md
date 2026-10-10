@@ -63,8 +63,11 @@ Gatekeeper 확인을 대신하지는 않습니다.
 
 #### 소스에서 빌드
 
-Swift 5.10 이상(Xcode 또는 Command Line Tools)이 필요합니다. 직접 빌드한 앱은 이 Mac의 아키텍처로
-만들어지고 ad-hoc 서명되며, 내려받은 파일이 아니므로 Gatekeeper 확인 없이 열립니다.
+Swift 6 툴체인에서 빌드를 확인했습니다: CI는 Swift 6.1(Xcode 16.4), 개발 기기는 Swift 6.3(Command
+Line Tools). `Package.swift`는 swift-tools-version 5.10을 선언하지만, Swift 5.10 툴체인으로는 확인하지
+않았습니다. 테스트(`./scripts/test.sh`)는 Swift 6 툴체인에 들어 있는 swift-testing이 필요합니다.
+직접 빌드한 앱은 이 Mac의 아키텍처로 만들어지고 ad-hoc 서명되며, 내려받은 파일이 아니므로 Gatekeeper
+확인 없이 열립니다.
 
 ```sh
 git clone https://github.com/yim0327/token-glance.git
@@ -249,8 +252,11 @@ that does not replace the Gatekeeper check a downloaded file goes through.
 
 #### From source
 
-Requires Swift 5.10+ (Xcode or the Command Line Tools). A locally built app is built for this Mac's
-architecture and ad hoc signed; it was not downloaded, so it opens without a Gatekeeper check.
+Builds were checked with Swift 6 toolchains: Swift 6.1 (Xcode 16.4) on CI and Swift 6.3 (Command Line
+Tools) on the development Mac. `Package.swift` declares swift-tools-version 5.10, but a Swift 5.10
+toolchain has not been tried. The tests (`./scripts/test.sh`) need swift-testing, which ships with
+Swift 6 toolchains. A locally built app is built for this Mac's architecture and ad hoc signed; it was
+not downloaded, so it opens without a Gatekeeper check.
 
 ```sh
 git clone https://github.com/yim0327/token-glance.git

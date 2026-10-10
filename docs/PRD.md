@@ -16,7 +16,7 @@
 1. 메뉴바에서 Claude Code와 Codex의 **세션(5시간) / 주간 한도 잔여량과 초기화 시각**을 한눈에 본다.
 2. 별도 로그인/API 키 입력 없이 동작한다 (zero-config, 가능한 한 공식 경로 우선).
 3. 가볍다 (idle CPU ~0%, 메모리 50MB 이하).
-4. 오픈소스 품질: 테스트, CI, README, 데모 GIF, 릴리스 자동화.
+4. 오픈소스 품질: 테스트, CI, README(스크린샷), 릴리스 자동화. 데모 GIF는 v0.1.0에 넣지 않았다(후속).
 
 ## 3. 용어 정리 (중요)
 
@@ -207,7 +207,7 @@
 
 ## 10. 기술 스택
 
-- **Swift 5.10+ / AppKit NSStatusItem + 테두리 없는 패널 안의 SwiftUI 상세 뷰·설정·기록 창**, 최소 **macOS 14** (Observation, UserNotifications). Swift Charts는 쓰지 않는다(§8.6).
+- **Swift(swift-tools-version 5.10, 빌드·테스트 확인은 Swift 6.1·6.3) / AppKit NSStatusItem + 테두리 없는 패널 안의 SwiftUI 상세 뷰·설정·기록 창**, 최소 **macOS 14** (Observation, UserNotifications). Swift Charts는 쓰지 않는다(§8.6).
 - 구조: Swift Package 모노레포
   - `TokenGlanceCore` (UI 무관: Provider, Parser, Aggregator, 모델) - 유닛 테스트 대상
   - `TokenGlanceApp` (SwiftUI 메뉴바 앱)
@@ -252,7 +252,7 @@
 
 ## 13. 오픈소스 요구사항
 
-- README: 문제 정의, 스크린샷/GIF, 설치법, **데이터 소스와 프라이버시 설명**, 한계(비공식 API, % 단위), 아키텍처 다이어그램
+- README: 문제 정의, 스크린샷(데모 GIF는 후속), 설치법, **데이터 소스와 프라이버시 설명**, 한계(비공식 API, % 단위), 아키텍처 다이어그램
 - `docs/`: PRD, 설계 결정 기록(ADR), 로그 스키마 노트
 - 커밋/PR 단위를 마일스톤에 맞춰 정리, CI 배지, 테스트 커버리지 언급
 - LICENSE(작성됨). 이슈 템플릿·CONTRIBUTING은 아직 없다
