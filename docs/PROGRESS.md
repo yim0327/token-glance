@@ -67,19 +67,21 @@ Updated: 2026-10-10
     `DisplayFormat.gaugePercent` with tests. Checked in the real app in remaining mode.
   - Memory after the layout fix (separate copy, online off, 61 panel cycles): settled 28–30 MB,
     lifetime peak 39.0 MB, no per-cycle growth (`docs/perf.md`).
-  - README hero image now says it shows the optional online checks on.
+  - README split into a Korean section (top) and an English section (bottom) with language links;
+    each section shows only its own screenshots. Other-project mentions removed from both.
+    CLAUDE.md README rule updated to match.
+  - Screenshots retaken after both panel changes (user-approved): panel and history in Korean and
+    English, plus the menu bar label (`menubar.png`); dark mode, online checks on, real usage.
   - `./scripts/test.sh`: 255 tests in 40 suites pass.
 
 ## Next
 
-- Screenshots (user decision pending): `docs/images/panel-en.png` / `panel-ko.png` predate both
-  panel changes (truncated English line, gauges filled with the used share). New captures need the
-  user's approval before they are added; menu bar label (`menubar.png`) not added yet either.
 
 - M6 (needs approval): merge the M6 PR, push tag `v0.1.0`, review the draft Release, publish.
 - After publishing: download the zip on a Mac and check the Gatekeeper "Open Anyway" flow.
-- Menu bar label screenshot: the status item is hosted by Control Center on macOS 26; a capture of
-  its screen rectangle (`screencapture -R`) works without other menu bar items.
+- Screenshot method (for later updates): the status item is hosted by Control Center on macOS 26;
+  capture its screen rectangle (`screencapture -R`) for the label, and windows by id (`-l`) while
+  they are on screen (the panel releases its content when it closes).
 - Fix now (small PRs, not started):
   1. Child process robustness: wait for the App Server / Claude Code child to exit on quit (or kill
      its process group), cap buffered stdout lines, close stdout only after EOF.

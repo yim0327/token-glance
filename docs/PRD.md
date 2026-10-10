@@ -247,7 +247,7 @@
 | M3 | 메뉴바 라벨 + 팝오버 (세션/주간 게이지, 카운트다운) | 두 도구 동시 표시 MVP |
 | M4 (구현 완료) | 증분 갱신, 설정, 훅 UI, 로그인 등록/해제, CI 및 Codex 보완(PR #3) | 테스트 139개/22개 스위트, PR #3 체크 통과. 재로그인 확인·릴리스는 별도 |
 | M5 (구현 완료, PR #4) | 알림, 한국어/영어, 14일 차트, 성능 수정(패널, 도형 차트, 공유 포매터). 비공식 API/로고 제외 | 테스트 176개/31개 스위트, 언어·차트·테스트 배너는 사용자 확인. 실제 임계값 통과 알림은 테스트로만 검증. §7.4·§7.5 온라인 조회는 별도 PR(#6, #7) |
-| M6 (진행 중) | README 스크린샷, 반복 사용 안정성 측정, 릴리스 자동화(`package-release.sh`, `v*` 태그 → draft Release)·로컬 설치 검증. Homebrew·공증 제외 | 로컬: zip·체크섬·서명·리소스·실행·임시 프로필 훅 검증 완료. 남은 것: 승인 후 태그·워크플로 실행·draft 게시, 다운로드 후 Gatekeeper 흐름 확인, 메뉴바 스크린샷 |
+| M6 (진행 중) | README 스크린샷, 반복 사용 안정성 측정, 릴리스 자동화(`package-release.sh`, `v*` 태그 → draft Release)·로컬 설치 검증. Homebrew·공증 제외 | 로컬: zip·체크섬·서명·리소스·실행·임시 프로필 훅 검증 완료. 남은 것: 승인 후 태그·워크플로 실행·draft 게시, 다운로드 후 Gatekeeper 흐름 확인 |
 
 ## 13. 오픈소스 요구사항
 
@@ -281,7 +281,7 @@
 
 - [x] 레포 description: "Claude Code & Codex usage limits at a glance, in your macOS menu bar"
 - [x] GitHub topics: `claude-code`, `codex`, `token-usage`, `menubar`, `macos`, `swift`
-- [ ] README 최상단에 두 줄 메뉴바 스크린샷/GIF (상세 패널·기록 창 스크린샷은 추가됨, 메뉴바 라벨은 남음)
+- [x] README 최상단에 두 줄 메뉴바 스크린샷. README는 한국어(위)·영어(아래) 섹션과 최상단 언어 링크로 구성하고, 섹션마다 해당 언어의 상세 패널·기록 창 스크린샷만 넣는다(M6, 다크 모드·온라인 조회 ON 상태임을 캡션에 명시)
 - [ ] 아이콘: 게이지/눈 모티프 + 중립 색상
 - [x] README에 "Not affiliated with Anthropic or OpenAI" 고지
 - [ ] 이름 중복 확인 (GitHub, Homebrew, 검색)
