@@ -7,6 +7,8 @@ Updated: 2026-10-11
 - M0–M6 are merged to `main` (PR #1–#13). CI passes on `main`.
 - No tag and no GitHub Release exist yet. `VERSION` is `0.1.0`.
 - Release-blocker fixes and the public-docs cleanup are merged (PR #14).
+- Final pre-release check done (see "Verified in the real app"); build requirements, release notes
+  and these records corrected before tagging (`docs/pre-release-corrections`).
 
 ## Done
 
@@ -102,14 +104,55 @@ Manual checks on the development Mac (2026-10-10), before the release-blocker fi
 After the release-blocker fixes (2026-10-11, separate app copies, both online checks on, 5 min):
 quit left no `codex` or `claude` process in any child process group; launch and poll queries
 succeeded; app CPU and settled footprint stayed within the run-to-run range of the previous `main`
-(`docs/perf.md`). Turning an option off through the settings window was not repeated after the
-fixes (automated tests only).
+(`docs/perf.md`).
 
-## Next (release blockers)
+Final pre-release check (2026-10-11, `main` at `6b60ff7`, build 22):
 
-1. Push tag `v0.1.0` (approval), review the draft Release and its notes, publish (approval).
-2. After publishing: download the zip on a Mac and check the checksum and the Gatekeeper
-   "Open Anyway" flow.
+- CI on `6b60ff7` passed. No open PRs or issues, no tag or Release yet.
+- `swift build` and `./scripts/test.sh` exit 0: 277 tests in 43 suites ran and passed.
+- `./scripts/package-release.sh` exit 0: `TokenGlance-0.1.0-macos-arm64.zip`; checksum file
+  verifies; app and hook arm64 (minimum macOS 14.0), ad hoc signed, `codesign --verify --strict
+  --deep` passes; string tables and both mark SVGs inside, the marks byte for byte equal to the
+  sources; `CFBundleShortVersionString` 0.1.0 = `VERSION`, `CFBundleVersion` 22; no home paths in
+  the binaries. A CI build uses another toolchain, so its zip checksum is not expected to match
+  the local one.
+- `release.yml` read (not run): tag = `VERSION` → build → tests (at least 50) → package → release
+  notes present → `--draft --verify-tag` Release.
+- Privacy scan of tracked files and all 55 revisions: no real emails, user names, tokens or home
+  paths (fixtures use `/Users/user` and similar; one fake token in a redaction test). Screenshots,
+  including two that exist only in history, show no personal data. Commit emails are noreply.
+- Fresh install with online checks off (copy with its own bundle id and an empty preference
+  domain, 90 s, sampled every 5 s): no child process and no internet socket. Limits: short-lived
+  connections between samples and DNS lookups through `mDNSResponder` would not be seen.
+
+Settings-window checks on the build-22 app (2026-10-11, both online checks on; every descendant of
+the app and any new orphan sampled every 0.5 s, plus the app log):
+
+| Check | Result |
+|---|---|
+| Quit the previous app copy | its `codex` child gone within 0.5 s |
+| Launch, panel, Refresh, history window, language switch and back | checked by hand and in the app log |
+| Codex online checks off (3 times) | `codex` child gone within 0.5 s each time |
+| Claude online checks off while a check runs (2 times) | child and grandchild gone; the child about 2 s after the change (SIGTERM ignored, SIGKILL after the 2 s grace), the grandchild at once |
+| Check timeout (launch check and its quick retry) | child gone about 22 s after start (20 s timeout + 2 s grace) |
+| Quit while a check runs | app and every child gone within 2 s |
+| Real `claude` checks (18, counted from the app log) | all answered (`ok, 2 windows`): 0.6–1 s after Refresh, up to about 3 s for the check at launch |
+| Refresh with the Claude option off | no `claude` started |
+
+No child or grandchild was left and no orphan appeared in any run. Method and limits: a real check
+ends in 0.6–0.7 s, too fast to turn the option off by hand, so the in-flight, timeout and
+quit-while-running cases used a fake `claude` placed first in `PATH`. It never answers, ignores
+SIGTERM and starts a grandchild, which is harsher than the real tool but is not Claude Code itself;
+it writes nothing. The app was started from a terminal with that `PATH`, not from Finder.
+
+## Next (release)
+
+1. Tag `v0.1.0` on the reviewed `main` commit and push it (approval).
+2. Review the draft Release the workflow creates: notes, the zip and `.sha256`, the checksum
+   against the CI log, arm64, ad hoc signature, version and build number.
+3. Publish the Release (approval).
+4. Download verification on an Apple Silicon Mac: download through a browser (quarantine set),
+   `shasum -a 256 -c`, move to `/Applications`, open, blocked, **Open Anyway**, launches.
 
 ## Later (LOW)
 
@@ -120,6 +163,9 @@ fixes (automated tests only).
   on; consider a neutral color while waiting. It is also shown while a fresher hook value replaces
   a reset Claude window.
 - Log the Codex online outcome like `claude online: …` (there is no Codex online log line).
+- Refresh is ignored while the launch/wake Claude check is still retrying (the read in flight
+  includes its quick retries, up to the 20 s timeout each). Consider showing that a check is in
+  progress, or letting Refresh restart it.
 - Memory: combined footprint with Codex online checks is about 60 MB against the 50 MB target
   (`docs/perf.md`).
 - Light-mode panel screenshots (`docs/images/panel-*-light.png`) predate the light-mode color change
@@ -134,6 +180,9 @@ fixes (automated tests only).
   a switch; documented as a limitation).
 
 ## Not verified
+
+- Building with a Swift 5.10 toolchain (`Package.swift` declares 5.10; builds and tests were run with
+  Swift 6.1 on CI and 6.3 locally).
 
 - Claude Code versions other than 2.1.296; `weekly_scoped` (per-model weekly) rows.
 - Expired-login and 429 answers (synthetic tests only).
