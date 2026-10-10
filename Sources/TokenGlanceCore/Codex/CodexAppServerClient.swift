@@ -22,8 +22,8 @@ public actor CodexAppServerClient {
     private let now: @Sendable () -> Date
     private let timeout: TimeInterval
     private var transport: (any CodexAppServerTransport)?
-    /// The last closed connection, so `stop()` can wait for its child to exit.
-    private var closing: (any CodexAppServerTransport)?
+    /// Closed connections whose children may still be exiting; `stop()` waits for all of them.
+    private var closing: [ObjectIdentifier: any CodexAppServerTransport] = [:]
     private var reader: Task<Void, Never>?
     private var pending: [Int: CheckedContinuation<[String: Any], Error>] = [:]
     private var nextID = 1
@@ -73,7 +73,10 @@ public actor CodexAppServerClient {
         inFlight?.cancel()
         inFlight = nil
         inFlightID = nil
-        await closing?.waitUntilExited()
+        for (id, connection) in closing {
+            await connection.waitUntilExited()
+            closing.removeValue(forKey: id)
+        }
     }
 
     private func resetConnection(failure: CodexAppServerFailure = .disconnected) {
@@ -83,10 +86,16 @@ public actor CodexAppServerClient {
         reader = nil
         if let transport {
             transport.close()
-            closing = transport
+            let id = ObjectIdentifier(transport)
+            closing[id] = transport
+            Task { await transport.waitUntilExited(); self.forgetClosed(id) }
         }
         transport = nil
         failPending(failure)
+    }
+
+    private func forgetClosed(_ id: ObjectIdentifier) {
+        closing.removeValue(forKey: id)
     }
 
     private func performRead() async -> Result<CodexAccountLimits, CodexAppServerFailure> {

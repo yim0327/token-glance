@@ -63,6 +63,21 @@ struct StdioChildTests {
         #expect(!Self.alive(pids[1]))
     }
 
+    @Test func grandchildIsKilledAfterTheWrapperAlreadyExited() async throws {
+        // Like an npm wrapper that exits while the real binary keeps stdout open: no EOF arrives.
+        let child = CodexProcessTransport(
+            executableURL: URL(fileURLWithPath: "/bin/sh"),
+            arguments: ["-c", "trap '' TERM; sleep 30 & echo $!"],
+            grace: 0.3)
+        try child.start()
+        let line = try #require(try await child.readLine())
+        let grandchild = try #require(Int32(String(decoding: line, as: UTF8.self)))
+        #expect(await child.exitStatus() == 0)
+        child.close()
+        await child.waitUntilExited()
+        #expect(!Self.alive(grandchild))
+    }
+
     @Test func claudeClientStopWaitsForTheChild() async throws {
         let pidFile = FileManager.default.temporaryDirectory
             .appendingPathComponent("tg-stdio-\(UUID().uuidString)")

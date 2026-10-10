@@ -420,8 +420,10 @@ final class UsageStore {
         activeTimer?.invalidate()
         resetTimer?.invalidate()
         watcher = nil
-        await online.shutdown()
-        await claudeOnline.shutdown()
+        // Both children are ended at the same time, so quitting waits at most one grace period.
+        async let codexStopped: Void = online.shutdown()
+        async let claudeStopped: Void = claudeOnline.shutdown()
+        _ = await (codexStopped, claudeStopped)
     }
 
     private static func onlineFailureText(_ failure: CodexAppServerFailure) -> String {

@@ -25,7 +25,7 @@ public enum ClaudeOnlinePresentation {
         // A window whose reset time has passed proves nothing about the account until the next
         // query reports it again, so it is not shown as recovered.
         let current = result.windows.filter { window in window.resetsAt.map { $0 > now } ?? true }
-        let hook = activeLimits(local)
+        let hook = activeLimits(local, now: now)
         if current.count < result.windows.count,
            let hookObserved = hook.map(\.observedAt).max(), hookObserved > result.observedAt {
             return fallback(local, reason: "Waiting for account query", now: now)
@@ -59,7 +59,7 @@ public enum ClaudeOnlinePresentation {
         state.otherSourceLimits = []
         let hadReset = local.summary?.limits.contains(where: \.isReset) ?? false
         // A passed reset time in the cache cannot prove that the account quota recovered either.
-        state.summary?.limits = activeLimits(local)
+        state.summary?.limits = activeLimits(local, now: now)
         state.limitWindows.removeAll { $0.isReset(at: now) }
         state.limitObservedAt = state.summary?.limits.map(\.observedAt).max()
         if state.summary?.limits.isEmpty == true && (state.unavailableReason == nil || hadReset) {
@@ -68,8 +68,9 @@ public enum ClaudeOnlinePresentation {
         return state
     }
 
-    private static func activeLimits(_ state: ToolState) -> [LimitStatus] {
-        (state.summary?.limits ?? []).filter { !$0.isReset }
+    /// Hook values whose window has not reset, also by `now` (the flag is from the last local scan).
+    private static func activeLimits(_ state: ToolState, now: Date) -> [LimitStatus] {
+        (state.summary?.limits ?? []).filter { !$0.isReset && ($0.resetsAt.map { $0 > now } ?? true) }
     }
 
     /// True when the hook cache shows a window the query does not, or a different whole percent.

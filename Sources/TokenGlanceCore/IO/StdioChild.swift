@@ -19,6 +19,8 @@ final class StdioChild: @unchecked Sendable {
     private let grace: TimeInterval
     private let lock = NSLock()
     private var closed = false
+    /// The child's process group, recorded at launch: a wrapper may exit while its children live on.
+    private var group: pid_t?
     private var reaper: Task<Void, Never>?
 
     init(lineLimit: Int, overflow: any Error, grace: TimeInterval) {
@@ -57,6 +59,11 @@ final class StdioChild: @unchecked Sendable {
             try? output.fileHandleForReading.close()
             throw launchFailure
         }
+        // Signal the group only when the child leads its own; never the app's group.
+        let pid = process.processIdentifier
+        if pid > 0, getpgid(pid) == pid, pid != getpgrp() {
+            lock.withLock { group = pid }
+        }
         // A child that exits before reading must not kill the app with SIGPIPE; writes throw EPIPE instead.
         _ = fcntl(input.fileHandleForWriting.fileDescriptor, F_SETNOSIGPIPE, 1)
     }
@@ -89,8 +96,7 @@ final class StdioChild: @unchecked Sendable {
         guard process.processIdentifier > 0 else { return }
         let child = process
         let pid = child.processIdentifier
-        // Signal the group only when the child leads its own; never the app's group.
-        let group = getpgid(pid) == pid && pid != getpgrp() ? pid : nil
+        let group = group
         func signal(_ number: Int32) {
             if let group { _ = Darwin.kill(-group, number) } else if child.isRunning { _ = Darwin.kill(pid, number) }
         }
@@ -101,9 +107,11 @@ final class StdioChild: @unchecked Sendable {
             while child.isRunning && Date() < deadline {
                 try? await Task.sleep(for: .milliseconds(20))
             }
-            // Also reaches grandchildren that ignored SIGTERM after the leader exited.
+            // Also reaches group members that ignored SIGTERM or outlived the leader.
             signal(SIGKILL)
-            for _ in 0..<100 where child.isRunning {
+            for _ in 0..<100 {
+                let groupGone = group.map { Darwin.kill(-$0, 0) != 0 } ?? true
+                if !child.isRunning && groupGone { break }
                 try? await Task.sleep(for: .milliseconds(10))
             }
         }
@@ -171,6 +179,7 @@ final class LineQueue: @unchecked Sendable {
     func cancel() {
         lock.lock()
         finished = true
+        failure = nil
         dropBuffered()
         resumeLocked()
     }

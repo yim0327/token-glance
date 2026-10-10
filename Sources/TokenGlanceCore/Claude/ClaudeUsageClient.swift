@@ -27,8 +27,8 @@ public actor ClaudeUsageClient {
     private let now: @Sendable () -> Date
     private let timeout: TimeInterval
     private var transport: (any ClaudeControlTransport)?
-    /// The last child started, so `stop()` can wait for it to exit even after its read finished.
-    private var lastConnection: (any ClaudeControlTransport)?
+    /// Children that may still be exiting after their read; `stop()` waits for all of them.
+    private var closing: [ObjectIdentifier: any ClaudeControlTransport] = [:]
     private var generation = 0
     private var timedOutGeneration: Int?
     private var inFlight: Task<Result<ClaudeAccountLimits, ClaudeUsageFailure>, Never>?
@@ -70,7 +70,14 @@ public actor ClaudeUsageClient {
         inFlight?.cancel()
         inFlight = nil
         inFlightID = nil
-        await lastConnection?.waitUntilExited()
+        for (id, connection) in closing {
+            await connection.waitUntilExited()
+            closing.removeValue(forKey: id)
+        }
+    }
+
+    private func forgetClosed(_ id: ObjectIdentifier) {
+        closing.removeValue(forKey: id)
     }
 
     private func performRead() async -> Result<ClaudeAccountLimits, ClaudeUsageFailure> {
@@ -87,7 +94,8 @@ public actor ClaudeUsageClient {
             return .failure(.launchFailed)
         }
         transport = connection
-        lastConnection = connection
+        let connectionID = ObjectIdentifier(connection)
+        closing[connectionID] = connection
         let interval = timeout
         let timer = Task { [weak self] in
             try await Task.sleep(for: .seconds(interval))
@@ -96,6 +104,7 @@ public actor ClaudeUsageClient {
         defer {
             timer.cancel()
             connection.close()
+            Task { await connection.waitUntilExited(); self.forgetClosed(connectionID) }
             if generation == current { transport = nil }
         }
         do {
