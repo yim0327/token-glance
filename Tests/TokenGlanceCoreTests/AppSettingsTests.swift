@@ -17,6 +17,7 @@ struct AppSettingsTests {
         #expect(settings == AppSettings())
         #expect(settings.percentMode == .remaining)
         #expect(settings.claudeEnabled && settings.codexEnabled)
+        #expect(!settings.codexOnlineLimitsEnabled)
         #expect(settings.claudeConfigDir == nil && settings.codexHome == nil)
     }
 
@@ -25,6 +26,7 @@ struct AppSettingsTests {
         var settings = AppSettings()
         settings.percentMode = .used
         settings.codexEnabled = false
+        settings.codexOnlineLimitsEnabled = true
         settings.claudeConfigDir = "~/alt-claude"
         settings.save(to: store)
         #expect(AppSettings.load(from: store) == settings)
@@ -34,9 +36,11 @@ struct AppSettingsTests {
         let store = defaults()
         store.set("sideways", forKey: AppSettings.Keys.percentMode)
         store.set(42, forKey: AppSettings.Keys.claudeConfigDir)
+        store.set("yes", forKey: AppSettings.Keys.codexOnlineLimitsEnabled)
         let settings = AppSettings.load(from: store)
         #expect(settings.percentMode == .remaining)
         #expect(settings.claudeConfigDir == nil)
+        #expect(!settings.codexOnlineLimitsEnabled)
     }
 
     @Test func atLeastOneToolStaysEnabled() {

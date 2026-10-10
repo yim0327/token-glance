@@ -21,7 +21,7 @@ public struct MenuBarLabel: Equatable, Sendable {
     /// every enabled tool shows "--".
     public static func make(states: [ToolState], mode: PercentMode) -> MenuBarLabel {
         let enabled = states.filter(\.isEnabled)
-        let withData = enabled.filter { $0.session != nil }
+        let withData = enabled.filter { $0.session != nil || !$0.onlineBucketRows.isEmpty }
         let shown = withData.isEmpty ? enabled : withData
         let lines = shown.map {
             Line(tool: $0.tool, text: DisplayFormat.percentText($0.session, mode: mode), severity: DisplayFormat.severity($0.session))

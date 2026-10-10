@@ -83,9 +83,20 @@
   - 모델명은 `turn_context.payload.model`에서 가져오며, 한 세션 안에서 바뀔 수 있다(직전 turn_context 기준).
   - 신규 필드 기록(v1 미사용): 라인 타입 `token_usage_record`, `cache_write_input_tokens`, `rate_limits.limit_id`, `credits`.
   - reasoning 토큰은 output의 일부로 표시만 하고 total에 다시 더하지 않는다.
-- 즉 Codex는 **로컬 로그만으로** 한도 잔여량과 초기화 시각을 얻을 수 있다. 가장 최신 이벤트의 `rate_limits`를 사용.
+- 기본 설정에서 Codex는 **로컬 로그만으로** 한도 잔여량과 초기화 시각을 얻는다. 가장 최신 이벤트의 `rate_limits`를 사용.
 - 토큰 집계는 누적값이므로 세션별 delta로 계산 (이중 집계 방지).
-- 비공식 API는 보류한다. M5에서 인증 파일/Keychain 접근과 네트워크 요청을 추가하지 않는다.
+- 비공식 API 직접 조회는 보류한다. M5에서는 인증 파일/Keychain 접근과 네트워크 요청을 추가하지 않았다.
+- 로컬 rollout에 기록되지 않는 Aside 사용분과 계정 한도 조회는 별개의 문제다. 계정 한도에 Aside가 포함되는지는 미확인이다.
+
+### 7.4 Codex 온라인 한도 조회 (M5와 분리된 작업)
+
+- 설정 **Codex 온라인 한도 조회**는 기본 OFF다. OFF에서는 App Server를 시작하지 않고 온라인 요청도 하지 않는다. 켜기 전 설치된 Codex 자식 프로세스가 기존 로그인을 사용해 외부 요청을 할 수 있음을 설명하고 동의를 받는다. 앱과 진단 스크립트는 인증 파일이나 Keychain을 직접 읽지 않는다.
+- 설치된 codex-cli **0.162.0**의 생성 JSON 스키마에서 `account/rateLimits/read`, `account/rateLimits/updated`, `account/usage/read`가 확인됐다. 공식 [App Server 문서](https://learn.chatgpt.com/docs/app-server)의 stdio 줄 단위 JSON 연결을 사용하며 `initialize` 뒤 `initialized`를 보낸다. 설치 버전의 지원 여부를 우선 확인하고, 지원하지 않으면 업데이트 필요 버전과 대안을 안내한다. 승인 없이 Codex를 업데이트하지 않는다.
+- 5분 주기와 수동 새로고침으로 `account/rateLimits/read`를 조회한다. `account/rateLimits/updated`는 보조 신호다. 다른 클라이언트의 모든 사용이 즉시 통지된다고 가정하지 않는다. 타임아웃, 동시 요청 중복 방지, 429 백오프, 연결 종료·재연결·취소 시 자식 프로세스 정리를 처리한다. 로그인/로그아웃과 상태 변경 메서드는 호출하지 않는다.
+- `limitId`별 버킷을 분리한다. `primary`/`secondary` 이름 대신 윈도우 길이로 세션·주간을 구분한다. `usedPercent`가 없으면 해당 윈도우를 표시하지 않고, 윈도우 길이를 모르면 세션·주간으로 추정하지 않으며, `resetsAt`이 null이면 초기화 시각을 `--`로 표시한다. 계정 식별자도 null일 수 있다. API-key 로그인과 ChatGPT 구독 로그인을 구분하고, 로그인 필요·미지원 상태를 표시한다.
+- 유효한 계정 조회 결과가 있으면 한도 표시에서 로컬 스냅샷보다 우선한다. 실패 시 사유와 함께 로컬 한도로 폴백한다. 출처와 마지막 관측 시각을 표시하고, 오래된 응답이나 다른 계정/버킷의 값을 섞지 않는다. 초기화 시각이 지났다는 이유만으로 실제 한도 복구를 확정하지 않는다.
+- 로컬 rollout에는 검증된 계정 식별자가 없으므로 폴백의 계정 귀속은 미확인으로 표시한다. 온라인 버킷과 로컬 스냅샷을 합치지 않는다.
+- 토큰 상세·모델별 집계는 로컬 로그만 사용한다. `account/usage/read`는 필드·기간·집계 범위 조사 대상으로만 두며 서버 토큰 합계를 로컬 합계에 더하지 않는다. Aside 귀속은 비교 검증 전까지 미확인이다.
 
 ## 8. 기능 요구사항
 
@@ -133,7 +144,8 @@
 - 로그인 시 자동 실행 (`SMAppService`)
 - Claude statusline 훅 설치/제거 (백업/복원). 구현 규칙(M2): settings.json 전체 타임스탬프 백업, `statusLine` 키만 수정(나머지 바이트 보존), 원래 권한 유지, 깨진 JSON/쓰기 불가 파일은 거부, 원본 command는 문자열 그대로 백업. 상태 5종(notInstalled / installed / overwritten / hookMissing / settingsUnreadable)과 `repair`. 훅 바이너리는 `~/Library/Application Support/TokenGlance/bin/`에 복사. CLI: `token-glance-hook install|uninstall|status|repair`.
 - 현재 설정: 남은/사용 표시, 도구 켜기/끄기, 로그 경로, 로그인 시 실행, 훅 관리.
-- M5 계획: 알림 토글·임계값, 언어(시스템/한국어/영어). 비공식 API 옵션은 추가하지 않는다.
+- M5 설정: 알림 토글·임계값, 언어(시스템/한국어/영어). 비공식 API 옵션은 추가하지 않는다.
+- Codex 온라인 한도 조회 옵션은 기본 OFF이며 §7.4의 별도 작업에서 추가한다.
 - 로그인 등록/해제는 확인됨. 로그아웃·재로그인 후 자동 실행은 사용자 확인이 남아 있다.
 
 ### 8.5 알림 (P1, M5 계획)
@@ -165,7 +177,7 @@
 |---|---|
 | 성능 | idle CPU < 1%, 메모리 < 50MB, 증분 갱신 < 200ms. 메모리는 Activity Monitor의 메모리(physical footprint) 기준이며 순간 최고치는 별도 관리(RSS는 참고용). 조건·측정 방법은 `docs/perf.md` 참조 |
 | 프라이버시 | 프롬프트/응답 내용은 저장·전송하지 않음. 수치 메타데이터만 사용. 기본 설정에서 외부 네트워크 호출 0 |
-| 보안 | 현재 및 M5에서 인증 파일/Keychain 접근 없음. 인증 토큰 저장·출력 금지. 훅 관리 백업에는 사용자 설정이 포함되므로 권한 보호 |
+| 보안 | 앱/진단 스크립트는 인증 파일·Keychain을 직접 읽지 않음. Codex 온라인 옵션의 인증은 설치된 App Server에 위임. 토큰·계정 정보 저장 금지. 훅 관리 백업에는 사용자 설정이 포함되므로 권한 보호 |
 | 안정성 | 파싱 실패 라인 skip, 스키마 변경에 방어적, 값 누락 시 graceful degrade |
 | 권한 | dot-folder 읽기 필요 → App Sandbox OFF, 직접 배포 |
 | UI | 다크/라이트, Dock 아이콘 없음(`LSUIElement`), 한국어/영어 |
@@ -212,7 +224,7 @@
 | M2 | Claude 훅 스크립트 + 캐시 리더 + 설치/제거 로직 | 실제 Claude Code 세션에서 `rate_limits` 캐시 기록 확인 |
 | M3 | 메뉴바 라벨 + 팝오버 (세션/주간 게이지, 카운트다운) | 두 도구 동시 표시 MVP |
 | M4 (구현 완료) | 증분 갱신, 설정, 훅 UI, 로그인 등록/해제, CI 및 Codex 보완(PR #3) | 테스트 139개/22개 스위트, PR #3 체크 통과. 재로그인 확인·릴리스는 별도 |
-| M5 (다음) | 알림 → 한국어/영어 → 14일 차트. 비공식 API/로고 제외 | 테스트·번들 빌드, 실제 알림/양 언어 UI 확인, 성능 유지 |
+| M5 (구현 완료) | 알림, 한국어/영어, 14일 차트. 비공식 API/로고 제외 | 별도 구현. §7.4 온라인 한도 조회는 이 작업에서 제외 |
 | M6 | README 스크린샷, 릴리스 자동화·배포 검증. Homebrew 별도 검토 | 승인 후 태그·릴리스, 버전/체크섬·설치 확인 |
 
 ## 13. 오픈소스 요구사항

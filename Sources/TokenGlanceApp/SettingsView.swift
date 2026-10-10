@@ -72,6 +72,21 @@ struct SettingsView: View {
             NotificationSection(store: store)
             LoginSection(l10n: l10n)
             HookSection(store: store)
+            Section(l10n("settings.codexOnline.section")) {
+                Toggle(l10n("settings.codexOnline.toggle"), isOn: Binding(
+                    get: { store.settings.codexOnlineLimitsEnabled },
+                    set: { enabled in
+                        guard !enabled || confirmCodexOnlineLimits(l10n) else { return }
+                        var settings = store.settings
+                        settings.codexOnlineLimitsEnabled = enabled
+                        store.apply(settings)
+                    }
+                ))
+                .disabled(!store.settings.codexEnabled)
+                Text(l10n("settings.codexOnline.explain"))
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             Section(l10n("settings.logFolders")) {
                 PathField(title: l10n("settings.claudeFolder"), placeholder: l10n("settings.claudeFolder.placeholder"),
                           text: $claudeDir, subfolder: "projects", l10n: l10n)
@@ -106,6 +121,15 @@ struct SettingsView: View {
         settings.claudeConfigDir = claudeDir
         settings.codexHome = codexDir
         store.apply(settings)
+    }
+
+    private func confirmCodexOnlineLimits(_ l10n: Localizer) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = l10n("settings.codexOnline.consentTitle")
+        alert.informativeText = l10n("settings.codexOnline.consentBody")
+        alert.addButton(withTitle: l10n("settings.codexOnline.enable"))
+        alert.addButton(withTitle: l10n("settings.codexOnline.cancel"))
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     private func binding<Value>(_ keyPath: WritableKeyPath<AppSettings, Value>) -> Binding<Value> {

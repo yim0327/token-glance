@@ -153,6 +153,7 @@ extension Localizer {
         case .noData: self("reason.noData")
         case .corrupt: self("reason.corrupt")
         case .stale: self("reason.stale")
+        case .awaitingFreshLimit: self("reason.awaitingFreshLimit")
         case .unsupportedVersion: self("reason.unsupportedVersion")
         case .hookNotInstalled: self("reason.hookNotInstalled")
         case .hookOverwritten: self("reason.hookOverwritten")
@@ -200,6 +201,12 @@ extension Localizer {
 
     func tooltipLine(_ state: ToolState, mode: PercentMode, now: Date) -> String {
         let name = toolName(state.tool)
+        if state.tool == .codex && state.onlineBucketRows.count > 1 {
+            return self("tooltip.multipleBuckets")
+        }
+        if state.tool == .codex && !state.onlineBucketRows.isEmpty && state.session == nil {
+            return self("tooltip.otherWindows")
+        }
         guard let session = state.session else {
             return self("tooltip.unavailable", name, unavailable(state.unavailableReason ?? .noData))
         }

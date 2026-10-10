@@ -37,7 +37,7 @@ struct PopoverView: View {
                 Button(l10n("popover.history"), action: openHistory)
                 Button(l10n("popover.settings"), action: openSettings)
                 Spacer()
-                Button(l10n("popover.refresh")) { store.refresh(checkHook: true) }
+                Button(l10n("popover.refresh")) { store.refreshNow() }
                     .disabled(store.isRefreshing)
                 Button(l10n("popover.quit")) { NSApplication.shared.terminate(nil) }
             }
@@ -67,11 +67,44 @@ private struct ToolSection: View {
                 }
                 Spacer()
             }
-            if let reason = state.unavailableReason, state.session == nil, state.weekly == nil {
+            if let reason = state.unavailableReason, state.session == nil, state.weekly == nil,
+               state.onlineBucketRows.isEmpty {
                 Text(l10n.unavailable(reason)).font(.callout).foregroundStyle(.secondary)
             }
-            if let session = state.session { LimitRow(title: l10n.windowName(.session), status: session, l10n: l10n) }
-            if let weekly = state.weekly { LimitRow(title: l10n.windowName(.weekly), status: weekly, l10n: l10n) }
+            if state.tool == .codex && !state.onlineBucketRows.isEmpty {
+                ForEach(Array(state.onlineBucketRows.enumerated()), id: \.offset) { entry in
+                    Text(l10n("popover.online.bucket", entry.offset + 1)).font(.subheadline.weight(.semibold))
+                    if let session = entry.element.session {
+                        LimitRow(title: l10n.windowName(.session), status: session, l10n: l10n)
+                    }
+                    if let weekly = entry.element.weekly {
+                        LimitRow(title: l10n.windowName(.weekly), status: weekly, l10n: l10n)
+                    }
+                    ForEach(Array(entry.element.otherWindows.enumerated()), id: \.offset) { window in
+                        OtherWindowRow(window: window.element, l10n: l10n)
+                    }
+                }
+            } else {
+                if let session = state.session { LimitRow(title: l10n.windowName(.session), status: session, l10n: l10n) }
+                if let weekly = state.weekly { LimitRow(title: l10n.windowName(.weekly), status: weekly, l10n: l10n) }
+            }
+            if state.tool == .codex {
+                if let source = state.limitSource {
+                    HStack(spacing: 4) {
+                        Text(l10n("popover.online.source", source == "Account query"
+                                  ? l10n("popover.online.accountQuery") : l10n("popover.online.localLogs")))
+                        if let observedAt = state.limitObservedAt {
+                            Text(l10n("popover.online.observed", l10n.resetTime(observedAt)))
+                        }
+                    }
+                    .font(.caption2).foregroundStyle(.secondary)
+                }
+                if let failure = state.onlineFailure {
+                    Text(l10n("popover.online.failure", onlineFailure(failure)) + " "
+                         + l10n("popover.online.localIdentityUnverified"))
+                        .font(.caption).foregroundStyle(.orange)
+                }
+            }
             if let summary = state.summary { TokenTable(summary: summary, l10n: l10n) }
         }
     }
@@ -84,6 +117,26 @@ private struct ToolSection: View {
         case .settingsUnreadable: l10n("popover.hook.settingsUnreadable")
         case .installed, nil: ""
         }
+    }
+
+    private func onlineFailure(_ message: String) -> String {
+        let key: String
+        switch message {
+        case "Waiting for account query": key = "popover.online.waiting"
+        case "Account query returned no limit windows": key = "popover.online.noWindows"
+        case "Codex login required": key = "popover.online.loginRequired"
+        case "ChatGPT subscription login required": key = "popover.online.subscriptionRequired"
+        case "Installed Codex does not support account limits": key = "popover.online.unsupported"
+        case "Account query timed out": key = "popover.online.timeout"
+        case "Account query rate limited": key = "popover.online.rateLimited"
+        case "Codex App Server disconnected": key = "popover.online.disconnected"
+        case "Account query returned invalid data": key = "popover.online.invalidResponse"
+        case "Codex executable not found": key = "popover.online.executableUnavailable"
+        case "Codex App Server could not start": key = "popover.online.launchFailed"
+        case "Codex online limit checks disabled": key = "popover.online.disabled"
+        default: return message
+        }
+        return l10n(key)
     }
 }
 
@@ -112,8 +165,10 @@ private struct LimitRow: View {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 Text(l10n("popover.resets", l10n.resetTime(resetsAt), l10n.clockCountdown(to: resetsAt, now: context.date)))
             }
-        } else {
+        } else if status.isReset {
             Text(l10n("popover.windowReset"))
+        } else {
+            Text(l10n("popover.online.resetUnavailable"))
         }
     }
 
@@ -123,6 +178,38 @@ private struct LimitRow: View {
         case .critical: .red
         case .normal, .unavailable: .accentColor
         }
+    }
+}
+
+private struct OtherWindowRow: View {
+    let window: OnlineWindowRow
+    let l10n: Localizer
+
+    var body: some View {
+        let used = min(max(window.usedPercent, 0), 100)
+        VStack(alignment: .leading, spacing: 3) {
+            HStack {
+                Text(windowTitle).font(.subheadline.weight(.medium))
+                Spacer()
+                Text(l10n("popover.usedLeft", Int(used.rounded()), Int((100 - used).rounded())))
+                    .font(.subheadline.monospacedDigit())
+            }
+            ProgressView(value: used, total: 100)
+            if let resetsAt = window.resetsAt {
+                Text(l10n("popover.online.resets", l10n.resetTime(resetsAt)))
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                Text(l10n("popover.online.resetUnavailable"))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var windowTitle: String {
+        if let minutes = Int(window.title.replacingOccurrences(of: "-minute", with: "")) {
+            return l10n("popover.online.windowMinutes", minutes)
+        }
+        return l10n("popover.online.unknownWindow")
     }
 }
 

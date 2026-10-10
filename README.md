@@ -31,19 +31,21 @@ countdown, and tokens used today and this week (input / output / cache, top mode
   (configurable), and when a new window starts after running low.
 - English and Korean, following the system language by default or chosen in settings.
 - A 14-day history window with daily tokens per tool, from local logs.
+- Optional Codex online limit checks through the installed Codex App Server (off by default).
 
 ## How it gets the numbers
 
 | | Limits (% and reset time) | Tokens |
 |---|---|---|
 | **Claude Code** | Claude Code passes them only to **statusline commands**. A small hook records them and then runs your existing statusline (e.g. oh-my-claudecode's HUD) with the same input. | `~/.claude/projects/**/*.jsonl` (respects `CLAUDE_CONFIG_DIR`) |
-| **Codex CLI** | `token_count` events in `~/.codex/sessions/**/rollout-*.jsonl` (respects `CODEX_HOME`). No setup. | same files |
+| **Codex CLI** | By default, `token_count` events in `~/.codex/sessions/**/rollout-*.jsonl` (respects `CODEX_HOME`). With online checks enabled, valid account limits from the installed Codex App Server take priority; failed checks fall back to local limits with a reason and last observation time. | Local rollout files only; online usage totals are not added. |
 
 Details of the formats are in [docs/log-schemas.md](docs/log-schemas.md).
 
 ## Privacy
 
-- **No network calls.** Everything is read from local files.
+- **Online checks off (default):** no app server process or online limit requests; limits and token totals come from local files.
+- **Online checks on:** after you consent in Settings, Token Glance starts the installed Codex App Server as a child process. Codex uses your existing login and may make network requests for account limits. Token Glance does not directly read authentication files or Keychain. Limits refresh every five minutes or on manual refresh; update notifications are an additional signal.
 - Prompt and response text is never stored, logged or sent. Only numbers (token counts,
   percentages, reset times, model names) are used, and only in memory.
 - The hook writes just the limit values to
@@ -106,6 +108,9 @@ Design decisions: [docs/adr](docs/adr). Performance measurements: [docs/perf.md]
   while the Mac was asleep or the app was closed are not sent afterwards.
 - The history chart counts only logs on this Mac. Days before the oldest log are shown as having
   no logs, not as zero usage.
+- Codex online checks require an installed Codex version with the App Server rate-limit methods (verified in codex-cli 0.162.0). API-key logins do not provide ChatGPT subscription limits. Multiple limit buckets stay separate; missing values remain unavailable. Aside usage attribution to account limits is unverified.
+- Local rollout logs do not carry a verified account identity. A fallback limit may belong to a different account; the app labels its source and never combines it with account-limit buckets.
+- With online checks enabled, the App Server child can raise combined physical memory above the 50 MB target (59.7 MB average in one 5-minute measurement). See [performance notes](docs/perf.md).
 
 ## Compared with similar tools
 

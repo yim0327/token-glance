@@ -1,10 +1,33 @@
 import Foundation
 
+/// One account limit bucket. A multi-bucket response stays separated in the popover.
+public struct OnlineBucketRow: Equatable, Sendable {
+    public var title: String
+    public var session: LimitStatus?
+    public var weekly: LimitStatus?
+    public var otherWindows: [OnlineWindowRow]
+
+    public init(title: String, session: LimitStatus?, weekly: LimitStatus?, otherWindows: [OnlineWindowRow] = []) {
+        self.title = title
+        self.session = session
+        self.weekly = weekly
+        self.otherWindows = otherWindows
+    }
+}
+
+public struct OnlineWindowRow: Equatable, Sendable {
+    public var title: String
+    public var usedPercent: Double
+    public var resetsAt: Date?
+    public var observedAt: Date
+}
+
 /// Why a tool shows no limit values, in terms a user can act on.
 public enum UnavailableReason: Equatable, Sendable {
     case noData
     case corrupt
     case stale
+    case awaitingFreshLimit
     case unsupportedVersion
     case hookNotInstalled
     case hookOverwritten
@@ -26,6 +49,11 @@ public struct ToolState: Equatable, Sendable {
     public var limitWindows: [LimitWindow] = []
     /// Daily totals for the last 14 days (see `UsageHistory`).
     public var history: [DailyUsage] = []
+    /// Codex limit provenance; token totals still come from local logs.
+    public var limitSource: String?
+    public var limitObservedAt: Date?
+    public var onlineFailure: String?
+    public var onlineBucketRows: [OnlineBucketRow] = []
 
     public init(tool: Tool, isEnabled: Bool = true, summary: UsageSummary? = nil, unavailableReason: UnavailableReason? = nil,
                 hookStatus: StatuslineInstaller.Status? = nil, refreshedAt: Date? = nil) {
@@ -63,6 +91,16 @@ public struct ToolState: Equatable, Sendable {
         var state = ToolState(tool: tool, isEnabled: isEnabled, summary: summary, unavailableReason: reason,
                               hookStatus: hookStatus, refreshedAt: now)
         state.limitWindows = snapshot.limits
+        if tool == .codex {
+            let hadReset = state.summary?.limits.contains(where: \.isReset) ?? false
+            state.summary?.limits.removeAll(where: \.isReset)
+            state.limitWindows.removeAll { $0.isReset(at: now) }
+            if hadReset && state.summary?.limits.isEmpty == true {
+                state.unavailableReason = .awaitingFreshLimit
+            }
+            state.limitSource = "Local logs"
+            state.limitObservedAt = snapshot.limits.map(\.observedAt).max()
+        }
         return state
     }
 
