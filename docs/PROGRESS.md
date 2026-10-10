@@ -85,6 +85,25 @@ Updated: 2026-10-11
   example is now "another tool changed the statusline" in both languages. A string-table test
   rejects known third-party tool names in Korean and English values. Behavior unchanged.
   `./scripts/test.sh`: 277 tests in 43 suites pass.
+- New app icon for v0.1.1 (`feat/app-icon`): until v0.1.0 the bundle had no icon (no `.icns`, no
+  `CFBundleIconFile`), so macOS showed the generic app icon. The new icon ("Peek over bar": two
+  eyes looking over a usage bar, blue body) is Token Glance's own design, picked from several rounds
+  of concepts; no third-party mark, shape based on one or brand color. Source
+  `assets/AppIcon/AppIcon.svg`; `scripts/make-app-icon.sh` renders every iconset size (16–1024 px)
+  with the system SVG renderer (`scripts/render-svg.swift`, no third-party tools) and packs
+  `AppIcon.icns` with `iconutil`; the `.icns` is committed. `bundle-app.sh` copies it and sets
+  `CFBundleIconFile`; `package-release.sh` (run in CI) fails if the icon is missing, the plist key
+  differs or the bundled file differs from `assets/AppIcon/AppIcon.icns` (checked: missing file and
+  a changed file both fail). One artwork for all sizes; no separate small-size drawing.
+  Checked on macOS 26.6.2 with a bundled copy: Finder icon view, Get Info (title and preview) and
+  list view show the new icon, with no gray backing plate. Not shown: the Dock (the app is
+  `LSUIElement`, so it never appears there) and alerts/notifications (not captured; see below).
+  `./scripts/test.sh`: 277 tests in 43 suites pass.
+  - Incident during the screenshot check: driving the settings window of a separate copy (own
+    bundle id and preference domain) by accessibility scripting turned that copy's Codex online
+    checks on for a few seconds. Likely cause, not confirmed: an accessibility press opened the
+    consent dialog late and a synthetic click meant for the toggle landed on its Enable button. It was turned off at once; its `codex app-server` child
+    ended and no process was left after the copy quit. The alert screenshot was then dropped.
 
 ## Verified in the real app
 
@@ -171,6 +190,11 @@ it writes nothing. The app was started from a terminal with that `PATH`, not fro
 
 ## Next (after v0.1.0)
 
+- v0.1.1: release notes (`docs/releases/v0.1.1.md`) should mention the new app icon; `VERSION`
+  is still 0.1.0.
+- App icon not yet seen in an alert (settings consent dialogs) or a notification banner; check by
+  hand on the next release build. README screenshots show the menu bar, panel and history window
+  only, so none needs a new capture for the icon.
 - Pick from "Later (LOW)" below; no release blockers are open.
 - Release workflow (found in the final check, not changed): raise the minimum test count from 50,
   and check that the tag commit is on `main`.

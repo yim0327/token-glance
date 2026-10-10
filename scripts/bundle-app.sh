@@ -36,6 +36,14 @@ if [ ! -d "$resources" ]; then
     exit 1
 fi
 cp -R "$resources" "$app/Contents/Resources/"
+# App icon (Finder, Get Info, alerts, notifications). Built from assets/AppIcon/AppIcon.svg by
+# scripts/make-app-icon.sh; the .icns is committed so bundling does not render it.
+icon="assets/AppIcon/AppIcon.icns"
+if [ ! -s "$icon" ]; then
+    echo "missing app icon: $icon (run scripts/make-app-icon.sh)" >&2
+    exit 1
+fi
+cp "$icon" "$app/Contents/Resources/AppIcon.icns"
 chmod 755 "$app/Contents/MacOS/TokenGlance" "$app/Contents/Resources/token-glance-hook"
 
 cat > "$app/Contents/Info.plist" <<PLIST
@@ -45,6 +53,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
 <dict>
     <key>CFBundleDevelopmentRegion</key><string>en</string>
     <key>CFBundleExecutable</key><string>TokenGlance</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundleIdentifier</key><string>${bundle_id}</string>
     <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
     <key>CFBundleName</key><string>Token Glance</string>

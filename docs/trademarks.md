@@ -4,6 +4,10 @@ Token Glance shows two third-party marks, only to identify which service a numbe
 the menu bar label (the Claude mark next to the Claude Code value, the OpenAI Blossom next to the
 Codex value) and next to the tool names in the details panel. The app's own name, icon and branding are not based on them.
 
+The app icon (`assets/AppIcon/AppIcon.svg`, two eyes looking over a usage bar) is Token Glance's
+own design. It uses no third-party mark, no shape based on one and neither company's brand colors,
+and is not covered by the conditions below.
+
 - The marks and the names "Claude", "Anthropic", "OpenAI" and "Codex" are trademarks of their
   respective owners. All rights in them stay with those owners.
 - Token Glance is not affiliated with, sponsored, endorsed or approved by Anthropic or OpenAI.
