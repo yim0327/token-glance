@@ -28,3 +28,6 @@ hud-stdin-cache.json
 # Local tool state (Claude Code, Codex CLI)
 .claude/
 .codex/
+
+# Saved by the PreCompact hook, overwritten on every compaction
+docs/PRE_COMPACT_STATE.md

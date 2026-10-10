@@ -54,6 +54,12 @@ swift test                # Xcode 환경 / CI
 - 실제 `~/.claude`, `~/.codex` 파일을 커밋하지 않는다. fixture는 반드시 익명화한다.
 - 모르는 것은 추측하지 말고 질문하거나 `docs/log-schemas.md`에 "미확인"으로 기록한다.
 
+### 진행 기록 / 세션 정리
+
+- 마일스톤 완료, 테스트 전체 통과, 커밋 직후 등 작업 단위가 끝나면 `docs/PROGRESS.md`에 **완료 항목**과 **다음 할 일**을 기록(갱신)한다.
+- 기록 후 사용자에게 "/clear 후 새 세션 시작을 권장합니다"라고 알린다.
+- 컨텍스트 압축 전 상태는 PreCompact 훅(`.claude/scripts/backup-state.sh`)이 `docs/PRE_COMPACT_STATE.md`에 자동 저장하고, 압축 후 SessionStart 훅이 다시 읽어 준다.
+
 ### Git / PR 규칙
 
 1. 작업마다 `git fetch` 후 **최신 `origin/main`에서 새 브랜치**를 만든다 (`feat/…`, `fix/…`, `docs/…`, `chore/…`).
