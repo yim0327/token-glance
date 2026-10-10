@@ -58,7 +58,7 @@
 "popover.online.source" = "한도 출처: %@";
 "popover.online.accountQuery" = "계정 조회";
 "popover.online.localLogs" = "로컬 로그";
-"popover.online.observed" = "· 관측 %@";
+"popover.online.observed" = "관측 %@";
 "popover.online.failure" = "온라인 한도 조회 불가: %@";
 "popover.online.localIdentityUnverified" = "로컬 로그의 계정 귀속은 확인되지 않았습니다.";
 "popover.online.waiting" = "계정 조회를 기다리는 중";

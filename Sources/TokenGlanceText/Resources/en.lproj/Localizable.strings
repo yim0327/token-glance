@@ -58,7 +58,7 @@
 "popover.online.source" = "Limit source: %@";
 "popover.online.accountQuery" = "Account query";
 "popover.online.localLogs" = "Local logs";
-"popover.online.observed" = "· Observed %@";
+"popover.online.observed" = "Observed %@";
 "popover.online.failure" = "Online limits unavailable: %@";
 "popover.online.localIdentityUnverified" = "Local log account identity is unverified.";
 "popover.online.waiting" = "Waiting for account query";
