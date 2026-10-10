@@ -240,3 +240,62 @@ Children were watched every 0.2 s; sockets were listed for the app process every
   unlike the Codex App Server, no child stays resident between queries.
 - The network traffic is the child's; the app process itself held no sockets.
 - Quitting the app left no `claude` child behind.
+
+## M6: repeated window use (2026-10-10)
+
+Question from M5: about 20 MB stays after windows close. Is it a leak (grows with use) or a
+one-time cache?
+
+Method: a release build with the measurement-only driver (`SWIFT_FLAGS="-Xswiftc -DTG_STRESS"
+OUT_DIR=dist/stress ./scripts/bundle-app.sh`, run with `TG_STRESS=panel:1,settings:1,history:1,panel:30,settings:30,history:30`).
+The driver opens and closes each window through the app's normal code paths (open 1.5 s, closed
+1 s), logs a checkpoint after every 10th cycle, then rests 60 s; 180 s before the first open and
+after the last close. Online checks were turned off for the run (the default) and restored after.
+Footprint: `footprint --sample 1` (1-second samples). CPU: `ps` CPU-time deltas every 5 s, averaged
+over each rest from 10 s after the close. "Settled" is the median footprint 10–30 s before the end
+of each rest. Claude Code (this session) was writing logs throughout.
+
+The driver's checkpoints were logged at info level, which macOS keeps only in memory; the first
+half had expired when the run ended. Rows marked * use times reconstructed from the fixed
+schedule (cycle 2.65–2.76 s, rest 60 s) anchored on the surviving checkpoints, so their windows
+may be off by a few seconds. Checkpoints are now logged at notice level.
+
+| State | CPU % (rest) | Footprint settled (MB) | Max in segment (MB) |
+|---|---:|---:|---:|
+| Never opened (3 min after launch)* | 0.29 | 18 | 39 (first scan) |
+| Panel opened once* | 0.53 | 27 | 45 |
+| Settings opened once* | 0.18 | 42 | 43 |
+| History opened once* | 0.04 | 42 | 43 |
+| Panel × 10* | 0.05 | 43 | 44 |
+| Panel × 20 | 0.04 | 42 | 44 |
+| Panel × 30 | 0.09 | 43 | 44 |
+| Settings × 10 | 0.16 | 44 | 48 |
+| Settings × 20* | 0.02 | 45 | 47 |
+| Settings × 30* | 0.02 | 45 | 47 |
+| History × 10* | 0.04 | 45 | 46 |
+| History × 20 | 0.02 | 45 | 45 |
+| History × 30 | 0.10 | 44 | 45 |
+| Final rest (180 s) | 0.07 | 44 | 45 |
+
+- Whole run (22 min, 93 open/close cycles): CPU **0.77%** average. Highest 1-second sample 48 MB;
+  process lifetime peak (`vmmap`) **48.5 MB**.
+- The step after first use is a one-time cost: +9 MB after the panel, +15 MB after the settings
+  window (a scrolling `Form`). Over the following 90 cycles the settled footprint moved between
+  42 and 45 MB and ended at 44 MB; no per-cycle growth.
+- `NSApp.windows` stayed at 4–5 (status item, menu panel, and released settings/history windows
+  awaiting deallocation) and did not grow with cycles. No child processes at the end. Panel event
+  monitors and size observers are removed on close; the history snapshot task ends with its view.
+- Interpretation: framework caches after first use, not a leak in the measured range. Not tested:
+  thousands of cycles, or days of uptime.
+
+### Regression checks on the M6 build (real app)
+
+| Check | Result |
+|---|---|
+| Korean ↔ English switch without restart; settings window scrolls | user-confirmed |
+| Panel closes on Esc, outside click and item click | user-confirmed |
+| Claude / Codex toggles off → on show again immediately | user-confirmed |
+| Refresh button, history chart | user-confirmed |
+| Notification test banner | user-confirmed |
+| Codex new session / same session / resumed after app restart | app updated 0.49 s / 0.70 s / 1.0 s after the `token_count` write (probe: times and byte counts only) |
+| Threshold-crossing notification | automated tests only (no real limit was used up for it) |
