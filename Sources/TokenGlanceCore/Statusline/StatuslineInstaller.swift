@@ -10,7 +10,7 @@ public struct StatuslineInstaller {
     public enum Status: Equatable, Sendable {
         case notInstalled
         case installed
-        /// We installed, but statusLine now points elsewhere (e.g. an OMC update rewrote it).
+        /// We installed, but statusLine now points elsewhere (e.g. another tool rewrote it).
         case overwritten
         /// settings.json points at the hook, but the hook binary is gone.
         case hookMissing

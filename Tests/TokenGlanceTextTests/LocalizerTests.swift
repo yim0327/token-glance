@@ -28,6 +28,26 @@ struct LocalizationResourceTests {
             #expect(specifiers(english) == specifiers(ko[key] ?? ""), "format mismatch for \(key)")
         }
     }
+
+    /// User-facing text names only the two tracked tools; examples stay generic.
+    @Test func noThirdPartyToolNamesInUserFacingText() {
+        let pattern = try! NSRegularExpression(
+            pattern: "\\bOMC\\b|oh-my-claudecode|ccusage|ccstatusline|claude-hud|starship|powerline",
+            options: .caseInsensitive)
+        for (key, value) in en.map({ ($0, $1) }) + ko.map({ ($0, $1) }) {
+            #expect(pattern.firstMatch(in: value, range: NSRange(value.startIndex..., in: value)) == nil,
+                    "third-party tool name in \(key): \(value)")
+        }
+    }
+
+    @Test func overwrittenHookTextUsesAGenericExample() {
+        #expect(Localizer(.english).unavailable(.hookOverwritten)
+            == "statusline hook was replaced (e.g. another tool changed the statusline)")
+        #expect(Localizer(.korean).unavailable(.hookOverwritten)
+            == "statusline 훅이 다른 설정으로 바뀜 (예: 다른 도구가 statusline을 바꾼 경우)")
+        #expect(en["hook.status.overwritten"] == "Replaced by another statusline (e.g. another tool changed it) — Repair to restore")
+        #expect(ko["hook.status.overwritten"] == "다른 statusline으로 바뀜 (예: 다른 도구가 statusline을 바꾼 경우) — 복구하면 다시 연결됩니다")
+    }
 }
 
 struct LanguageSelectionTests {
