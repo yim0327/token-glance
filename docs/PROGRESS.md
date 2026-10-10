@@ -26,26 +26,47 @@ Updated: 2026-10-10
   - Verified with 3 approved probe runs and a 5-minute ON measurement (2 successful queries).
   - `./scripts/test.sh`: 248 tests in 39 suites pass.
 
+- Codex online limits merged (PR #6); Claude online limits merged (PR #7).
+- Post-merge cleanup (2026-10-10): merged worktrees and branches removed, a leftover stash
+  checked against `main` and dropped; `.omx/` ignored (PR #8).
+- Missing limits stay visible (PR #9): every enabled tool keeps its menu bar line; a missing value
+  is drawn as two digit-wide bars in the number color. The details panel keeps the 5-hour and
+  weekly rows as gray bars with `--/--` and the reason (or a fallback message) under the bar.
+  Fixes a #6 regression where the Codex line disappeared after its 5-hour window reset.
+- With online checks off, the Codex details no longer name "Local logs" as the source, matching
+  Claude (PR #10).
+- `./scripts/test.sh`: 254 tests in 40 suites pass.
+
+## Verified in the real app (2026-10-10)
+
+| Check | Result |
+|---|---|
+| Consent dialogs: Claude shows all 5 notices, Codex shows its notice | user-confirmed |
+| Cancelling either consent dialog keeps the option off | user-confirmed |
+| Refresh with the option on: source changes to "Account query" | user-confirmed |
+| Hook cache value differs: notice and source shown | user-confirmed |
+| Option off during a check: no child left; no orphan after quit | user-confirmed |
+| Codex live tracking with the online option on: new session, resumed session, resume after app restart | app log only: Codex state updated 1–2 s after each rollout write (16:47–16:49, no other Codex activity); label change not reported by the user |
+| Codex source line hidden when the option is off | user-confirmed |
+
 ## Next
 
-- Merge the Codex online limits PR after review and approval (squash).
-- Follow-ups from review (LOW, not blocking):
-  - Pass failure reasons and the limit source as enums instead of English strings to the popover.
-  - Wait for the App Server child to exit on app quit (or kill its process group).
-  - Keep online values when the first online read finishes before the first local scan.
-  - Throttle reads triggered by `account/rateLimits/updated` and re-read after a push that arrives
-    mid-read; check what the server emits.
-  - Cap the number of buffered stdout lines.
-  - Reset the alert baseline on account switches when `accountId` is missing.
-- Memory: combined footprint with online checks is ~60 MB against the 50 MB target (`docs/perf.md`).
-- Not verified: manual Refresh click in the real app, new/resumed Codex sessions with the online
-  option, an npm-installed `codex` launched from Finder.
-- Merge the Claude online limits PR after review and approval (squash).
-- Claude online follow-ups (LOW, from review): show the next retry time while backing off; wait
-  for a stubborn child to exit on quit; when one online window has passed its reset, consider the
-  fresher hook value; alerts for online windows without a reset time; close the stdout handle only
-  after EOF (shared with Codex).
-- Not verified (Claude online): Claude Code versions other than 2.1.296, `weekly_scoped` rows,
-  expired-login and 429 answers (synthetic tests only), the Refresh click and consent dialog in the
-  real UI, Codex live tracking while the option is on (no Codex session during the measurement).
 - M6: README screenshots, release automation, distribution check.
+- Fix now (small PRs, not started):
+  1. Child process robustness: wait for the App Server / Claude Code child to exit on quit (or kill
+     its process group), cap buffered stdout lines, close stdout only after EOF.
+  2. Online/hook combination: keep online values when the first online read finishes before the
+     first local scan; after an online window passes its reset, use a fresher hook value.
+- Later (LOW):
+  - Pass failure reasons and the limit source as enums instead of English strings.
+  - Throttle reads triggered by `account/rateLimits/updated`; check what the server emits first.
+  - Show the next retry time while backing off; alerts for online windows without a reset time.
+  - The "waiting for account query" notice flashes orange for under a second after turning the
+    option on; consider a neutral color while waiting.
+  - Log the Codex online outcome like `claude online: …` (no Codex online log line exists, so the
+    live-tracking window could not confirm Codex account reads from logs).
+  - Memory: combined footprint with online checks is ~60 MB against the 50 MB target (`docs/perf.md`).
+- Won't do: resetting the alert baseline on account switches when `accountId` is missing (no signal
+  to detect a switch; documented as a limitation).
+- Not verified: Claude Code versions other than 2.1.296, `weekly_scoped` (per-model weekly) rows,
+  expired-login and 429 answers (synthetic tests only), an npm-installed `codex` launched from Finder.

@@ -134,8 +134,9 @@ Other menu bar apps track AI coding usage (for example
 [CodexBar](https://github.com/steipete/CodexBar)). Token Glance makes a narrower set of choices:
 
 - Two tools only (Claude Code and Codex), both visible at once in a two-line label.
-- Official/local paths first: Claude limits come from Claude Code's own statusline input, not from
-  web sessions or private APIs; Codex limits from its local logs.
+- Official/local paths first: by default, Claude limits come from Claude Code's own statusline
+  input, not from web sessions or private APIs, and Codex limits from its local logs. The optional
+  online checks (off by default) ask the installed Claude Code and Codex instead.
 - No network access and minimal permissions by default.
 - A small, readable codebase with tests against anonymized fixtures.
 
