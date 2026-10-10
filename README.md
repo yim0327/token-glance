@@ -148,5 +148,8 @@ MIT. See [LICENSE](LICENSE).
 
 ---
 
-Not affiliated with Anthropic or OpenAI. "Claude" and "Codex" are trademarks of their respective
-owners. Token Glance uses neutral glyphs, not their logos.
+Not affiliated with, sponsored, endorsed or approved by Anthropic or OpenAI. The menu bar shows the
+Claude mark and the OpenAI Blossom only to identify which service a number belongs to; "Claude",
+"Codex", "OpenAI", "Anthropic" and those marks are trademarks of their respective owners. The MIT
+license covers the code only and grants no rights to them. Sources, how the marks are drawn and
+what is unresolved: [docs/trademarks.md](docs/trademarks.md).
