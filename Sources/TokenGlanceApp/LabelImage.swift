@@ -68,8 +68,10 @@ enum LabelImage {
         let metrics = dashMetrics(font: font)
         let midY = baselineY + font.capHeight / 2 - metrics.thickness / 2
         color(.unavailable).setFill()
-        for index in 0..<2 {
-            let originX = x + CGFloat(index) * (metrics.digit + metrics.spacing)
+        // The first bar sits a little to the right; a clear gap still separates the two.
+        let offsets = [metrics.spacing / 2, metrics.digit + metrics.spacing]
+        for originOffset in offsets {
+            let originX = x + originOffset
             let rect = NSRect(x: originX, y: midY, width: metrics.digit - metrics.spacing / 2, height: metrics.thickness)
             NSBezierPath(roundedRect: rect, xRadius: metrics.thickness / 2, yRadius: metrics.thickness / 2).fill()
         }

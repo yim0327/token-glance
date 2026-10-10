@@ -82,8 +82,8 @@ private struct ToolSection: View {
                 }
             } else {
                 // Both windows keep their rows; an unknown value is a gray bar with "--/--".
-                LimitRow(title: l10n.windowName(.session), status: state.session, l10n: l10n)
-                LimitRow(title: l10n.windowName(.weekly), status: state.weekly, l10n: l10n)
+                LimitRow(title: l10n.windowName(.session), status: state.session, missingReason: missing, l10n: l10n)
+                LimitRow(title: l10n.windowName(.weekly), status: state.weekly, missingReason: missing, l10n: l10n)
             }
             if state.tool == .codex || state.limitSource != nil {
                 if let source = state.limitSource {
@@ -106,18 +106,16 @@ private struct ToolSection: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            // Unknown limit values are explained where the token table goes; the table stays only
-            // when it has tokens to show.
-            let missing = state.onlineBucketRows.isEmpty ? l10n.missingLimitsMessage(state) : nil
-            if let missing {
-                Label(missing, systemImage: "info.circle")
-                    .font(.callout).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            // An empty token table is left out while a limit value is unknown.
             if let summary = state.summary, missing == nil || summary.hasTokens {
                 TokenTable(summary: summary, l10n: l10n)
             }
         }
+    }
+
+    /// Why a limit row has no value; shown under that row's gray bar.
+    private var missing: String? {
+        state.onlineBucketRows.isEmpty ? l10n.missingLimitsMessage(state) : nil
     }
 
     private var hookWarning: String {
@@ -179,6 +177,7 @@ private struct ToolSection: View {
 private struct LimitRow: View {
     let title: String
     let status: LimitStatus?
+    var missingReason: String?
     let l10n: Localizer
 
     var body: some View {
@@ -193,6 +192,9 @@ private struct LimitRow: View {
             ProgressView(value: status.map { Double(DisplayFormat.reading($0).used) } ?? 0, total: 100).tint(tint)
             if let status {
                 resetLine(status).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+            } else if let missingReason {
+                Text(missingReason).font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
