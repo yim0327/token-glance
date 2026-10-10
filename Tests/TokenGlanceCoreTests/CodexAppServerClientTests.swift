@@ -339,6 +339,50 @@ struct CodexAppServerClientTests {
         }
         #expect(Darwin.kill(pid, 0) == -1)
     }
+
+    @Test func writingAfterChildExitThrowsInsteadOfSIGPIPE() async throws {
+        let child = CodexProcessTransport(executableURL: URL(fileURLWithPath: "/usr/bin/true"), arguments: [])
+        try child.start()
+        #expect(try await child.readLine() == nil)
+        #expect(await child.exitStatus() == 0)
+        // Without F_SETNOSIGPIPE this write terminates the test process.
+        #expect(throws: (any Error).self) { try child.write(Data("{}\n".utf8)) }
+        child.close()
+    }
+
+    @Test func childExitingBeforeInitializeIsLaunchFailure() async {
+        let client = CodexAppServerClient(transportFactory: {
+            CodexProcessTransport(executableURL: URL(fileURLWithPath: "/bin/sh"), arguments: ["-c", "exit 127"])
+        }, timeout: 5)
+        #expect(await client.readLimits() == .failure(.launchFailed))
+        await client.stop()
+    }
+
+    @Test func lineQueueSplitsChunksAndCapsLength() async throws {
+        let queue = LineQueue(limit: 8)
+        queue.append(Data("ab".utf8))
+        queue.append(Data("c\nde\nf".utf8))
+        #expect(try await queue.next() == Data("abc".utf8))
+        #expect(try await queue.next() == Data("de".utf8))
+        queue.append(Data("\n".utf8))
+        #expect(try await queue.next() == Data("f".utf8))
+        queue.append(Data("123456789".utf8))
+        await #expect(throws: CodexAppServerFailure.invalidResponse) { try await queue.next() }
+
+        let ended = LineQueue(limit: 8)
+        ended.finish()
+        #expect(try await ended.next() == nil)
+    }
+
+    @Test func childPathIncludesExecutableDirectory() {
+        let environment = CodexProcessTransport.childEnvironment(
+            executable: URL(fileURLWithPath: "/opt/example/bin/codex"))
+        let path = (environment["PATH"] ?? "").split(separator: ":").map(String.init)
+        #expect(path.first == "/opt/example/bin")
+        #expect(path.contains("/opt/homebrew/bin"))
+        #expect(path.contains("/usr/bin"))
+        #expect(Set(path).count == path.count)
+    }
 }
 
 private final class LockedCounter: @unchecked Sendable {

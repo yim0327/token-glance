@@ -5,6 +5,12 @@ public protocol CodexAppServerTransport: AnyObject, Sendable {
     func write(_ data: Data) throws
     func readLine() async throws -> Data?
     func close()
+    /// Exit status after EOF, or nil when unknown or still running.
+    func exitStatus() async -> Int32?
+}
+
+extension CodexAppServerTransport {
+    public func exitStatus() async -> Int32? { nil }
 }
 
 /// One read-only stdio connection. The caller owns the opt-in and polling schedule.
@@ -132,12 +138,13 @@ public actor CodexAppServerClient {
         nextID += 1
         return try await withCheckedThrowingContinuation { continuation in
             pending[id] = continuation
-            do {
-                try send(["id": id, "method": method, "params": params])
-            } catch {
+            guard transport != nil else {
                 pending.removeValue(forKey: id)?.resume(throwing: CodexAppServerFailure.disconnected)
                 return
             }
+            // A failed write means the child closed stdin; the reader's EOF then fails this request
+            // with the child's exit category. The timeout below covers anything else.
+            try? send(["id": id, "method": method, "params": params])
             let interval = timeout
             Task {
                 try? await Task.sleep(for: .seconds(interval))
@@ -175,7 +182,14 @@ public actor CodexAppServerClient {
             if current == generation { resetConnection() }
             return
         }
-        if current == generation { resetConnection() }
+        guard current == generation else { return }
+        // A child that exits non-zero before initializing never started properly (for example an old
+        // Codex without `app-server`, or `env: node` missing); only the status code is used.
+        if !initialized, let status = await connection.exitStatus(), status != 0, current == generation {
+            resetConnection(failure: .launchFailed)
+        } else if current == generation {
+            resetConnection()
+        }
     }
 
     private func receive(_ message: [String: Any]) {

@@ -64,7 +64,7 @@
 "popover.online.noWindows" = "Account query returned no limit windows";
 "popover.online.loginRequired" = "Codex login required";
 "popover.online.subscriptionRequired" = "ChatGPT subscription login required";
-"popover.online.unsupported" = "Installed Codex does not support account limits";
+"popover.online.unsupported" = "Installed Codex does not support account limits; update Codex CLI";
 "popover.online.timeout" = "Account query timed out";
 "popover.online.rateLimited" = "Account query rate limited";
 "popover.online.disconnected" = "Codex App Server disconnected";
