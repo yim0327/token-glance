@@ -38,7 +38,7 @@
 "reason.awaitingFreshLimit" = "window reset; waiting for new limit data";
 "reason.unsupportedVersion" = "cache written by a newer Token Glance";
 "reason.hookNotInstalled" = "statusline hook not installed";
-"reason.hookOverwritten" = "statusline hook was replaced (e.g. by an OMC update)";
+"reason.hookOverwritten" = "statusline hook was replaced (e.g. another tool changed the statusline)";
 "reason.hookMissing" = "statusline hook program is missing";
 "reason.settingsUnreadable" = "Claude settings.json could not be read";
 "reason.unknown" = "Value unavailable; Token Glance tries again on the next refresh";
@@ -141,7 +141,7 @@
 "hook.explain" = "Claude Code shares its limits only with statusline commands. The hook records them and then runs your existing statusline.";
 "hook.status.installed" = "Installed";
 "hook.status.notInstalled" = "Not installed";
-"hook.status.overwritten" = "Replaced by another statusline (e.g. an OMC update) — Repair to restore";
+"hook.status.overwritten" = "Replaced by another statusline (e.g. another tool changed it) — Repair to restore";
 "hook.status.hookMissing" = "Hook program missing — Install to restore it";
 "hook.status.settingsUnreadable" = "settings.json could not be read; nothing will be changed";
 "hook.status.checking" = "Checking…";
