@@ -49,6 +49,26 @@ struct AppSettingsTests {
         #expect(AppSettings.load(from: store).claudeEnabled)
     }
 
+    @Test func languageAndNotificationSettingsRoundTripWithSafeDefaults() {
+        let store = defaults()
+        #expect(AppSettings.load(from: store).language == "system")
+        #expect(!AppSettings.load(from: store).notificationsEnabled)
+        #expect(AppSettings.load(from: store).notificationThresholds == NotificationThresholds(warning: 30, critical: 10))
+
+        var settings = AppSettings()
+        settings.language = "ko"
+        settings.notificationsEnabled = true
+        settings.notificationThresholds = NotificationThresholds(warning: 40, critical: 15)
+        settings.save(to: store)
+        #expect(AppSettings.load(from: store) == settings)
+
+        store.set("fr", forKey: AppSettings.Keys.language)
+        store.set(5, forKey: AppSettings.Keys.warningThreshold)   // not above critical (15)
+        let loaded = AppSettings.load(from: store)
+        #expect(loaded.language == "system")
+        #expect(loaded.notificationThresholds == NotificationThresholds())
+    }
+
     @Test func blankOverridesMeanDefault() {
         var settings = AppSettings()
         settings.claudeConfigDir = "   "
@@ -84,7 +104,6 @@ struct AppSettingsTests {
         #expect(PathValidation.check("relative/path", expecting: "projects", home: home) == .notAbsolute)
         #expect(PathValidation.missingSubfolder("sessions").isAcceptable)
         #expect(!PathValidation.notFound.isAcceptable)
-        #expect(PathValidation.notFound.message == "Folder not found")
     }
 }
 

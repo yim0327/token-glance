@@ -1,77 +1,87 @@
 import SwiftUI
 import TokenGlanceCore
+import TokenGlanceText
 
 /// Popover content. Countdowns tick with a 1-second `TimelineView` computed from dates,
 /// so they stay exact while the popover is open and never re-read files.
 struct PopoverView: View {
     let store: UsageStore
     let openSettings: () -> Void
+    let openHistory: () -> Void
 
     var body: some View {
+        let l10n = store.localizer
         VStack(alignment: .leading, spacing: 12) {
             if let progress = store.scanProgress {
-                ProgressView(value: progress) { Text("Indexing logs…").font(.caption) }
+                ProgressView(value: progress) { Text(l10n("popover.indexing")).font(.caption) }
             }
             ForEach(store.states.filter(\.isEnabled), id: \.tool) { state in
-                ToolSection(state: state)
+                ToolSection(state: state, l10n: l10n)
                 Divider()
             }
-            footer
+            footer(l10n)
         }
         .padding(14)
-        .frame(width: 320)
+        .frame(width: 340)
+        .environment(\.locale, l10n.locale)
     }
 
-    private var footer: some View {
-        HStack {
+    private func footer(_ l10n: Localizer) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
             TimelineView(.periodic(from: .now, by: 1)) { context in
-                Text(freshness(now: context.date))
+                Text(freshness(l10n, now: context.date))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Spacer()
-            Button("Settings…", action: openSettings)
-            Button("Refresh") { store.refresh(checkHook: true) }
-                .disabled(store.isRefreshing)
-            Button("Quit") { NSApplication.shared.terminate(nil) }
+            HStack {
+                Button(l10n("popover.history"), action: openHistory)
+                Button(l10n("popover.settings"), action: openSettings)
+                Spacer()
+                Button(l10n("popover.refresh")) { store.refresh(checkHook: true) }
+                    .disabled(store.isRefreshing)
+                Button(l10n("popover.quit")) { NSApplication.shared.terminate(nil) }
+            }
         }
     }
 
-    private func freshness(now: Date) -> String {
-        guard let refreshed = store.lastRefresh else { return String(localized: "Loading…") }
-        return String(localized: "Updated \(DisplayFormat.relativeAge(of: refreshed, now: now))")
+    private func freshness(_ l10n: Localizer, now: Date) -> String {
+        guard let refreshed = store.lastRefresh else { return l10n("popover.loading") }
+        return l10n("popover.updated", l10n.relativeAge(of: refreshed, now: now))
     }
 }
 
 private struct ToolSection: View {
     let state: ToolState
+    let l10n: Localizer
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                Text(state.tool == .claude ? "Claude Code" : "Codex").font(.headline)
+                Text(state.tool == .claude ? l10n("tool.claudeCode") : l10n("tool.codex")).font(.headline)
                 if state.hookNeedsAttention {
                     Label(hookWarning, systemImage: "exclamationmark.triangle.fill")
                         .font(.caption)
                         .foregroundStyle(.orange)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
             }
             if let reason = state.unavailableReason, state.session == nil, state.weekly == nil {
-                Text(reason.message).font(.callout).foregroundStyle(.secondary)
+                Text(l10n.unavailable(reason)).font(.callout).foregroundStyle(.secondary)
             }
-            if let session = state.session { LimitRow(title: String(localized: "5-hour"), status: session) }
-            if let weekly = state.weekly { LimitRow(title: String(localized: "Weekly"), status: weekly) }
-            if let summary = state.summary { TokenTable(summary: summary) }
+            if let session = state.session { LimitRow(title: l10n.windowName(.session), status: session, l10n: l10n) }
+            if let weekly = state.weekly { LimitRow(title: l10n.windowName(.weekly), status: weekly, l10n: l10n) }
+            if let summary = state.summary { TokenTable(summary: summary, l10n: l10n) }
         }
     }
 
     private var hookWarning: String {
         switch state.hookStatus {
-        case .overwritten: String(localized: "Hook replaced — Repair in Settings")
-        case .notInstalled: String(localized: "Hook not installed — Install in Settings")
-        case .hookMissing: String(localized: "Hook binary missing")
-        case .settingsUnreadable: String(localized: "settings.json unreadable")
+        case .overwritten: l10n("popover.hook.overwritten")
+        case .notInstalled: l10n("popover.hook.notInstalled")
+        case .hookMissing: l10n("popover.hook.missing")
+        case .settingsUnreadable: l10n("popover.hook.settingsUnreadable")
         case .installed, nil: ""
         }
     }
@@ -80,6 +90,7 @@ private struct ToolSection: View {
 private struct LimitRow: View {
     let title: String
     let status: LimitStatus
+    let l10n: Localizer
 
     var body: some View {
         let reading = DisplayFormat.reading(status)
@@ -87,7 +98,7 @@ private struct LimitRow: View {
             HStack {
                 Text(title).font(.subheadline.weight(.medium))
                 Spacer()
-                Text("\(reading.used)% used / \(reading.left)% left")
+                Text(l10n("popover.usedLeft", reading.used, reading.left))
                     .font(.subheadline.monospacedDigit())
                     .foregroundStyle(tint)
             }
@@ -99,10 +110,10 @@ private struct LimitRow: View {
     @ViewBuilder private var resetLine: some View {
         if let resetsAt = status.resetsAt {
             TimelineView(.periodic(from: .now, by: 1)) { context in
-                Text("Resets \(resetsAt.formatted(date: .abbreviated, time: .shortened)) · in \(DisplayFormat.clockCountdown(to: resetsAt, now: context.date))")
+                Text(l10n("popover.resets", l10n.resetTime(resetsAt), l10n.clockCountdown(to: resetsAt, now: context.date)))
             }
         } else {
-            Text("Window reset — waiting for new data")
+            Text(l10n("popover.windowReset"))
         }
     }
 
@@ -117,24 +128,26 @@ private struct LimitRow: View {
 
 private struct TokenTable: View {
     let summary: UsageSummary
+    let l10n: Localizer
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Grid(alignment: .trailing, horizontalSpacing: 12, verticalSpacing: 2) {
                 GridRow {
-                    Text("Tokens").gridColumnAlignment(.leading)
-                    Text("Input"); Text("Output"); Text("Cache")
+                    Text(l10n("tokens.header")).gridColumnAlignment(.leading)
+                    Text(l10n("tokens.input")); Text(l10n("tokens.output")); Text(l10n("tokens.cache"))
                 }
                 .foregroundStyle(.secondary)
-                row(String(localized: "Today"), summary.today)
-                row(String(localized: "This week"), summary.week)
+                row(l10n("tokens.today"), summary.today)
+                row(l10n("tokens.thisWeek"), summary.week)
             }
             .font(.caption.monospacedDigit())
             if !topModels.isEmpty {
-                Text("Top models this week: " + topModels.map { "\($0.0) \(DisplayFormat.tokens($0.1.total))" }.joined(separator: ", "))
+                Text(l10n("tokens.topModels", topModels.map { "\($0.0) \(l10n.tokens($0.1.total))" }.joined(separator: ", ")))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -142,9 +155,9 @@ private struct TokenTable: View {
     private func row(_ title: String, _ usage: TokenUsage) -> some View {
         GridRow {
             Text(title).gridColumnAlignment(.leading)
-            Text(DisplayFormat.tokens(usage.input))
-            Text(DisplayFormat.tokens(usage.output))
-            Text(DisplayFormat.tokens(usage.cacheRead + usage.cacheWrite))
+            Text(l10n.tokens(usage.input))
+            Text(l10n.tokens(usage.output))
+            Text(l10n.tokens(usage.cacheRead + usage.cacheWrite))
         }
     }
 

@@ -37,44 +37,11 @@ struct DisplayFormatTests {
         #expect(DisplayFormat.severity(nil) == .unavailable)
     }
 
-    @Test func countdownFormatting() {
-        #expect(DisplayFormat.countdown(to: now + 2 * 3600 + 10 * 60 + 59, now: now) == "2h 10m")
-        #expect(DisplayFormat.countdown(to: now + 45 * 60, now: now) == "45m")
-        #expect(DisplayFormat.countdown(to: now + 59, now: now) == "<1m")
-        #expect(DisplayFormat.countdown(to: now + 3 * 86_400 + 4 * 3600 + 30 * 60, now: now) == "3d 4h")
-        #expect(DisplayFormat.countdown(to: now + 86_400, now: now) == "1d 0h")
-        #expect(DisplayFormat.countdown(to: now, now: now) == "now")
-        #expect(DisplayFormat.countdown(to: now - 10, now: now) == "now")
-    }
-
-    @Test func countdownIsDerivedFromDatesNotTicks() {
-        // the same target viewed at different moments gives consistent results
-        let target = now + 3 * 3600
-        #expect(DisplayFormat.countdown(to: target, now: now + 3600) == "2h 0m")
-        #expect(DisplayFormat.countdown(to: target, now: now + 3600 + 61) == "1h 58m")
-    }
-
-    @Test func clockCountdownWithSeconds() {
-        #expect(DisplayFormat.clockCountdown(to: now + 2 * 3600 + 5 * 60 + 9, now: now) == "2:05:09")
-        #expect(DisplayFormat.clockCountdown(to: now + 3 * 86_400 + 61, now: now) == "3d 0:01:01")
-        #expect(DisplayFormat.clockCountdown(to: now - 1, now: now) == "0:00:00")
-    }
-
-    @Test func relativeAge() {
-        #expect(DisplayFormat.relativeAge(of: now - 20, now: now) == "just now")
-        #expect(DisplayFormat.relativeAge(of: now - 3 * 60 - 5, now: now) == "3m ago")
-        #expect(DisplayFormat.relativeAge(of: now - 2 * 3600, now: now) == "2h ago")
-        #expect(DisplayFormat.relativeAge(of: now - 3 * 86_400, now: now) == "3d ago")
-        #expect(DisplayFormat.relativeAge(of: now + 30, now: now) == "just now")
-    }
-
-    @Test func compactTokenCounts() {
-        #expect(DisplayFormat.tokens(0) == "0")
-        #expect(DisplayFormat.tokens(950) == "950")
-        #expect(DisplayFormat.tokens(1_000) == "1.0K")
-        #expect(DisplayFormat.tokens(34_560) == "34.6K")
-        #expect(DisplayFormat.tokens(1_234_567) == "1.2M")
-        #expect(DisplayFormat.tokens(753_979_845) == "754.0M")
-        #expect(DisplayFormat.tokens(2_100_000_000) == "2.1B")
+    @Test func durationPartsAreFlooredAndNeverNegative() {
+        #expect(DisplayFormat.durationParts(until: now + 2 * 3600 + 10 * 60 + 59, now: now) == DurationParts(days: 0, hours: 2, minutes: 10, seconds: 59))
+        #expect(DisplayFormat.durationParts(until: now + 3 * 86_400 + 61, now: now) == DurationParts(days: 3, hours: 0, minutes: 1, seconds: 1))
+        #expect(DisplayFormat.durationParts(until: now - 10, now: now).isZero)
+        // derived from dates, so the same target read later is consistent
+        #expect(DisplayFormat.durationParts(until: now + 3 * 3600, now: now + 3600 + 61) == DurationParts(days: 0, hours: 1, minutes: 58, seconds: 59))
     }
 }

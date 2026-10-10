@@ -108,7 +108,7 @@ After the fix (real Codex use):
 refreshes: 13 FSEvents (avg 14 ms), 7 active-Codex (avg 11 ms, 84 KB), 1 poll. Footprint 23 MB
 until the popover was opened.
 
-### Popover cost (found during this run, not fixed yet)
+### Popover cost (found during this run; fixed in M5, see below)
 
 Opening the popover raised the footprint to a 163 MB transient peak, then 43 MB while open, and
 CPU to ~1% while it stays open (1-second countdown redraws). Candidates: drop the hosting
@@ -141,3 +141,39 @@ After the fix (real Codex use, single app instance, build 10):
 
 5 minutes including these: CPU 0.25% average (max 1.2% per 5 s), footprint 24 MB average,
 44.9 MB peak; 7 active-Codex refreshes (avg 15 ms), 25 FSEvents refreshes (avg 14 ms).
+
+## M5: notifications, localization, history window (2026-10-10)
+
+Same method; the app was used normally (panel, settings, history window opened and closed by
+hand). "Peak" is `vmmap`'s lifetime peak, i.e. it includes launch, the first scan and every
+window opened so far. Spikes were also checked with `footprint --sample` at 0.2–0.5 s.
+
+| State (final build) | CPU avg | CPU max 5 s | Footprint avg | Lifetime peak |
+|---|---|---|---|---|
+| Nothing opened since launch (before the fixes below, 5 min) | 0.17% | 1.4% | 19.8 MB | 40.5 MB |
+| All windows closed after using panel and settings (5 min) | 0.14% | 1.4% | 40.0 MB | 43.6 MB |
+| History window open (3 min) | 0.37% | 2.4% | 46.1 MB | 46.8 MB |
+| First scan, `--print-state` (3 runs, 1.26–1.32 s) | — | — | — | 29.7–34.7 MB |
+
+Once SwiftUI windows have been shown, about 20 MB stays resident after they close (likely
+framework caches; not investigated further). Growth over many open/close cycles was not measured.
+
+### What was fixed in M5
+
+- **Per-parser date formatters.** Each tailed log kept its own two `ISO8601DateFormatter`s
+  (89 parsers → 178 ICU formatters, ~25 MB). One shared formatter and decoder: 45 → 20 MB idle.
+- **Hidden popover kept ticking.** Its 1-second countdowns kept laying out while closed:
+  2.65% CPU with only the history window visible. The details view is now built on show and
+  released on close (0.29% after).
+- **Swift Charts redraws.** Every chart redraw (data change or window focus change) briefly
+  allocated ~100 MB of graphics memory (151 MB samples). An isolated probe reproduced it with
+  plain Charts (132 MB vs 17 MB for text or shapes; disabling animation or rendering to an image
+  did not help). The chart is now drawn with shapes and redrawn only when a daily total changes.
+- **NSPopover itself.** Every show briefly allocated 115–150 MB of graphics memory, also with
+  AppKit-only content in the probe; a borderless panel with the same blurred background stayed
+  at 14–16 MB. The details now open in such a panel (Esc, outside click or the item closes it).
+- **Re-enabling a tool re-read all its logs.** Disabling synced the index with no files;
+  the index is now kept, and re-enabling Claude took 21–26 ms with 0 bytes read.
+
+Codex live updates on the M5 build (real use): new session 0.7 s, resumed previous-day
+session 0.5 s, most recent open session 0.7 s.

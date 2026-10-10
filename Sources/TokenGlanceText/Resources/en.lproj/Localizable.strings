@@ -1,0 +1,153 @@
+/* Tools and windows */
+"tool.claude" = "Claude";
+"tool.codex" = "Codex";
+"tool.claudeCode" = "Claude Code";
+"window.session" = "5-hour";
+"window.weekly" = "Weekly";
+"window.session.short" = "session";
+"window.weekly.short" = "weekly";
+
+/* Durations and ages */
+"duration.now" = "now";
+"duration.lessThanMinute" = "<1m";
+"duration.minutes" = "%dm";
+"duration.hoursMinutes" = "%1$dh %2$dm";
+"duration.daysHours" = "%1$dd %2$dh";
+"clock.daysPrefix" = "%1$dd %2$@";
+"age.justNow" = "just now";
+"age.minutes" = "%dm ago";
+"age.hours" = "%dh ago";
+"age.days" = "%dd ago";
+
+/* Tooltip */
+"tooltip.window.left" = "%1$@ %2$@ %3$d%% left";
+"tooltip.window.used" = "%1$@ %2$@ %3$d%% used";
+"tooltip.resetsIn" = ", resets in %@";
+"tooltip.windowReset" = " (window reset)";
+"tooltip.weekly.left" = " · weekly %d%% left";
+"tooltip.weekly.used" = " · weekly %d%% used";
+"tooltip.unavailable" = "%1$@: %2$@";
+"a11y.statusItem" = "Token Glance: %@";
+
+/* Why values are missing */
+"reason.noData" = "no data yet";
+"reason.corrupt" = "data could not be read";
+"reason.stale" = "data is more than 7 days old";
+"reason.unsupportedVersion" = "cache written by a newer Token Glance";
+"reason.hookNotInstalled" = "statusline hook not installed";
+"reason.hookOverwritten" = "statusline hook was replaced (e.g. by an OMC update)";
+"reason.hookMissing" = "statusline hook program is missing";
+"reason.settingsUnreadable" = "Claude settings.json could not be read";
+
+/* Popover */
+"popover.indexing" = "Indexing logs…";
+"popover.settings" = "Settings…";
+"popover.history" = "History…";
+"popover.refresh" = "Refresh";
+"popover.quit" = "Quit";
+"popover.loading" = "Loading…";
+"popover.updated" = "Updated %@";
+"popover.usedLeft" = "%1$d%% used / %2$d%% left";
+"popover.resets" = "Resets %1$@ · in %2$@";
+"popover.windowReset" = "Window reset — waiting for new data";
+"popover.hook.overwritten" = "Hook replaced — Repair in Settings";
+"popover.hook.notInstalled" = "Hook not installed — Install in Settings";
+"popover.hook.missing" = "Hook program missing";
+"popover.hook.settingsUnreadable" = "settings.json unreadable";
+"tokens.header" = "Tokens";
+"tokens.input" = "Input";
+"tokens.output" = "Output";
+"tokens.cache" = "Cache";
+"tokens.today" = "Today";
+"tokens.thisWeek" = "This week";
+"tokens.topModels" = "Top models this week: %@";
+
+/* History window */
+"history.title" = "Token History";
+"history.heading" = "Daily tokens, last 14 days";
+"history.caption" = "From local Claude Code and Codex logs on this Mac only. Usage elsewhere is not included.";
+"history.noLogs" = "No logs";
+"history.noLogsFor" = "%@: no logs in this period";
+"history.total" = "Total";
+"history.day" = "Day";
+"history.tokens" = "Tokens";
+
+/* Settings */
+"settings.title" = "Token Glance Settings";
+"settings.menuBar" = "Menu bar";
+"settings.show" = "Show";
+"settings.remaining" = "Remaining %";
+"settings.used" = "Used %";
+"settings.oneLine" = "With one tool enabled the label uses a single line.";
+"settings.language" = "Language";
+"language.system" = "System default";
+"language.korean" = "한국어";
+"language.english" = "English";
+"settings.logFolders" = "Log folders";
+"settings.claudeFolder" = "Claude config folder";
+"settings.claudeFolder.placeholder" = "Default: $CLAUDE_CONFIG_DIR or ~/.claude";
+"settings.codexFolder" = "Codex home";
+"settings.codexFolder.placeholder" = "Default: $CODEX_HOME or ~/.codex";
+"settings.applyFolders" = "Apply folders";
+"settings.startup" = "Startup";
+"settings.openAtLogin" = "Open Token Glance at login";
+"login.approval" = "Waiting for approval in System Settings › General › Login Items.";
+"login.error" = "Could not change the login item: %@";
+
+/* Path validation */
+"path.useDefault" = "Using the default location";
+"path.valid" = "OK";
+"path.missingSubfolder" = "No “%@” folder inside yet";
+"path.notFound" = "Folder not found";
+"path.notADirectory" = "Not a folder";
+"path.notAbsolute" = "Enter a full path (starting with / or ~)";
+
+/* Hook */
+"hook.section" = "Claude limits hook";
+"hook.explain" = "Claude Code shares its limits only with statusline commands. The hook records them and then runs your existing statusline.";
+"hook.status.installed" = "Installed";
+"hook.status.notInstalled" = "Not installed";
+"hook.status.overwritten" = "Replaced by another statusline (e.g. an OMC update) — Repair to restore";
+"hook.status.hookMissing" = "Hook program missing — Install to restore it";
+"hook.status.settingsUnreadable" = "settings.json could not be read; nothing will be changed";
+"hook.status.checking" = "Checking…";
+"hook.button.install" = "Install…";
+"hook.button.repair" = "Repair…";
+"hook.button.uninstall" = "Uninstall";
+"alert.install" = "Install";
+"alert.repair" = "Repair";
+"alert.cancel" = "Cancel";
+"hook.error.settingsUnreadable" = "settings.json could not be read as JSON. Nothing was changed.";
+"hook.error.settingsNotWritable" = "settings.json is not writable. Nothing was changed.";
+"hook.error.hookSourceMissing" = "The hook program is missing from the app bundle. Rebuild with scripts/bundle-app.sh.";
+"hook.error.notInstalled" = "The hook is not installed.";
+"consent.title" = "Install the Claude limits hook?";
+"consent.intro" = "Claude Code only shares its 5-hour and weekly limits with statusline commands. Token Glance will:";
+"consent.changeKey" = "• Change one key, statusLine.command, in %@. Other settings are left untouched.";
+"consent.backup" = "• First copy the whole file to %@.token-glance-backup-<time>.";
+"consent.copyHook" = "• Copy a small hook program to %1$@/bin and save your previous statusLine in %1$@/statusline-backup.json.";
+"consent.privacy" = "The hook only records the limit percentages and reset times. It does not use the network and does not store prompts, paths or session names.";
+"consent.keepsWorking" = "Your current statusline keeps working: the hook runs it afterwards with the same input.";
+"consent.undo" = "To undo, choose Uninstall in Token Glance settings; your previous statusLine is restored.";
+
+/* Notifications */
+"settings.notifications" = "Notifications";
+"settings.notifications.enable" = "Notify when limits run low";
+"settings.notifications.warning" = "Warning at % left";
+"settings.notifications.critical" = "Critical at % left";
+"settings.notifications.apply" = "Apply thresholds";
+"settings.notifications.invalidRange" = "Use whole numbers from 0 to 100.";
+"settings.notifications.invalidOrder" = "The warning value must be higher than the critical value.";
+"settings.notifications.explain" = "Sent when the remaining percentage drops past a threshold, and when a new window starts after running low. Missed changes while the Mac was asleep or the app was closed are not sent later.";
+"settings.notifications.test" = "Send test notification";
+"notifications.permission.denied" = "Notifications are turned off for Token Glance. Allow them in System Settings › Notifications.";
+"notifications.permission.notDetermined" = "macOS will ask for permission when you turn this on.";
+"notifications.permission.openSettings" = "Open System Settings";
+"notifications.sendFailed" = "The notification could not be sent: %@";
+"notify.warning.title" = "%1$@ %2$@ limit: %3$d%% left";
+"notify.critical.title" = "%1$@ %2$@ limit almost used: %3$d%% left";
+"notify.reset.title" = "%1$@ %2$@ limit reset";
+"notify.body.resets" = "Resets %@.";
+"notify.body.reset" = "%d%% left in the new window.";
+"notify.test.title" = "Token Glance test notification";
+"notify.test.body" = "Notifications are working.";

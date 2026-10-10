@@ -3,6 +3,7 @@ import Foundation
 import Observation
 import os
 import TokenGlanceCore
+import TokenGlanceText
 
 /// App state: one `ToolState` per tool.
 ///
@@ -20,8 +21,24 @@ final class UsageStore {
     private(set) var lastRefresh: Date?
     /// Saved to UserDefaults on change; see `apply(_:)`.
     private(set) var settings = AppSettings.load(from: .standard)
+    /// Builds all user-facing text; replaced when the language setting changes (no restart needed).
+    private(set) var localizer: Localizer
+    private(set) var notificationAuthorization: Notifier.Authorization = .notDetermined
+    /// Claude hook state, kept apart from `claude` so the settings window only re-renders when it changes.
+    private(set) var hookStatus: StatuslineInstaller.Status?
 
     var percentMode: PercentMode { settings.percentMode }
+
+    @ObservationIgnored private let notifier = Notifier()
+    @ObservationIgnored private var planner: NotificationPlanner
+    @ObservationIgnored private var marks = UserDefaultsNotificationMarks()
+
+    init() {
+        let settings = AppSettings.load(from: .standard)
+        self.settings = settings
+        localizer = Localizer(AppLanguage(rawValue: settings.language) ?? .system)
+        planner = NotificationPlanner(thresholds: settings.notificationThresholds)
+    }
 
     @ObservationIgnored private let loader = UsageLoader()
     @ObservationIgnored private var watcher: FileWatcher?
@@ -57,23 +74,63 @@ final class UsageStore {
         }
         activeTimer?.tolerance = 0.5
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.refresh(checkHook: true, reason: "wake") }
+            MainActor.assumeIsolated {
+                // Changes that happened while asleep are not announced afterwards.
+                self?.planner.rebaseline()
+                self?.refresh(checkHook: true, reason: "wake")
+            }
         }
+        marks.prune(before: Date().addingTimeInterval(-8 * 24 * 60 * 60))
+        Task { await updateNotificationAuthorization() }
     }
 
     /// Saves new settings. Changed log folders rebuild the indexes and the file watcher.
     func apply(_ newSettings: AppSettings) {
         let newSettings = newSettings.normalized
-        guard newSettings != settings else { return }
-        let rootsChanged = LogRoots.resolve(newSettings) != LogRoots.resolve(settings)
+        guard newSettings != settings else {
+            log.debug("settings: apply with no change")
+            return
+        }
+        log.info("settings: apply \(Self.changedFields(self.settings, newSettings), privacy: .public)")
+        let old = settings
+        let rootsChanged = LogRoots.resolve(newSettings) != LogRoots.resolve(old)
         settings = newSettings
         newSettings.save(to: .standard)
+        if newSettings.language != old.language {
+            localizer = Localizer(AppLanguage(rawValue: newSettings.language) ?? .system)
+        }
+        planner.thresholds = newSettings.notificationThresholds
+        // Alert baselines restart from the next observation whenever what they describe changes.
+        if newSettings.notificationsEnabled && !old.notificationsEnabled {
+            planner.rebaseline()
+            Task {
+                notificationAuthorization = await notifier.requestAuthorization()
+                log.info("notifications: requested, now \(String(describing: self.notificationAuthorization), privacy: .public)")
+            }
+        }
+        if rootsChanged { planner.rebaseline() }
+        if !newSettings.claudeEnabled { planner.forget(tool: .claude) }
+        if !newSettings.codexEnabled { planner.forget(tool: .codex) }
         if rootsChanged {
             loader.configure(roots: LogRoots.resolve(newSettings))
             claude.refreshedAt = nil  // shows indexing progress again
             startWatching()
         }
         refresh()
+    }
+
+    /// Names of the settings that differ (diagnostics; no values or paths).
+    private static func changedFields(_ a: AppSettings, _ b: AppSettings) -> String {
+        var names: [String] = []
+        if a.percentMode != b.percentMode { names.append("percentMode") }
+        if a.claudeEnabled != b.claudeEnabled { names.append("claudeEnabled") }
+        if a.codexEnabled != b.codexEnabled { names.append("codexEnabled") }
+        if a.claudeConfigDir != b.claudeConfigDir { names.append("claudeConfigDir") }
+        if a.codexHome != b.codexHome { names.append("codexHome") }
+        if a.language != b.language { names.append("language") }
+        if a.notificationsEnabled != b.notificationsEnabled { names.append("notificationsEnabled") }
+        if a.notificationThresholds != b.notificationThresholds { names.append("thresholds") }
+        return names.joined(separator: ",")
     }
 
     /// The installer for the Claude config folder currently in use.
@@ -87,8 +144,45 @@ final class UsageStore {
         let installer = makeInstaller()
         let result: Result<StatuslineInstaller.Status, Error> = await Task.detached { Result { try action.perform(with: installer) } }.value
         refresh(checkHook: true)
-        if case .failure(let error) = result { return HookErrorText.describe(error) }
+        if case .failure(let error) = result { return localizer.hookError(error) }
         return nil
+    }
+
+    // MARK: Notifications
+
+    func updateNotificationAuthorization() async {
+        notificationAuthorization = await notifier.authorization()
+        log.info("notifications: authorization \(String(describing: self.notificationAuthorization), privacy: .public)")
+    }
+
+    func openNotificationSettings() {
+        notifier.openSystemSettings()
+    }
+
+    /// Sends a test notification. Returns an error description on failure.
+    func sendTestNotification() async -> String? {
+        let error = await notifier.send(id: "test-\(UUID().uuidString)", title: localizer("notify.test.title"), body: localizer("notify.test.body"))
+        log.info("notifications: test sent, error \(error != nil, privacy: .public)")
+        return error
+    }
+
+    private func evaluateNotifications(now: Date) {
+        guard settings.notificationsEnabled else { return }
+        var events: [LimitNotification] = []
+        for state in states where state.isEnabled {
+            events += planner.evaluate(tool: state.tool, windows: state.limitWindows, now: now, marks: &marks)
+        }
+        guard !events.isEmpty, notificationAuthorization == .authorized else { return }
+        for event in events {
+            let text = localizer.notification(event)
+            let id = "\(event.tool.rawValue).\(event.window.rawValue).\(event.kind.rawValue).\(Int(event.resetsAt.timeIntervalSince1970))"
+            Task { [notifier, log] in
+                if let error = await notifier.send(id: id, title: text.title, body: text.body) {
+                    log.error("notification failed: \(error, privacy: .public)")
+                }
+            }
+            log.info("notification: \(event.kind.rawValue, privacy: .public)")
+        }
     }
 
     private func startWatching() {
@@ -129,9 +223,11 @@ final class UsageStore {
             let claudeChanged = !claude.sameContent(as: self.claude) || self.claude.refreshedAt == nil
             let codexChanged = !codex.sameContent(as: self.codex) || self.codex.refreshedAt == nil
             if claudeChanged { self.claude = claude }
+            if claude.hookStatus != self.hookStatus { self.hookStatus = claude.hookStatus }
             if codexChanged { self.codex = codex }
             log.info("state: claude changed \(claudeChanged, privacy: .public), codex changed \(codexChanged, privacy: .public)")
             self.lastRefresh = Date()
+            self.evaluateNotifications(now: Date())
             log.info("refresh (\(reason, privacy: .public)): \(Int(Date().timeIntervalSince(started) * 1000), privacy: .public) ms, \(loader.bytesRead - bytesBefore, privacy: .public) bytes read")
             self.scanProgress = nil
             self.isRefreshing = false
@@ -169,8 +265,9 @@ final class UsageLoader: @unchecked Sendable {
     private var claudeRoot = ClaudeUsageProvider.defaultProjectsRoot()
     private var codexHome = CodexUsageProvider.defaultCodexHome()
 
-    /// Records older than this are dropped from memory (the weekly window is at most 7 days back).
-    static let retention: TimeInterval = 8 * 24 * 60 * 60
+    /// Records older than this are dropped from memory; it covers the weekly window and the
+    /// 14-day history chart.
+    static let retention = UsageHistory.retention
 
     var bytesRead: Int {
         lock.lock()
@@ -226,16 +323,22 @@ final class UsageLoader: @unchecked Sendable {
                 if fraction - lastReported >= 0.02 { lastReported = fraction; progress(fraction) }
             }
         }
-        claudeIndex.update(files: claudeFiles, source: fileSource, onRead: reporter)
-        codexIndex.update(files: codexFiles, source: fileSource, onRead: reporter)
-        var codexSizes: [URL: Int] = [:]
-        var codexModified: [URL: Date] = [:]
-        for url in codexFiles {
-            guard let stat = fileSource.stat(url) else { continue }
-            codexSizes[url] = stat.size
-            codexModified[url] = stat.modified
+        // A disabled tool's index is kept as it was, so turning the tool back on reads only what was
+        // appended meanwhile instead of every log again.
+        if enabled.claude {
+            claudeIndex.update(files: claudeFiles, source: fileSource, onRead: reporter)
         }
-        codexActive.update(sizes: codexSizes, modified: codexModified, now: now)
+        if enabled.codex {
+            codexIndex.update(files: codexFiles, source: fileSource, onRead: reporter)
+            var codexSizes: [URL: Int] = [:]
+            var codexModified: [URL: Date] = [:]
+            for url in codexFiles {
+                guard let stat = fileSource.stat(url) else { continue }
+                codexSizes[url] = stat.size
+                codexModified[url] = stat.modified
+            }
+            codexActive.update(sizes: codexSizes, modified: codexModified, now: now)
+        }
         if now.timeIntervalSince(lastPrune) > 3600 {
             claudeIndex.prune(before: now - Self.retention)
             codexIndex.prune(before: now - Self.retention)
@@ -256,12 +359,21 @@ final class UsageLoader: @unchecked Sendable {
         }
         let codexLimits = codexIndex.limits
         let codexSnapshot = UsageSnapshot(limits: codexLimits, records: codexIndex.records, limitsIssue: codexLimits.isEmpty ? .noData : nil)
-        return (
-            ToolState.make(tool: .claude, snapshot: claudeSnapshot, hookStatus: hookStatus, aggregator: aggregator, now: now,
-                           isEnabled: enabled.claude),
-            ToolState.make(tool: .codex, snapshot: codexSnapshot, hookStatus: nil, aggregator: aggregator, now: now,
-                           isEnabled: enabled.codex)
-        )
+        var claude = ToolState.make(tool: .claude, snapshot: claudeSnapshot, hookStatus: hookStatus, aggregator: aggregator, now: now,
+                                    isEnabled: enabled.claude)
+        var codex = ToolState.make(tool: .codex, snapshot: codexSnapshot, hookStatus: nil, aggregator: aggregator, now: now,
+                                   isEnabled: enabled.codex)
+        // History from the records already in memory; coverage starts at the oldest log's creation.
+        let calendar = Calendar.current
+        claude.history = UsageHistory.daily(records: claudeSnapshot.records, coverageStart: oldestCreation(claudeFiles), now: now, calendar: calendar)
+        codex.history = UsageHistory.daily(records: codexSnapshot.records, coverageStart: oldestCreation(codexFiles), now: now, calendar: calendar)
+        return (claude, codex)
+    }
+}
+
+extension UsageLoader {
+    fileprivate func oldestCreation(_ files: [URL]) -> Date? {
+        files.compactMap { LocalFileSource().stat($0)?.created }.min()
     }
 }
 
@@ -274,17 +386,5 @@ enum HookLocator {
             Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("token-glance-hook"),
         ]
         return candidates.compactMap { $0 }.first { FileManager.default.isExecutableFile(atPath: $0.path) }
-    }
-}
-
-enum HookErrorText {
-    static func describe(_ error: Error) -> String {
-        switch error as? StatuslineInstaller.InstallerError {
-        case .settingsUnreadable: String(localized: "settings.json could not be read as JSON. Nothing was changed.")
-        case .settingsNotWritable: String(localized: "settings.json is not writable. Nothing was changed.")
-        case .hookSourceMissing: String(localized: "The hook program is missing from the app bundle. Rebuild with scripts/bundle-app.sh.")
-        case .notInstalled: String(localized: "The hook is not installed.")
-        case nil: error.localizedDescription
-        }
     }
 }

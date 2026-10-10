@@ -9,6 +9,13 @@ public struct AppSettings: Equatable, Sendable {
     public var claudeConfigDir: String?
     /// Overrides `CODEX_HOME` (the folder that contains `sessions/`). `nil` = default.
     public var codexHome: String?
+    /// "system", "ko" or "en" (see TokenGlanceText.AppLanguage).
+    public var language = "system"
+    /// Limit notifications; off until the user turns them on.
+    public var notificationsEnabled = false
+    public var notificationThresholds = NotificationThresholds()
+
+    public static let languages = ["system", "ko", "en"]
 
     public init() {}
 
@@ -18,14 +25,21 @@ public struct AppSettings: Equatable, Sendable {
         public static let codexEnabled = "codexEnabled"
         public static let claudeConfigDir = "claudeConfigDir"
         public static let codexHome = "codexHome"
+        public static let language = "language"
+        public static let notificationsEnabled = "notificationsEnabled"
+        public static let warningThreshold = "notificationWarningThreshold"
+        public static let criticalThreshold = "notificationCriticalThreshold"
     }
 
-    /// Blank overrides become `nil`; at least one tool stays enabled (Claude if both were off).
+    /// Blank overrides become `nil`; at least one tool stays enabled (Claude if both were off);
+    /// unknown languages and invalid thresholds fall back to the defaults.
     public var normalized: AppSettings {
         var copy = self
         copy.claudeConfigDir = Self.nonBlank(claudeConfigDir)
         copy.codexHome = Self.nonBlank(codexHome)
         if !copy.claudeEnabled && !copy.codexEnabled { copy.claudeEnabled = true }
+        if !Self.languages.contains(copy.language) { copy.language = "system" }
+        if copy.notificationThresholds.validationError != nil { copy.notificationThresholds = NotificationThresholds() }
         return copy
     }
 
@@ -36,6 +50,12 @@ public struct AppSettings: Equatable, Sendable {
         if let value = defaults.object(forKey: Keys.codexEnabled) as? Bool { settings.codexEnabled = value }
         settings.claudeConfigDir = defaults.object(forKey: Keys.claudeConfigDir) as? String
         settings.codexHome = defaults.object(forKey: Keys.codexHome) as? String
+        if let language = defaults.string(forKey: Keys.language) { settings.language = language }
+        if let value = defaults.object(forKey: Keys.notificationsEnabled) as? Bool { settings.notificationsEnabled = value }
+        if let warning = defaults.object(forKey: Keys.warningThreshold) as? Int,
+           let critical = defaults.object(forKey: Keys.criticalThreshold) as? Int {
+            settings.notificationThresholds = NotificationThresholds(warning: warning, critical: critical)
+        }
         return settings.normalized
     }
 
@@ -46,6 +66,10 @@ public struct AppSettings: Equatable, Sendable {
         defaults.set(settings.codexEnabled, forKey: Keys.codexEnabled)
         defaults.set(settings.claudeConfigDir, forKey: Keys.claudeConfigDir)
         defaults.set(settings.codexHome, forKey: Keys.codexHome)
+        defaults.set(settings.language, forKey: Keys.language)
+        defaults.set(settings.notificationsEnabled, forKey: Keys.notificationsEnabled)
+        defaults.set(settings.notificationThresholds.warning, forKey: Keys.warningThreshold)
+        defaults.set(settings.notificationThresholds.critical, forKey: Keys.criticalThreshold)
     }
 
     private static func nonBlank(_ value: String?) -> String? {
@@ -97,17 +121,6 @@ public enum PathValidation: Equatable, Sendable {
         switch self {
         case .useDefault, .valid, .missingSubfolder: true
         case .notFound, .notADirectory, .notAbsolute: false
-        }
-    }
-
-    public var message: String {
-        switch self {
-        case .useDefault: "Using the default location"
-        case .valid: "OK"
-        case .missingSubfolder(let name): "No “\(name)” folder inside yet"
-        case .notFound: "Folder not found"
-        case .notADirectory: "Not a folder"
-        case .notAbsolute: "Enter a full path (starting with / or ~)"
         }
     }
 

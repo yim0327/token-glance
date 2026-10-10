@@ -13,8 +13,8 @@ public struct ClaudeLogParser: LineConsumer {
     }
 
     private(set) var best: [Key: UsageRecord] = [:]
-    private let timestamps = TimestampParser()
-    private let decoder = JSONDecoder()
+    private var timestamps: TimestampParser { .shared }
+    private var decoder: JSONDecoder { SharedDecoder.json }
 
     public init() {}
 

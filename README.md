@@ -2,12 +2,12 @@
 
 Claude Code & Codex usage limits at a glance, in your macOS menu bar.
 
-<!-- SCREENSHOT PLACEHOLDER: two-line menu bar label (C 62% / X 80%) and the popover.
+<!-- SCREENSHOT PLACEHOLDER: two-line menu bar label (C 62% / X 80%) and the details panel.
      Add as docs/images/menubar.png and replace this comment with:
-     ![Menu bar and popover](docs/images/menubar.png) -->
+     ![Menu bar and details panel](docs/images/menubar.png) -->
 *Screenshot coming soon.*
 
-> **Status:** v0.1 in progress. Build from source; no signed release yet.
+> **Status:** in development (M5). Build from source; no signed release yet.
 
 Token Glance shows how much of the **5-hour session** and **weekly** limits you have left in
 Claude Code and Codex CLI, as a two-line menu bar label:
@@ -27,6 +27,10 @@ countdown, and tokens used today and this week (input / output / cache, top mode
 - Updates within seconds of new activity (FSEvents), reading only the bytes appended to logs.
 - Shows why a value is missing (`--`): hook not installed, no data yet, data too old, …
 - Settings: display mode, tools on/off, custom log folders, open at login, Claude hook install/repair/uninstall.
+- Optional notifications (off by default) when the remaining percentage drops past 30% / 10%
+  (configurable), and when a new window starts after running low.
+- English and Korean, following the system language by default or chosen in settings.
+- A 14-day history window with daily tokens per tool, from local logs.
 
 ## How it gets the numbers
 
@@ -58,7 +62,7 @@ cd token-glance
 open dist/TokenGlance.app
 ```
 
-Then open **Settings…** from the popover and choose **Install…** under "Claude limits hook".
+Then click the menu bar item, open **Settings…** and choose **Install…** under "Claude limits hook".
 The same can be done from a terminal:
 
 ```sh
@@ -96,6 +100,12 @@ Design decisions: [docs/adr](docs/adr). Performance measurements: [docs/perf.md]
   older than 7 days are hidden; a window whose reset time has passed shows as reset.
 - Log formats are undocumented and may change. Unknown fields are ignored and unreadable lines skipped.
 - Codex limit fields were verified on one machine with few sessions (see docs/log-schemas.md §2).
+- Codex sessions idle for more than 24 hours and then resumed may update only with the 5-minute
+  fallback poll.
+- Notifications only react to new observations while the app is running; changes that happened
+  while the Mac was asleep or the app was closed are not sent afterwards.
+- The history chart counts only logs on this Mac. Days before the oldest log are shown as having
+  no logs, not as zero usage.
 
 ## Compared with similar tools
 

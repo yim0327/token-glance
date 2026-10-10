@@ -39,8 +39,8 @@ public struct CodexSessionParser: LineConsumer {
     private var previousTotal: RawUsage?
     private(set) var records: [UsageRecord] = []
     private(set) var newestLimits: [LimitWindow.Kind: LimitWindow] = [:]
-    private let timestamps = TimestampParser()
-    private let decoder = JSONDecoder()
+    private var timestamps: TimestampParser { .shared }
+    private var decoder: JSONDecoder { SharedDecoder.json }
 
     public init() {}
 

@@ -1,6 +1,6 @@
 # PRD: Token Glance - Claude Code / Codex 한도 잔여량 메뉴바 앱
 
-> 상태: Draft v0.6 (M1/M2 구현 결과 반영: Codex 로그 재검증(세션 1개), 훅 설치 완료. M0 검증 상세는 `docs/log-schemas.md`. 배포/라이선스/statusline 결정 반영, 앱 이름 확정: Token Glance, 레포명 `token-glance`)
+> 상태: Draft v0.9 (M0~M4 구현 및 PR #3 병합 반영. M5: 알림, 한국어/영어, 14일 토큰 차트. 2026-10-09)
 > 한 줄 설명: Claude Code & Codex usage limits at a glance, in your macOS menu bar.
 > 오픈소스 프로젝트 (MIT). 개발은 Claude Code로 진행.
 > `[확인 필요]`는 구현 전에 실제 로컬 데이터로 검증할 가정이다.
@@ -36,26 +36,26 @@
 
 ## 5. 타깃 사용자
 
-- Claude Code와 Codex CLI를 구독 플랜으로 함께 쓰는 개발자 (1차: 본인 dogfooding)
+- Claude Code와 Codex CLI를 구독 플랜으로 함께 쓰는 개발자
 - macOS 14+ (Apple Silicon 우선)
 
 ## 6. 핵심 시나리오
 
 1. 작업 중 메뉴바만 보고 `Claude 세션 62% 남음 / Codex 세션 80% 남음`을 확인한다.
 2. 클릭하면 팝오버에서 세션/주간 잔여 게이지, 초기화까지 남은 시간(카운트다운), 오늘 사용 토큰을 본다.
-3. 잔여량이 임계값(예: 20%, 5%) 이하로 내려가면 알림을 받는다. (v1.1)
+3. 잔여량이 임계값(기본 30%, 10%)을 하향 통과하면 알림을 받는다. (M5 계획)
 4. 로그인 시 자동 실행되어 신경 쓰지 않아도 갱신된다.
 
 ## 7. 데이터 소스 전략 (핵심)
 
 ### 7.1 Claude Code - 한도 잔여량
 
-로컬 로그(JSONL)에는 **사용률(%) 정보가 없다.** 한도에 걸려 요청이 거절된 경우에만 assistant 라인에 `quotaLimits`(`rateLimitType`, `resetsAt`, % 없음)가 기록되며, 이는 statusline 캐시가 없을 때의 **보조 신호**("세션 한도 도달 + 초기화 시각")로만 쓴다. 메인 소스는 아래 경로다.
+로컬 로그(JSONL)에는 **사용률(%) 정보가 없다.** 한도에 걸려 요청이 거절된 경우에만 assistant 라인에 `quotaLimits`(`rateLimitType`, `resetsAt`, % 없음)가 기록되며, 이는 보조 신호 후보이며 현재 미구현이다. 한도 %를 추정하지 않는다. 메인 소스는 아래 경로다.
 
 | 우선순위 | 방법 | 설명 | 비고 |
 |---|---|---|---|
 | **1 (기본)** | **Statusline 훅** | Claude Code는 statusline 스크립트에 stdin JSON으로 `rate_limits.five_hour / seven_day` 의 `used_percentage`, `resets_at`(Unix epoch)을 전달한다. 앱이 제공하는 작은 스크립트를 `statusLine`으로 등록하면, 스크립트가 해당 JSON을 앱의 캐시 파일에 기록하고 앱은 이를 감시(FSEvents)한다. | 공식 문서화된 기능. 네트워크/토큰 접근 불필요. Pro/Max 구독자 + 첫 API 응답 이후에만 값 존재. 필드 형태 확인됨(`used_percentage` 숫자(관찰값 정수, Double로 파싱), `resets_at` Unix **초**). Claude Code 2.1.295에서 존재 확인, 최소 버전은 미확인 |
-| 2 (옵션) | 비공식 OAuth Usage API | `GET api.anthropic.com/api/oauth/usage` (Keychain의 Claude Code 자격증명 사용). 응답에 `five_hour`, `seven_day`, 모델별 주간 한도 포함. | **비공식·무문서**, 429가 잦음, 자격증명 접근 필요. 기본 OFF, 사용자가 명시적으로 켤 때만 (v1.1+) |
+| 2 (옵션) | 비공식 OAuth Usage API | `GET api.anthropic.com/api/oauth/usage` (Keychain의 Claude Code 자격증명 사용). 응답에 `five_hour`, `seven_day`, 모델별 주간 한도 포함. | **비공식·무문서**, 429가 잦음, 자격증명 접근 필요. 미구현·보류. M5에서는 제외 |
 
 - **훅 구현 규칙 (성능/정확도)**: Claude Code는 statusline 업데이트를 300ms 디바운스하고, 스크립트가 실행 중일 때 새 업데이트가 오면 진행 중인 스크립트를 **취소**한다. 따라서 (1) stdin을 먼저 읽어 **캐시 파일에 원자적으로(임시파일 → rename) 기록한 뒤**, (2) 그 다음에 기존 statusline(OMC 등)에 동일 stdin을 그대로 넘기고 출력을 전달한다. (3) 훅은 jq 의존 없이 Foundation만 사용하고 네트워크 호출은 하지 않는다. (4) **M2 구현 규칙**: 자식을 별도 프로세스 그룹으로 띄워 SIGTERM/SIGINT를 그룹 전체에 전달하고, 원본 바이트는 별도 스레드로 써서 자식이 stdin을 안 읽어도 막히지 않게 하며, 다른 파일 디스크립터는 상속하지 않는다. 지연을 줄이기 위해 fsync는 생략한다(원자적 rename만). 측정: release 빌드 p50 5.7ms / p95 7.3ms, 케이스에서 캐시 기록은 이어서 실행되는 명령보다 약 4.9ms 만에 완료. 채널 실행 시간을 측정해 예산(예: 훅 자체 < 20ms)을 테스트한다.
 - **개발 환경(예시)**: oh-my-claudecode(OMC) 설치 중. **확인됨**: `~/.claude/settings.json`의 statusLine은 `{"type":"command","command":"node ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hud/omc-hud.mjs"}` (OMC HUD). command는 쉘 변수 확장(`${...:-...}`)을 포함하므로, 체이닝 시 원본 command **문자열을 그대로 저장해 쉘에서 실행**한다(경로를 직접 해석하지 말 것). 원본은 백업 파일에 보관하고 제거 시 복원한다. OMC HUD는 node 프로세스라 시작 비용이 있고(수십 ms), 한도 캐시(기본 90초)가 만료되면 Keychain과 비공식 usage API 호출을 statusline 실행 경로에서 기다리므로 **수 초**까지 걸릴 수 있다(M0 분석). 훅은 반드시 그보다 앞에서 저장을 끝낸다. OMC 내부 캐시(`.omc/state/...`, `.usage-cache-*.json`)에는 의존하지 않는다(내부 형식, 프로젝트별 분산, 경로/세션명 포함, 비원자적 쓰기). 체이닝 시 받은 stdin 바이트를 재직렬화 없이 그대로 자식 stdin에 쓰고 반드시 close(EOF)한다. 따라서 **체이닝은 P0**로 격상한다. OMC가 업데이트/재설치로 statusLine을 덮어쓸 수 있으므로 훅 상태 점검(설치됨/덮어씁움)과 재설치 버튼도 제공한다.
@@ -74,7 +74,7 @@
 
 ### 7.3 Codex - 한도 잔여량 + 토큰
 
-- **상태: 실제 rollout 1개(60줄)로 재검증됨 (M1-A).** 세션이 1개라 관찰 범위가 작다. `info: null` 이벤트, 동일 누적값 반복, 누적값 감소는 관찰되지 않았으므로 파서가 모두 방어한다(`codex-edge-cases.synthetic.jsonl`). 상세는 `docs/log-schemas.md` 2장.
+- **검증 이력: M1-A에서 rollout 1개(60줄)로 구조를 검증했다. PR #3에서는 새 세션·기존 세션·재시작 후 세션 재개를 실제 사용으로 추가 검증했다.** 세션이 1개라 관찰 범위가 작다. `info: null` 이벤트, 동일 누적값 반복, 누적값 감소는 관찰되지 않았으므로 파서가 모두 방어한다(`codex-edge-cases.synthetic.jsonl`). 상세는 `docs/log-schemas.md` 2장.
 - 경로: `~/.codex/sessions/YYYY/MM/DD/rollout-<로컬시각>-<uuid>.jsonl` **(확인됨)**, `CODEX_HOME` 존중. 보관 세션(`archived_sessions/`)도 탐색 대상.
 - `event_msg` 중 `payload.type == "token_count"`:
   - `info.total_token_usage` (세션 누적), `info.last_token_usage` (직전 턴)
@@ -85,7 +85,7 @@
   - reasoning 토큰은 output의 일부로 표시만 하고 total에 다시 더하지 않는다.
 - 즉 Codex는 **로컬 로그만으로** 한도 잔여량과 초기화 시각을 얻을 수 있다. 가장 최신 이벤트의 `rate_limits`를 사용.
 - 토큰 집계는 누적값이므로 세션별 delta로 계산 (이중 집계 방지).
-- 대안(옵션, v1.1+): `~/.codex/auth.json` 토큰으로 `chatgpt.com/backend-api/wham/usage` 조회. 비공식이므로 기본 OFF.
+- 비공식 API는 보류한다. M5에서 인증 파일/Keychain 접근과 네트워크 요청을 추가하지 않는다.
 
 ## 8. 기능 요구사항
 
@@ -93,16 +93,19 @@
 
 - **두 줄 레이아웃**: 윗줄 Claude 아이콘 + 잔여 %, 아랫줄 Codex 아이콘 + 잔여 %. 클릭 없이 바로 확인.
   ```
-  [Claude아이콘] 62%
-  [Codex아이콘]  80%
+  [C] 62%
+  [X] 80%
   ```
-- 기본 값은 세션(5h) 잔여 %. 표시 모드: 세션 잔여 % / 주간 잔여 % / 초기화까지 남은 시간 / 사용 토큰 수
+- **렌더링 확정 (ADR 0001)**: SwiftUI `MenuBarExtra`는 두 줄 라벨이 첫 줄만 크게 나오고 색이 사라져 부적합. **`NSStatusItem` + 직접 그린 `NSImage`(템플릿 아님, 시스템 동적 색 사용)** 로 확정. 노치가 있는 화면은 메뉴바 높이가 약 33pt인 점을 고려한다.
+- 기본 값은 세션(5h) **남은 %**. 표시 모드: 남은 %(기본) / 사용 %. 반올림 규칙: 사용 %는 반올림, 남은 % = 100 − 사용 %. 임계값: 남은 30% 이하 주황, 10% 이하 빨강. (추가 표시 모드 후보: 초기화까지 남은 시간)
 - 도구별 on/off (하나만 켜면 한 줄 레이아웃으로 전환)
 - 임계값 색상 (잔여 30% 이하 주황, 10% 이하 빨강)
 - 데이터가 없거나 오래된 경우 `--` 표시 및 툴팁에 사유 표시
-- 구현 주의: 메뉴바 높이(약 22pt)에 두 줄을 넣으려면 작은 폰트(약 9~10pt, 모노스페이스 숫자)가 필요하고, `MenuBarExtra` 라벨이 멀티라인을 지원하지 않으면 `NSImage`/`ImageRenderer`로 직접 그려 `NSStatusItem`에 넣는다. M3 초기에 프로토타입으로 검증한다. 아이콘은 템플릿 이미지(다크/라이트 자동 대응) 우선.
+- 약 9~10pt 고정폭 숫자와 중립 C/X 배지를 사용한다. 일반/노치 메뉴바, Retina, 외관 변경을 검증한다. 공식 로고 교체는 보류한다.
 
 ### 8.2 팝오버 (P0)
+
+- M3 구현 추가 규칙: 각 윈도우는 `N% used / M% left`를 함께 표기, 초 단위 카운트다운(Date 기반, 파일 재읽기 없음), 초기화 후 문구 "Window reset — waiting for new data".
 
 - Claude Code / Codex 두 섹션
 - 각 섹션: 세션(5h) 게이지 + 잔여 % + 초기화 시각(절대시각 + 카운트다운), 주간(7d) 게이지 + 잔여 % + 초기화 시각
@@ -112,44 +115,71 @@
 
 ### 8.3 갱신 (P0)
 
-- FSEvents로 JSONL 및 Claude 캐시 파일 변경 감지, 파일별 byte offset 기반 증분 파싱
-- 카운트다운은 1초 타이머 (UI만, 파싱 아님). 폴백 폴링 60초.
+- 파일별 inode/크기/수정시각/byte offset을 유지해 추가된 바이트만 읽는다. 미완성 줄 이월, truncate/교체/삭제, Claude 전역 dedupe와 Codex 누적값 delta를 유지한다.
+- 인덱스는 메모리 전용. 최초 스캔은 백그라운드에서 진행률 표시. M4 관찰: 약 1.4초, 약 175MB 읽음.
+- FSEvents 이벤트를 1.5초 단위로 묶고 관련 JSONL/훅 캐시만 갱신한다. 결과가 같으면 UI 재계산을 생략한다.
+- 열린 파일의 이어 쓰기 이벤트 지연은 이 머신에서 관찰한 결과이며 Apple의 일반적 보장/제약으로 단정하지 않는다.
+- Codex 보완(PR #3): 2초마다 감시 대상 rollout의 크기를 stat으로 비교한다. 최근 15분 내 증가를 관찰한 파일, 첫 스캔 이후 새로 발견한 파일, 최근 24시간 내 수정된 파일을 포함한다. 변화가 있으면 증분 읽기만 한다.
+- 24시간 넘게 쉬었던 세션 재개는 5분 폴백에 의존할 수 있다. 모든 세션의 2초 갱신을 보장하지 않는다.
+- 5분 폴백 폴링, 수동 새로고침, 웨이크 후 재스캔 유지. 카운트다운은 Date 기반 1초 UI 타이머이며 파일 재파싱을 하지 않는다.
+- PR #3 실제 검증: 새 세션 0.03초, 가장 최근 기존 세션 1.4초, 재시작 후 이전 세션 재개 1.4초. 검증한 세 경우의 결과다.
+- M4 측정: CPU 평균 2.37%→0.31%, footprint 최고 208MB→47MB, 새로고침 약 0.87초→평균 12.9ms. 이후 측정의 로그 활동이 더 적었다는 조건 차이도 명시한다.
+- PR #3 측정: Codex 사용 포함 5분, CPU 평균 0.25%, footprint 평균 24MB/최고 44.9MB. 방법·조건은 docs/perf.md 참조.
 
 ### 8.4 설정 (P1)
 
+- **M4 구현 규칙**: 로그 폴더 지정이 `CLAUDE_CONFIG_DIR`/`CODEX_HOME`보다 우선하고(경로 검증 실패 시 사유 표시), 최소 한 도구는 켜져 있어야 한다. 훅의 settings.json 위치는 Claude 폴더 지정을 따른다. Install/Repair 전 동의 대화상자를 표시한다. 로그인 시 실행(SMAppService)은 ad-hoc 서명 앱에서도 등록/해제 동작을 확인했고, 앱의 현재 위치에 묶인다(이동 후 다시 켜야 함).
+
 - 로그인 시 자동 실행 (`SMAppService`)
 - Claude statusline 훅 설치/제거 (백업/복원). 구현 규칙(M2): settings.json 전체 타임스탬프 백업, `statusLine` 키만 수정(나머지 바이트 보존), 원래 권한 유지, 깨진 JSON/쓰기 불가 파일은 거부, 원본 command는 문자열 그대로 백업. 상태 5종(notInstalled / installed / overwritten / hookMissing / settingsUnreadable)과 `repair`. 훅 바이너리는 `~/Library/Application Support/TokenGlance/bin/`에 복사. CLI: `token-glance-hook install|uninstall|status|repair`.
-- 표시 모드, 임계값, 로그 경로 오버라이드, 비공식 API 사용 여부(기본 OFF)
+- 현재 설정: 남은/사용 표시, 도구 켜기/끄기, 로그 경로, 로그인 시 실행, 훅 관리.
+- M5 계획: 알림 토글·임계값, 언어(시스템/한국어/영어). 비공식 API 옵션은 추가하지 않는다.
+- 로그인 등록/해제는 확인됨. 로그아웃·재로그인 후 자동 실행은 사용자 확인이 남아 있다.
 
-### 8.5 알림 (P1)
+### 8.5 알림 (P1, M5 계획)
 
-- 세션/주간 잔여가 임계값 이하일 때, 초기화 직전/직후 알림 (`UserNotifications`)
+- 기본 OFF. 사용자가 켰을 때만 UserNotifications 권한을 요청한다. 거부/미결정 상태와 시스템 설정 안내를 제공한다.
+- 도구별·세션/주간별 남은 %가 기본 30%/10%를 하향 통과할 때 알린다. 표시 모드와 무관하게 남은 %로 판정한다.
+- 최초 관측/앱 시작은 기준 상태만 설정한다. 없음/오래됨/깨진 데이터는 알림을 생성하지 않는다.
+- 같은 윈도우·임계값 중복을 방지한다. 최소 상태(provider, kind, resetsAt, threshold)를 저장해 재시작에도 억제한다. 원문/경로/계정은 저장하지 않는다.
+- 초기화 알림은 유효한 이전 관측과 새 관측을 바탕으로 판정한다. resetsAt 경과만으로 실제 한도 복구가 확인됐다고 알리지 않는다. 종료/슬립 중 놓친 알림은 소급 발송하지 않는다.
+- 초기화 직전 알림은 이번 범위에서 제외한다. 시간과 전송 인터페이스를 주입해 테스트한다.
 
-### 8.6 차트 / 비용 추정 (P2)
+### 8.6 차트 / 비용 추정 (P2, M5 계획)
 
-- 일별 토큰 막대 차트(Swift Charts), 사용 페이스 대비 잔여 가이드
-- 비용 추정은 구독에서 의미가 약하므로 후순위
+- Swift Charts로 최근 14일의 도구별 일별 토큰을 표시한다. input/output/cacheRead/cacheWrite는 기존 정규화 규칙을 유지하고 reasoning을 total에 중복 가산하지 않는다.
+- 날짜 경계는 주입한 Calendar/시간대를 따른다. 로그 없음과 확인된 0을 구분하고 로컬 로그 기반 집계임을 표시한다.
+- 주간 집계와 별개로 14일 차트 범위를 보존한다. 메모리 정리가 오래된 날짜 합계를 지워 결과를 틀리게 만들지 않도록 회귀 테스트한다.
+- 차트 열기 시 전체 재파싱하지 않는다. 최소 수치 집계만 메모리에 유지하며 이력 DB는 추가하지 않는다.
+- 비용 추정·사용 페이스 예측은 제외한다.
+
+### 8.7 로컬라이즈 (P1, M5 계획)
+
+- 한국어/영어 및 시스템 언어 기본값. 툴팁, 팝오버, 설정, 오류, 동의 대화상자, 알림을 포함한다.
+- Core는 사용자용 영어 문장 대신 상태/값을 반환하고 App에서 번역한다. 숫자·날짜·단위는 Locale 기반 표시.
+- SwiftPM/번들 스크립트에서 리소스 포함을 검증한다. String Catalog가 현재 빌드 환경에서 지원되지 않으면 .strings/.stringsdict로 구현하고 이유를 기록한다.
 
 ## 9. 비기능 요구사항
 
 | 항목 | 요구 |
 |---|---|
-| 성능 | idle CPU < 1%, 메모리 < 50MB, 증분 갱신 < 200ms |
+| 성능 | idle CPU < 1%, 메모리 < 50MB, 증분 갱신 < 200ms. 메모리는 Activity Monitor의 메모리(physical footprint) 기준이며 순간 최고치는 별도 관리(RSS는 참고용). 조건·측정 방법은 `docs/perf.md` 참조 |
 | 프라이버시 | 프롬프트/응답 내용은 저장·전송하지 않음. 수치 메타데이터만 사용. 기본 설정에서 외부 네트워크 호출 0 |
-| 보안 | OAuth 토큰/Keychain은 옵션 기능에서만 접근, 로그·캐시에 토큰 저장 금지 |
+| 보안 | 현재 및 M5에서 인증 파일/Keychain 접근 없음. 인증 토큰 저장·출력 금지. 훅 관리 백업에는 사용자 설정이 포함되므로 권한 보호 |
 | 안정성 | 파싱 실패 라인 skip, 스키마 변경에 방어적, 값 누락 시 graceful degrade |
 | 권한 | dot-folder 읽기 필요 → App Sandbox OFF, 직접 배포 |
 | UI | 다크/라이트, Dock 아이콘 없음(`LSUIElement`), 한국어/영어 |
 
 ## 10. 기술 스택
 
-- **Swift 5.10+ / SwiftUI `MenuBarExtra`**, 최소 **macOS 14** (Observation 프레임워크, MenuBarExtra, Swift Charts 사용)
+- **Swift 5.10+ / AppKit NSStatusItem + SwiftUI 팝오버·설정**, 최소 **macOS 14** (Observation, M5 Swift Charts/UserNotifications)
 - 구조: Swift Package 모노레포
   - `TokenGlanceCore` (UI 무관: Provider, Parser, Aggregator, 모델) - 유닛 테스트 대상
   - `TokenGlanceApp` (SwiftUI 메뉴바 앱)
-  - `token-glance-hook` (statusline 스크립트, 순수 shell 또는 작은 Swift CLI)
+  - `token-glance-hook` (Foundation 기반 Swift CLI)
+- 번들: `scripts/bundle-app.sh` → `dist/TokenGlance.app`(ad-hoc 서명, LSUIElement), 번들 ID `io.github.yim0327.token-glance`, 훅 바이너리는 `Contents/Resources`에 포함하고 설치 시 `~/Library/Application Support/TokenGlance/bin/`에 복사. 진단용 `--print-state` 플래그 제공.
 - 빌드: SwiftPM 우선 + `.app` 번들링 스크립트(또는 XcodeGen). Claude Code가 `swift build`/`swift test`로 자동 검증하기 쉽게 구성.
-- 테스트: Swift Testing / XCTest, **실제 로그를 익명화한 fixture**로 파서 검증
+- 테스트: Swift Testing / XCTest, 실제 구조 기반 합성/익명 fixture로 검증. 실제 로그 파일 복사 금지
 - CI: GitHub Actions (macOS runner에서 build + test)
 - 배포: GitHub Releases(.dmg/.zip) + Homebrew cask 탭. 공증은 Apple Developer 계정(연 $99) 필요. **결정: 계정 없음 → 소스 빌드 + 미서명 릴리스(ad-hoc 서명, 우클릭 열기/`xattr -cr` 안내)로 시작.** Homebrew cask는 미공증 앱 정책 확인 후 결정(불가 시 `brew install --build-from-source` 또는 자체 탭).
 - 라이선스: **MIT (확정)**
@@ -161,17 +191,17 @@
 ~/.claude/projects/**/*.jsonl ─────────────────────────────────────────────────────────┤
 ~/.codex/sessions/**/*.jsonl ──────────────────────────────────────────────────────────┤
                                                                                         v
-                                   [FileWatcher (FSEvents)] → [Provider: Claude | Codex]
+                                   [FileWatcher (FSEvents + Codex stat polling)] → [Provider: Claude | Codex]
                                                                        v
                                                     [Aggregator + Cache(offset, 일별 집계)]
                                                                        v
                                                       [UsageStore (@Observable)]
                                                                        v
-                                                 MenuBarExtra label + Popover
+                                                 NSStatusItem label + SwiftUI Popover
 ```
 
 - `UsageProvider` 프로토콜: `limits() -> [LimitWindow]`, `tokens(for: Range) -> TokenUsage`
-- `LimitWindow { kind: session|weekly, usedPercent, resetsAt, observedAt }`
+- `LimitWindow`: kind, usedPercent, resetsAt, observedAt. 초기화 후 다음 resetsAt을 모르면 nil로 두고 새 관측을 기다린다. 시간 경과만으로 실제 한도 복구가 확인된 것으로 보지 않는다.
 
 ## 12. 마일스톤 (Claude Code 단계별 작업 단위)
 
@@ -181,9 +211,9 @@
 | M1 | (선행: Codex 세션 1회 실행 후 로그 재검증) `TokenGlanceCore`: Claude 토큰 파서(전역 dedupe, 키별 최대 output), Codex 파서(한도+delta 토큰), 테스트 | 테스트 통과, 수동 검증값과 일치 |
 | M2 | Claude 훅 스크립트 + 캐시 리더 + 설치/제거 로직 | 실제 Claude Code 세션에서 `rate_limits` 캐시 기록 확인 |
 | M3 | 메뉴바 라벨 + 팝오버 (세션/주간 게이지, 카운트다운) | 두 도구 동시 표시 MVP |
-| M4 | FSEvents 증분 갱신, 설정, 로그인 시 실행 | v0.1 릴리스 |
-| M5 | 알림, 차트, 선택적 비공식 API, 로컬라이즈 | v0.2 |
-| M6 | CI, README(GIF/스크린샷), 릴리스 자동화, Homebrew | v1.0 공개 |
+| M4 (구현 완료) | 증분 갱신, 설정, 훅 UI, 로그인 등록/해제, CI 및 Codex 보완(PR #3) | 테스트 139개/22개 스위트, PR #3 체크 통과. 재로그인 확인·릴리스는 별도 |
+| M5 (다음) | 알림 → 한국어/영어 → 14일 차트. 비공식 API/로고 제외 | 테스트·번들 빌드, 실제 알림/양 언어 UI 확인, 성능 유지 |
+| M6 | README 스크린샷, 릴리스 자동화·배포 검증. Homebrew 별도 검토 | 승인 후 태그·릴리스, 버전/체크섬·설치 확인 |
 
 ## 13. 오픈소스 요구사항
 
@@ -191,13 +221,13 @@
 - `docs/`: PRD, 설계 결정 기록(ADR), 로그 스키마 노트
 - 커밋/PR 단위를 마일스톤에 맞춰 정리, CI 배지, 테스트 커버리지 언급
 - 이슈 템플릿, CONTRIBUTING, LICENSE
-- 선행 사례 `steipete/CodexBar`가 존재한다 → README에 비교 섹션 포함하고, 차별점은 **zero-config 공식 경로 우선(statusline 훅), 최소 권한/네트워크 0 기본값, 작고 읽기 쉬운 코드베이스, Claude+Codex 두 도구에 집중**으로 둔다.
+- 외부 프로젝트 링크·비교를 새로 추가하지 않는다. 공식 데이터 소스 우선, 최소 권한, 로컬 처리, 두 도구 동시 표시라는 실제 특성을 설명한다.
 
 ## 14. 리스크 / 오픈 이슈
 
 | 리스크 | 대응 |
 |---|---|
-| Claude 한도는 statusline 훅 의존: Claude Code가 실행되어야 값 갱신 | 신선도 표시, 비공식 API는 옵트인 폴백 |
+| Claude 한도는 statusline 훅 의존: Claude Code가 실행되어야 값 갱신 | 신선도 표시. 비공식 API는 미구현·보류 |
 | 기존 statusline 사용자 충돌 | 체이닝 + 백업/복원 + 동의 절차 |
 | 훅이 SIGKILL을 받으면 이어서 실행 중인 명령(OMC HUD)이 끝까지 실행됨 (가로채지 못함). Claude Code가 실제로 쓰는 취소 시그널은 미확인 | 실사용 중 고아 프로세스 관찰, 문서화 |
 | OMC 업데이트/재설치가 statusLine을 덮어쓸 수 있음 | `status()`로 감지, 앱 UI 경고 + `repair` |
@@ -206,18 +236,19 @@
 | `rate_limits` 필드는 Pro/Max에서만, 첫 응답 후에만 존재 | 값 없을 때 안내 UI |
 | 공증 비용 | 미서명 릴리스 + 소스 빌드 안내로 시작 |
 | 개발 환경: Xcode CLT 경로 깨짐 | M0에서 `xcode-select --install` 또는 Xcode 설치 |
-| 메뉴바 두 줄 렌더링이 `MenuBarExtra`로 불가할 수 있음 | `NSStatusItem` + 커스텀 뷰/이미지로 대체 (M3 초기 프로토타입). 팝오버도 필요 시 `NSPanel`/`NSPopover` 사용 |
+| MenuBarExtra 두 줄 표현 부적합(M3 검증) | NSStatusItem + 직접 그린 NSImage로 구현 완료 |
+| 24시간 넘게 쉬었던 Codex 세션 재개 지연 | 5분 폴백·수동 새로고침, 한계 표시 |
+| 알림 중복·초기화 오판정 | 윈도우별 테스트, 재시작 중복 억제, 새 관측 기반 판정 |
 | Claude/OpenAI 로고 사용에 따른 상표 이슈 | 중립적 심볼(C/X 글리프 또는 단색 아이콘) 사용, README에 비제휴(non-affiliated) 고지 |
 | 이름 `Token Glance` 중복 가능성 | 정확히 같은 이름은 검색에서 못 찾았으나, 출시 전 GitHub/Homebrew 재확인 |
-| 유사 앱이 이미 다수 존재 (CodexBar, ai-token-monitor, token-usage 등) | README 비교 섹션, 차별점(두 줄 %, 공식 경로 우선, 기본 네트워크 0, 작은 코드베이스) 강조 |
 
 ### 네이밍 보완 체크리스트 (Token Glance)
 
-- [ ] 레포 description: "Claude Code & Codex usage limits at a glance, in your macOS menu bar"
-- [ ] GitHub topics: `claude-code`, `codex`, `token-usage`, `menubar`, `macos`, `swift`
+- [x] 레포 description: "Claude Code & Codex usage limits at a glance, in your macOS menu bar"
+- [x] GitHub topics: `claude-code`, `codex`, `token-usage`, `menubar`, `macos`, `swift`
 - [ ] README 최상단에 두 줄 메뉴바 스크린샷/GIF
 - [ ] 아이콘: 게이지/눈 모티프 + 중립 색상
-- [ ] README에 "Not affiliated with Anthropic or OpenAI" 고지
+- [x] README에 "Not affiliated with Anthropic or OpenAI" 고지
 - [ ] 이름 중복 확인 (GitHub, Homebrew, 검색)
 
 ## 15. 결정 사항
@@ -229,4 +260,5 @@
 | 라이선스 | MIT |
 | 기존 statusline | oh-my-claudecode HUD (`node .../hud/omc-hud.mjs`) 확인됨 → 체이닝 P0 |
 | 최소 macOS | 14+ |
-| 스택 | Swift/SwiftUI + 필요 시 AppKit(NSStatusItem) |
+| 스택 | AppKit NSStatusItem + SwiftUI, Foundation 훅 |
+| M5 범위 | 알림, 한국어/영어, 14일 차트. 비공식 API와 공식 로고 교체 제외 |
