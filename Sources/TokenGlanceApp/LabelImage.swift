@@ -11,6 +11,8 @@ enum LabelImage {
     static let singleLineFont = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium)
     static let badgeSize: CGFloat = 10
     static let lineHeight: CGFloat = 10.5
+    /// Space between the two lines (2 × 10.5 + 1 = 22 pt, within the 22–24 pt menu bar).
+    static let lineSpacing: CGFloat = 1
     static let gap: CGFloat = 2.5
 
     static func make(_ label: MenuBarLabel, height: CGFloat = NSStatusBar.system.thickness) -> NSImage {
@@ -23,9 +25,10 @@ enum LabelImage {
 
         let image = NSImage(size: size, flipped: false) { _ in
             let rowHeight = twoLines ? lineHeight : height
-            let top = (height - rowHeight * CGFloat(lines.count)) / 2
+            let spacing = twoLines ? lineSpacing : 0
+            let top = (height - rowHeight * CGFloat(lines.count) - spacing * CGFloat(lines.count - 1)) / 2
             for (index, line) in lines.enumerated() {
-                let rowY = height - top - rowHeight * CGFloat(index + 1)
+                let rowY = height - top - rowHeight * CGFloat(index + 1) - spacing * CGFloat(index)
                 let text = NSAttributedString(string: line.text, attributes: [.font: font, .foregroundColor: color(line.severity)])
                 let textSize = text.size()
                 let textY = rowY + (rowHeight - textSize.height) / 2
