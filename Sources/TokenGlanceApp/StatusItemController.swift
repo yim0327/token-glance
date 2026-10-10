@@ -5,12 +5,12 @@ import SwiftUI
 import TokenGlanceCore
 import TokenGlanceText
 
-/// Owns the menu bar item: renders the label from the store and toggles the popover.
+/// Owns the menu bar item: renders the label from the store and toggles the details panel.
 @MainActor
-final class StatusItemController: NSObject, NSPopoverDelegate {
+final class StatusItemController: NSObject {
     private let store: UsageStore
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    private let popover = NSPopover()
+    private let panel = MenuPanel()
     private var lastLabel: MenuBarLabel?
     private var lastTooltip: String?
     private var settingsWindow: SettingsWindowController?
@@ -23,10 +23,8 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         if let button = item.button {
             button.imagePosition = .imageOnly
             button.target = self
-            button.action = #selector(togglePopover)
+            button.action = #selector(togglePanel)
         }
-        popover.behavior = .transient
-        popover.delegate = self
         settingsWindow = SettingsWindowController(store: store)
         historyWindow = HistoryWindowController(store: store)
         render()
@@ -61,39 +59,33 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         }
     }
 
-    @objc private func togglePopover() {
+    @objc private func togglePanel() {
         guard let button = item.button else { return }
-        if popover.isShown {
-            popover.performClose(nil)
+        if panel.isShown {
+            panel.close()
         } else {
-            popover.contentViewController = makePopoverContent()
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-            popover.contentViewController?.view.window?.makeKey()
+            panel.show(makePanelContent(), below: button)
         }
     }
 
-    /// The popover's SwiftUI view is built on each show and released on close: a hidden popover
-    /// otherwise keeps its once-a-second countdowns running and re-lays itself out (measured at
-    /// about 2% CPU with the popover closed).
-    private func makePopoverContent() -> NSViewController {
+    /// The panel's SwiftUI view is built on each show and released on close: hidden, it would
+    /// otherwise keep its once-a-second countdowns running and re-lay itself out (measured at
+    /// about 2% CPU with the popover it replaced closed).
+    private func makePanelContent() -> NSHostingController<PopoverView> {
         let host = NSHostingController(rootView: PopoverView(
             store: store,
             openSettings: { [weak self] in
-                self?.popover.performClose(nil)
+                self?.panel.close()
                 self?.settingsWindow?.show()
             },
             openHistory: { [weak self] in
-                self?.popover.performClose(nil)
+                self?.panel.close()
                 self?.historyWindow?.show()
             }
         ))
-        // Without this the popover keeps its initial size and clips SwiftUI content that is taller,
+        // Without this the panel keeps its initial size and clips SwiftUI content that is taller,
         // e.g. once data arrives after launch.
         host.sizingOptions = [.preferredContentSize]
         return host
-    }
-
-    func popoverDidClose(_ notification: Notification) {
-        popover.contentViewController = nil
     }
 }

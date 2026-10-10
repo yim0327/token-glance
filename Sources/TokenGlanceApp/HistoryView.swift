@@ -4,7 +4,7 @@ import SwiftUI
 import TokenGlanceCore
 import TokenGlanceText
 
-/// Hosts the 14-day history chart in its own window, so the popover stays light. The window is
+/// Hosts the 14-day history chart in its own window, so the menu panel stays light. The window is
 /// released when closed.
 @MainActor
 final class HistoryWindowController: NSObject, NSWindowDelegate {
