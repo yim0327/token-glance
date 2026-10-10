@@ -37,7 +37,7 @@ struct PopoverView: View {
                 Button(l10n("popover.history"), action: openHistory)
                 Button(l10n("popover.settings"), action: openSettings)
                 Spacer()
-                Button(l10n("popover.refresh")) { store.refresh(checkHook: true) }
+                Button(l10n("popover.refresh")) { store.refreshNow() }
                     .disabled(store.isRefreshing)
                 Button(l10n("popover.quit")) { NSApplication.shared.terminate(nil) }
             }

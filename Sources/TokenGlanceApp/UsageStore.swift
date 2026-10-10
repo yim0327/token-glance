@@ -45,9 +45,10 @@ final class UsageStore {
     @ObservationIgnored private var localCodex = ToolState(tool: .codex)
     @ObservationIgnored private var onlineSnapshot: CodexAccountLimits?
     @ObservationIgnored private var onlineFailure: String?
-    @ObservationIgnored private var onlineTask: Task<Void, Never>?
-    @ObservationIgnored private var onlineStopTask: Task<Void, Never>?
-    @ObservationIgnored private var onlineGeneration = 0
+    @ObservationIgnored private lazy var online = CodexOnlineLimitsController(
+        reader: onlineClient,
+        isEnabled: { [weak self] in self?.onlineEnabled ?? false },
+        onResult: { [weak self] in self?.applyOnline($0) })
     @ObservationIgnored private var watcher: FileWatcher?
     @ObservationIgnored private var pollTimer: Timer?
     @ObservationIgnored private var resetTimer: Timer?
@@ -70,15 +71,15 @@ final class UsageStore {
         Task { [weak self] in
             guard let self else { return }
             await onlineClient.setRateLimitsUpdatedHandler { [weak self] in
-                Task { @MainActor in self?.refreshOnline() }
+                Task { @MainActor in self?.online.refresh() }
             }
-            refreshOnline()
+            online.refresh()
         }
         startWatching()
         pollTimer = Timer.scheduledTimer(withTimeInterval: Self.fallbackPollInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.refresh(checkHook: true, reason: "poll")
-                self?.refreshOnline()
+                self?.online.refresh()
             }
         }
         pollTimer?.tolerance = 30
@@ -95,7 +96,7 @@ final class UsageStore {
                 // Changes that happened while asleep are not announced afterwards.
                 self?.planner.rebaseline()
                 self?.refresh(checkHook: true, reason: "wake")
-                self?.refreshOnline()
+                self?.online.refresh()
             }
         }
         marks.prune(before: Date().addingTimeInterval(-8 * 24 * 60 * 60))
@@ -137,12 +138,15 @@ final class UsageStore {
             claude.refreshedAt = nil  // shows indexing progress again
             startWatching()
         }
-        refresh()
+        refresh(reason: "settings")
         if onlineChanged {
-            if settings.codexOnlineLimitsEnabled && settings.codexEnabled {
-                refreshOnline()
+            if onlineEnabled {
+                online.refresh()
             } else {
-                stopOnline()
+                onlineSnapshot = nil
+                onlineFailure = nil
+                codex = localCodex
+                online.disable()
             }
         }
     }
@@ -172,7 +176,7 @@ final class UsageStore {
     func perform(_ action: HookAction) async -> String? {
         let installer = makeInstaller()
         let result: Result<StatuslineInstaller.Status, Error> = await Task.detached { Result { try action.perform(with: installer) } }.value
-        refresh(checkHook: true)
+        refresh(checkHook: true, reason: "hook")
         if case .failure(let error) = result { return localizer.hookError(error) }
         return nil
     }
@@ -226,9 +230,15 @@ final class UsageStore {
         if watcher == nil { log.error("FSEvents stream could not be created; relying on polling") }
     }
 
-    /// Incremental refresh. `checkHook` also re-reads the hook installation state from settings.json.
-    func refresh(checkHook: Bool = false, reason: String = "manual") {
-        if reason == "manual" || reason == "reset" { refreshOnline() }
+    /// The Refresh button: local logs, hook state and, when opted in, the Codex account query.
+    func refreshNow() {
+        refresh(checkHook: true, reason: "manual")
+        online.refresh()
+    }
+
+    /// Incremental refresh of local data. `checkHook` also re-reads the hook installation state from
+    /// settings.json. Never queries the Codex account; see `refreshNow()`.
+    func refresh(checkHook: Bool = false, reason: String) {
         guard !isRefreshing else {
             refreshAgain = true  // coalesce: run once more after the current refresh
             log.debug("refresh coalesced (\(reason, privacy: .public))")
@@ -280,55 +290,28 @@ final class UsageStore {
                                                 reason: onlineFailure ?? "Waiting for account query", now: now)
     }
 
-    private func refreshOnline() {
-        guard settings.codexEnabled && settings.codexOnlineLimitsEnabled,
-              onlineTask == nil, onlineStopTask == nil else { return }
-        let generation = onlineGeneration
-        onlineTask = Task { [weak self] in
-            guard let self else { return }
-            let result = await onlineClient.readLimits(enabled: settings.codexEnabled && settings.codexOnlineLimitsEnabled)
-            guard !Task.isCancelled, generation == onlineGeneration,
-                  settings.codexEnabled && settings.codexOnlineLimitsEnabled else { return }
-            switch result {
-            case .success(let snapshot):
-                // Replace the complete account/bucket snapshot. Never merge partial identities.
-                let accepted = CodexOnlinePresentation.newer(snapshot, than: onlineSnapshot)
-                if onlineSnapshot?.accountIdentity != accepted.accountIdentity
-                    || onlineSnapshot?.buckets.map(\.limitId) != accepted.buckets.map(\.limitId) {
-                    planner.forget(tool: .codex)
-                }
-                onlineSnapshot = accepted
-                onlineFailure = nil
-            case .failure(let failure):
-                if onlineSnapshot != nil { planner.forget(tool: .codex) }
-                onlineSnapshot = nil
-                onlineFailure = Self.onlineFailureText(failure)
-            }
-            let displayed = presentCodex(now: Date())
-            if !displayed.sameContent(as: codex) { codex = displayed }
-            evaluateNotifications(now: Date())
-            scheduleResetRefresh()
-            onlineTask = nil
-        }
-    }
+    private var onlineEnabled: Bool { settings.codexEnabled && settings.codexOnlineLimitsEnabled }
 
-    private func stopOnline() {
-        onlineGeneration += 1
-        onlineTask?.cancel()
-        onlineTask = nil
-        onlineSnapshot = nil
-        onlineFailure = nil
-        codex = localCodex
-        let previousStop = onlineStopTask
-        let stoppedGeneration = onlineGeneration
-        onlineStopTask = Task { [weak self] in
-            guard let self else { return }
-            await previousStop?.value
-            await onlineClient.stop()
-            guard onlineGeneration == stoppedGeneration else { return }
-            onlineStopTask = nil
-            if settings.codexEnabled && settings.codexOnlineLimitsEnabled { refreshOnline() }
+    private func applyOnline(_ result: Result<CodexAccountLimits, CodexAppServerFailure>) {
+        switch result {
+        case .success(let snapshot):
+            // Replace the complete account/bucket snapshot. Never merge partial identities.
+            let accepted = CodexOnlinePresentation.newer(snapshot, than: onlineSnapshot)
+            if onlineSnapshot?.accountIdentity != accepted.accountIdentity
+                || onlineSnapshot?.buckets.map(\.limitId) != accepted.buckets.map(\.limitId) {
+                planner.forget(tool: .codex)
+            }
+            onlineSnapshot = accepted
+            onlineFailure = nil
+        case .failure(let failure):
+            if onlineSnapshot != nil { planner.forget(tool: .codex) }
+            onlineSnapshot = nil
+            onlineFailure = Self.onlineFailureText(failure)
         }
+        let displayed = presentCodex(now: Date())
+        if !displayed.sameContent(as: codex) { codex = displayed }
+        evaluateNotifications(now: Date())
+        scheduleResetRefresh()
     }
 
     func stop() async {
@@ -336,11 +319,7 @@ final class UsageStore {
         activeTimer?.invalidate()
         resetTimer?.invalidate()
         watcher = nil
-        onlineGeneration += 1
-        onlineTask?.cancel()
-        onlineTask = nil
-        await onlineStopTask?.value
-        await onlineClient.stop()
+        await online.shutdown()
     }
 
     private static func onlineFailureText(_ failure: CodexAppServerFailure) -> String {
@@ -361,10 +340,17 @@ final class UsageStore {
     /// Refreshes right after the earliest upcoming reset so the label flips to "reset" on time.
     private func scheduleResetRefresh() {
         resetTimer?.invalidate()
-        let next = states.flatMap { $0.summary?.limits ?? [] }.compactMap(\.resetsAt).filter { $0 > Date() }.min()
-        guard let next else { return }
+        func nextReset(_ state: ToolState) -> Date? {
+            (state.summary?.limits ?? []).compactMap(\.resetsAt).filter { $0 > Date() }.min()
+        }
+        guard let next = states.compactMap(nextReset).min() else { return }
+        // Only a Codex window reset is worth an account query.
+        let codexReset = nextReset(codex) == next
         resetTimer = Timer.scheduledTimer(withTimeInterval: next.timeIntervalSinceNow + 1, repeats: false) { [weak self] _ in
-            Task { @MainActor in self?.refresh(reason: "reset") }
+            Task { @MainActor in
+                self?.refresh(reason: "reset")
+                if codexReset { self?.online.refresh() }
+            }
         }
     }
 }
