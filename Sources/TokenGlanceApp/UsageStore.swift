@@ -49,6 +49,18 @@ final class UsageStore {
         reader: onlineClient,
         isEnabled: { [weak self] in self?.onlineEnabled ?? false },
         onResult: { [weak self] in self?.applyOnline($0) })
+    /// The Claude folder override, read by the usage child when it starts.
+    @ObservationIgnored private let claudeConfigDir = LockedURL()
+    @ObservationIgnored private lazy var claudeOnlineClient = ClaudeUsageClient(transportFactory: { [claudeConfigDir] in
+        ClaudeProcessTransport(configDir: claudeConfigDir.value)
+    })
+    @ObservationIgnored private var localClaude = ToolState(tool: .claude)
+    @ObservationIgnored private var claudeOnlineSnapshot: ClaudeAccountLimits?
+    @ObservationIgnored private var claudeOnlineFailure: String?
+    @ObservationIgnored private lazy var claudeOnline = ClaudeOnlineLimitsController(
+        reader: claudeOnlineClient,
+        isEnabled: { [weak self] in self?.claudeOnlineEnabled ?? false },
+        onResult: { [weak self] in self?.applyClaudeOnline($0) })
     @ObservationIgnored private var watcher: FileWatcher?
     @ObservationIgnored private var pollTimer: Timer?
     @ObservationIgnored private var resetTimer: Timer?
@@ -67,7 +79,9 @@ final class UsageStore {
 
     func start() {
         loader.configure(roots: LogRoots.resolve(settings))
+        claudeConfigDir.value = Self.claudeConfigOverride(settings)
         refresh(reason: "launch")
+        claudeOnline.refresh(.launch)
         Task { [weak self] in
             guard let self else { return }
             await onlineClient.setRateLimitsUpdatedHandler { [weak self] in
@@ -80,6 +94,7 @@ final class UsageStore {
             Task { @MainActor in
                 self?.refresh(checkHook: true, reason: "poll")
                 self?.online.refresh()
+                self?.claudeOnline.refresh(.poll)
             }
         }
         pollTimer?.tolerance = 30
@@ -97,6 +112,7 @@ final class UsageStore {
                 self?.planner.rebaseline()
                 self?.refresh(checkHook: true, reason: "wake")
                 self?.online.refresh()
+                self?.claudeOnline.refresh(.wake)
             }
         }
         marks.prune(before: Date().addingTimeInterval(-8 * 24 * 60 * 60))
@@ -115,6 +131,11 @@ final class UsageStore {
         let rootsChanged = LogRoots.resolve(newSettings) != LogRoots.resolve(old)
         let onlineChanged = newSettings.codexOnlineLimitsEnabled != old.codexOnlineLimitsEnabled
             || newSettings.codexEnabled != old.codexEnabled
+        let wasClaudeOnline = claudeOnlineEnabled
+        // A different Claude folder can mean a different login, so an earlier answer no longer applies.
+        let claudeOnlineChanged = newSettings.claudeOnlineLimitsEnabled != old.claudeOnlineLimitsEnabled
+            || newSettings.claudeEnabled != old.claudeEnabled
+            || Self.claudeConfigOverride(newSettings) != Self.claudeConfigOverride(old)
         settings = newSettings
         newSettings.save(to: .standard)
         if newSettings.language != old.language {
@@ -133,6 +154,12 @@ final class UsageStore {
         if !newSettings.claudeEnabled { planner.forget(tool: .claude) }
         if !newSettings.codexEnabled { planner.forget(tool: .codex) }
         if onlineChanged { planner.forget(tool: .codex) }
+        if claudeOnlineChanged {
+            planner.forget(tool: .claude)
+            claudeConfigDir.value = Self.claudeConfigOverride(newSettings)
+            claudeOnlineSnapshot = nil
+            claudeOnlineFailure = nil
+        }
         if rootsChanged {
             loader.configure(roots: LogRoots.resolve(newSettings))
             claude.refreshedAt = nil  // shows indexing progress again
@@ -149,6 +176,15 @@ final class UsageStore {
                 online.disable()
             }
         }
+        if claudeOnlineChanged {
+            claude = presentClaude(now: Date())
+            if claudeOnlineEnabled && !wasClaudeOnline {
+                claudeOnline.refresh(.manual)
+            } else {
+                // Off: cancel now. Still on (folder changed): stop the old read; a new one starts after.
+                claudeOnline.disable()
+            }
+        }
     }
 
     /// Names of the settings that differ (diagnostics; no values or paths).
@@ -158,6 +194,7 @@ final class UsageStore {
         if a.claudeEnabled != b.claudeEnabled { names.append("claudeEnabled") }
         if a.codexEnabled != b.codexEnabled { names.append("codexEnabled") }
         if a.codexOnlineLimitsEnabled != b.codexOnlineLimitsEnabled { names.append("codexOnlineLimitsEnabled") }
+        if a.claudeOnlineLimitsEnabled != b.claudeOnlineLimitsEnabled { names.append("claudeOnlineLimitsEnabled") }
         if a.claudeConfigDir != b.claudeConfigDir { names.append("claudeConfigDir") }
         if a.codexHome != b.codexHome { names.append("codexHome") }
         if a.language != b.language { names.append("language") }
@@ -230,14 +267,15 @@ final class UsageStore {
         if watcher == nil { log.error("FSEvents stream could not be created; relying on polling") }
     }
 
-    /// The Refresh button: local logs, hook state and, when opted in, the Codex account query.
+    /// The Refresh button: local logs, hook state and, when opted in, the account queries.
     func refreshNow() {
         refresh(checkHook: true, reason: "manual")
         online.refresh()
+        claudeOnline.refresh(.manual)
     }
 
     /// Incremental refresh of local data. `checkHook` also re-reads the hook installation state from
-    /// settings.json. Never queries the Codex account; see `refreshNow()`.
+    /// settings.json. Never queries an account; see `refreshNow()`.
     func refresh(checkHook: Bool = false, reason: String) {
         guard !isRefreshing else {
             refreshAgain = true  // coalesce: run once more after the current refresh
@@ -260,11 +298,13 @@ final class UsageStore {
             }.value
             // Replace state only when something besides the refresh time changed, so SwiftUI and the
             // label are not recomputed for no-op refreshes.
-            let claudeChanged = !claude.sameContent(as: self.claude) || self.claude.refreshedAt == nil
+            self.localClaude = claude
+            let presentedClaude = self.presentClaude(now: Date())
+            let claudeChanged = !presentedClaude.sameContent(as: self.claude) || self.claude.refreshedAt == nil
             self.localCodex = codex
             let presentedCodex = self.presentCodex(now: Date())
             let codexChanged = !presentedCodex.sameContent(as: self.codex) || self.codex.refreshedAt == nil
-            if claudeChanged { self.claude = claude }
+            if claudeChanged { self.claude = presentedClaude }
             if claude.hookStatus != self.hookStatus { self.hookStatus = claude.hookStatus }
             if codexChanged { self.codex = presentedCodex }
             log.info("state: claude changed \(claudeChanged, privacy: .public), codex changed \(codexChanged, privacy: .public)")
@@ -314,12 +354,70 @@ final class UsageStore {
         scheduleResetRefresh()
     }
 
+    private var claudeOnlineEnabled: Bool { settings.claudeEnabled && settings.claudeOnlineLimitsEnabled }
+
+    private func presentClaude(now: Date) -> ToolState {
+        guard claudeOnlineEnabled else { return localClaude }
+        if let claudeOnlineSnapshot {
+            return ClaudeOnlinePresentation.apply(claudeOnlineSnapshot, to: localClaude, now: now)
+        }
+        return ClaudeOnlinePresentation.fallback(localClaude, reason: claudeOnlineFailure ?? "Waiting for account query", now: now)
+    }
+
+    private func applyClaudeOnline(_ result: Result<ClaudeAccountLimits, ClaudeUsageFailure>) {
+        switch result {
+        case .success(let snapshot):
+            // Alert baselines restart when the shown source switches from the hook cache.
+            if claudeOnlineSnapshot == nil { planner.forget(tool: .claude) }
+            claudeOnlineSnapshot = ClaudeOnlinePresentation.newer(snapshot, than: claudeOnlineSnapshot)
+            claudeOnlineFailure = nil
+        case .failure(let failure):
+            if claudeOnlineSnapshot != nil { planner.forget(tool: .claude) }
+            claudeOnlineSnapshot = nil
+            claudeOnlineFailure = Self.claudeOnlineFailureText(failure)
+        }
+        log.info("claude online: \(Self.claudeOnlineOutcome(result), privacy: .public)")
+        let displayed = presentClaude(now: Date())
+        if !displayed.sameContent(as: claude) { claude = displayed }
+        evaluateNotifications(now: Date())
+        scheduleResetRefresh()
+    }
+
+    /// The Claude folder override from settings, passed to the usage child as `CLAUDE_CONFIG_DIR`.
+    private static func claudeConfigOverride(_ settings: AppSettings) -> URL? {
+        guard settings.normalized.claudeConfigDir != nil else { return nil }
+        return LogRoots.resolve(settings).claudeProjects.deletingLastPathComponent()
+    }
+
+    /// A category for the diagnostics log; never values.
+    private static func claudeOnlineOutcome(_ result: Result<ClaudeAccountLimits, ClaudeUsageFailure>) -> String {
+        switch result {
+        case .success(let limits): "ok, \(limits.windows.count) windows"
+        case .failure(let failure): "failed, \(failure)"
+        }
+    }
+
+    private static func claudeOnlineFailureText(_ failure: ClaudeUsageFailure) -> String {
+        switch failure {
+        case .disabled: "Claude online limit checks disabled"
+        case .executableUnavailable: "Claude Code executable not found"
+        case .launchFailed: "Claude Code could not start"
+        case .subscriptionRequired: "Claude subscription login required"
+        case .unavailable: "Claude Code could not read plan usage"
+        case .unsupported: "Installed Claude Code does not support usage reads"
+        case .timeout: "Account query timed out"
+        case .disconnected: "Claude Code exited before answering"
+        case .invalidResponse: "Account query returned invalid data"
+        }
+    }
+
     func stop() async {
         pollTimer?.invalidate()
         activeTimer?.invalidate()
         resetTimer?.invalidate()
         watcher = nil
         await online.shutdown()
+        await claudeOnline.shutdown()
     }
 
     private static func onlineFailureText(_ failure: CodexAppServerFailure) -> String {
@@ -344,12 +442,14 @@ final class UsageStore {
             (state.summary?.limits ?? []).compactMap(\.resetsAt).filter { $0 > Date() }.min()
         }
         guard let next = states.compactMap(nextReset).min() else { return }
-        // Only a Codex window reset is worth an account query.
+        // A window reset is worth an account query only for the tool that reset.
         let codexReset = nextReset(codex) == next
+        let claudeReset = nextReset(claude) == next
         resetTimer = Timer.scheduledTimer(withTimeInterval: next.timeIntervalSinceNow + 1, repeats: false) { [weak self] _ in
             Task { @MainActor in
                 self?.refresh(reason: "reset")
                 if codexReset { self?.online.refresh() }
+                if claudeReset { self?.claudeOnline.refresh(.reset) }
             }
         }
     }
@@ -491,5 +591,16 @@ enum HookLocator {
             Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("token-glance-hook"),
         ]
         return candidates.compactMap { $0 }.first { FileManager.default.isExecutableFile(atPath: $0.path) }
+    }
+}
+
+/// A URL shared with the usage child factory, which runs off the main actor.
+final class LockedURL: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: URL?
+
+    var value: URL? {
+        get { lock.lock(); defer { lock.unlock() }; return stored }
+        set { lock.lock(); stored = newValue; lock.unlock() }
     }
 }

@@ -184,3 +184,23 @@
 "notify.body.reset" = "%d%% left in the new window.";
 "notify.test.title" = "Token Glance test notification";
 "notify.test.body" = "Notifications are working.";
+
+/* Claude online limits */
+"popover.online.hookCache" = "Hook cache";
+"popover.online.hookValue" = "%@ %d%% used";
+"popover.online.hookDiffers" = "Hook cache differs: %@ (observed %@). Showing the account query.";
+"popover.online.outdated" = "Account query result is out of date";
+"popover.online.claude.disabled" = "Claude online limit checks disabled";
+"popover.online.claude.executableUnavailable" = "Claude Code executable not found";
+"popover.online.claude.launchFailed" = "Claude Code could not start";
+"popover.online.claude.subscriptionRequired" = "Claude subscription login required (API key and cloud provider logins have no plan limits)";
+"popover.online.claude.unavailable" = "Claude Code could not read plan usage right now (login expired, rate limited or offline)";
+"popover.online.claude.unsupported" = "Installed Claude Code does not support usage reads; update Claude Code";
+"popover.online.claude.disconnected" = "Claude Code exited before answering";
+"settings.claudeOnline.section" = "Claude online limits";
+"settings.claudeOnline.toggle" = "Check Claude plan limits online";
+"settings.claudeOnline.explain" = "When enabled, Token Glance starts the installed Claude Code in the background about every 5 minutes, without a prompt, to read your plan limits. Claude Code uses its own login and asks Anthropic's servers through an unofficial endpoint that can change. If it fails, the hook cache is shown. Token totals still come from local logs.";
+"settings.claudeOnline.consentTitle" = "Enable Claude online limits?";
+"settings.claudeOnline.consentBody" = "• External requests: about every 5 minutes and on Refresh, Token Glance starts the installed Claude Code without a prompt, and Claude Code requests your plan usage from Anthropic's servers.\n\n• Your login, read-only: Claude Code uses the login it already has. Token Glance never reads, stores or changes your token or Keychain item. Claude Code itself may refresh its login as it normally does.\n\n• Not an official, supported API: this uses an experimental Claude Code request backed by an undocumented server endpoint. It can change or stop working without notice; the hook cache is shown when it fails.\n\n• Terms: checking that this use is allowed under the terms for your account is your responsibility.\n\n• Turning this off stops it immediately, including a request in progress.";
+"settings.claudeOnline.enable" = "Enable";
+"settings.claudeOnline.cancel" = "Cancel";
