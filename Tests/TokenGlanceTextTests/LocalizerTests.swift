@@ -124,6 +124,14 @@ struct TooltipTests {
                                            mode: .remaining, now: now) == "Claude: statusline 훅이 설치되지 않음")
     }
 
+    @Test func codexAwaitingFreshSessionKeepsWeekly() {
+        let codex = state(.codex, session: nil, weekly: 86, issue: .awaitingFreshLimit)
+        #expect(Localizer(.english).tooltip(states: [codex], mode: .remaining, now: now)
+            == "Codex: window reset; waiting for new limit data · weekly 14% left")
+        #expect(Localizer(.korean).tooltip(states: [codex], mode: .used, now: now)
+            == "Codex: 윈도우 초기화 시각이 지남 — 새 한도 데이터를 기다리는 중 · 주간 86% 사용")
+    }
+
     @Test func resetWindow() {
         var claude = state(.claude, session: nil)
         claude.summary?.limits = [LimitStatus(kind: .session, usedPercent: 0, resetsAt: nil, isReset: true, observedAt: now - 7200)]

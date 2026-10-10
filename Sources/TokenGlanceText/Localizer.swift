@@ -207,17 +207,19 @@ extension Localizer {
         if state.tool == .codex && !state.onlineBucketRows.isEmpty && state.session == nil {
             return self("tooltip.otherWindows")
         }
-        guard let session = state.session else {
-            return self("tooltip.unavailable", name, unavailable(state.unavailableReason ?? .noData))
-        }
-        let reading = DisplayFormat.reading(session)
-        var text = mode == .remaining
-            ? self("tooltip.window.left", name, self("window.session.short"), reading.left)
-            : self("tooltip.window.used", name, self("window.session.short"), reading.used)
-        if let resetsAt = session.resetsAt {
-            text += self("tooltip.resetsIn", countdown(to: resetsAt, now: now))
-        } else if session.isReset {
-            text += self("tooltip.windowReset")
+        var text: String
+        if let session = state.session {
+            let reading = DisplayFormat.reading(session)
+            text = mode == .remaining
+                ? self("tooltip.window.left", name, self("window.session.short"), reading.left)
+                : self("tooltip.window.used", name, self("window.session.short"), reading.used)
+            if let resetsAt = session.resetsAt {
+                text += self("tooltip.resetsIn", countdown(to: resetsAt, now: now))
+            } else if session.isReset {
+                text += self("tooltip.windowReset")
+            }
+        } else {
+            text = self("tooltip.unavailable", name, unavailable(state.unavailableReason ?? .noData))
         }
         if let weekly = state.weekly {
             let weeklyReading = DisplayFormat.reading(weekly)

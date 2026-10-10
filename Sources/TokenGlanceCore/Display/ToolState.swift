@@ -98,7 +98,9 @@ public struct ToolState: Equatable, Sendable {
             let hadReset = state.summary?.limits.contains(where: \.isReset) ?? false
             state.summary?.limits.removeAll(where: \.isReset)
             state.limitWindows.removeAll { $0.isReset(at: now) }
-            if hadReset && state.summary?.limits.isEmpty == true {
+            // A reset session window is unknown until Codex reports again, even while the weekly
+            // window is still valid.
+            if hadReset && state.session == nil {
                 state.unavailableReason = .awaitingFreshLimit
             }
             state.limitSource = "Local logs"
