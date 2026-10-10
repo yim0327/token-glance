@@ -323,16 +323,22 @@ final class UsageLoader: @unchecked Sendable {
                 if fraction - lastReported >= 0.02 { lastReported = fraction; progress(fraction) }
             }
         }
-        claudeIndex.update(files: claudeFiles, source: fileSource, onRead: reporter)
-        codexIndex.update(files: codexFiles, source: fileSource, onRead: reporter)
-        var codexSizes: [URL: Int] = [:]
-        var codexModified: [URL: Date] = [:]
-        for url in codexFiles {
-            guard let stat = fileSource.stat(url) else { continue }
-            codexSizes[url] = stat.size
-            codexModified[url] = stat.modified
+        // A disabled tool's index is kept as it was, so turning the tool back on reads only what was
+        // appended meanwhile instead of every log again.
+        if enabled.claude {
+            claudeIndex.update(files: claudeFiles, source: fileSource, onRead: reporter)
         }
-        codexActive.update(sizes: codexSizes, modified: codexModified, now: now)
+        if enabled.codex {
+            codexIndex.update(files: codexFiles, source: fileSource, onRead: reporter)
+            var codexSizes: [URL: Int] = [:]
+            var codexModified: [URL: Date] = [:]
+            for url in codexFiles {
+                guard let stat = fileSource.stat(url) else { continue }
+                codexSizes[url] = stat.size
+                codexModified[url] = stat.modified
+            }
+            codexActive.update(sizes: codexSizes, modified: codexModified, now: now)
+        }
         if now.timeIntervalSince(lastPrune) > 3600 {
             claudeIndex.prune(before: now - Self.retention)
             codexIndex.prune(before: now - Self.retention)
