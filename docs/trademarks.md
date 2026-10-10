@@ -17,7 +17,7 @@ Codex value) and next to the tool names in the details panel. The app's own name
 | File in `Sources/TokenGlanceText/Resources/Marks/` | Source | SHA-256 |
 |---|---|---|
 | `claude-spark.svg` | Anthropic press kit (`https://www.anthropic.com/press-kit`, "Anthropic media resources.zip", file `Anthropic logos/Claude logos/3 Claude Spark/SVG/Claude Spark - Clay.svg`), downloaded 2026-10-10 | `6d53db4be375e899c937c26cf16684a80d6e869b1928d72b37748bef2560e219` |
-| `openai-blossom.svg` | `OAI_OpenAI-Blossom_Black.svg`, supplied by the maintainer when asked for the official download from OpenAI's brand page (`https://openai.com/brand/`). The file carries no download URL and the page could not be opened by automated tools (HTTP 403), so where it was downloaded from is not recorded or verified independently. A white variant with the same path was supplied as well. | `75c1e9fffa5e8c437bec1d67197a73992bca45d166c6ff23215185dea8fae92a` |
+| `openai-blossom.svg` | `OAI_OpenAI-Blossom_Black.svg`, provided by the maintainer as the official download from OpenAI's brand page (`https://openai.com/brand/`). The file carries no download URL and the page could not be opened by automated tools (HTTP 403), so where it was downloaded from is not recorded or verified independently. A white variant with the same path was supplied as well. | `75c1e9fffa5e8c437bec1d67197a73992bca45d166c6ff23215185dea8fae92a` |
 
 Both files are stored byte for byte as downloaded (only renamed). The Claude mark used is the
 general Claude mark ("Claude Spark"), not the separate Claude Code logo in the same press kit.
