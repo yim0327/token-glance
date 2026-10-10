@@ -299,3 +299,32 @@ may be off by a few seconds. Checkpoints are now logged at notice level.
 | Notification test banner | user-confirmed |
 | Codex new session / same session / resumed after app restart | app updated 0.49 s / 0.70 s / 1.0 s after the `token_count` write (probe: times and byte counts only) |
 | Threshold-crossing notification | automated tests only (no real limit was used up for it) |
+
+### Follow-up after the panel layout fix (2026-10-10)
+
+The limit source and observation time moved to separate lines in the details panel. Check that
+repeated panel use still does not grow memory:
+
+- Build: measurement build of the layout fix (commit `ebee129`), as a separate copy with its own
+  bundle id, so it started with default preferences (**online checks off**); the everyday app and
+  its settings were not touched. The gauge direction change that followed (`791e158`) only changes
+  a bar value and was not measured separately.
+- Plan: `TG_STRESS=panel:1,panel:30,panel:30`, rests 30 s, 60 s before the first open and after the
+  last close (8.6 minutes, 61 open/close cycles). Footprint: `footprint --sample 1`; CPU: `ps` CPU
+  time every 5 s; `vmmap --summary` at the end. Claude Code (this session) was writing logs.
+- The driver's checkpoints were not found with `log show` for this process; the open/close cadence
+  (first open at +61 s, then ~2.5 s cycles) is visible in the 1-second footprint samples.
+
+| Measure | Value |
+|---|---|
+| Footprint before the panel was opened | 19 MB |
+| After the first open | 27–28 MB |
+| Settled over the following 60 cycles | 28–30 MB, no per-cycle growth |
+| Highest 1-second sample | 36 MB (launch), 32 MB during the cycles |
+| Lifetime peak (`vmmap`) | **39.0 MB** (first scan) |
+| CPU, whole run | 1.08% (dense open/close load with short rests; not an idle figure) |
+| Children at the end | 0 |
+
+Only the panel was exercised (no settings or history window), so the numbers are not directly
+comparable with the 93-cycle run above (42–45 MB settled, 48.5 MB peak after all three windows).
+The changed lines are drawn only with online checks on; that state was not part of this run.

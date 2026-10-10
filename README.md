@@ -2,7 +2,10 @@
 
 Claude Code & Codex usage limits at a glance, in your macOS menu bar.
 
-<img src="docs/images/panel-ko.png" alt="Token Glance details panel (Korean UI)" width="340">
+<img src="docs/images/panel-ko.png" alt="Token Glance details panel (Korean UI, optional online checks on)" width="340">
+
+<sub>Details panel with the optional online checks turned on (they are off by default; the
+"limit source" lines appear only then).</sub>
 
 <!-- MENU BAR SCREENSHOT PENDING: two-line label (C 62% / X 80%), as docs/images/menubar.png. -->
 
@@ -33,7 +36,8 @@ numbers are real usage on the author's Mac.
 ## Features
 
 - Two-line label (one line when only one tool is enabled), orange at 30% left or less, red at 10%.
-- Remaining % (default) or used %.
+- Remaining % (default) or used %; the details panel gauges fill the same way (what is left, or
+  what is used).
 - Updates within seconds of new activity (FSEvents), reading only the bytes appended to logs.
 - Shows why a value is missing (`--`): hook not installed, no data yet, data too old, …
 - Settings: display mode, tools on/off (turning a tool back on shows it again immediately), custom
