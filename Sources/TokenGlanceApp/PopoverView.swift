@@ -305,12 +305,14 @@ private struct TokenTable: View {
     }
 }
 
-/// Text and gauge colors in the details panel. Light mode uses the system colors; dark mode uses
+/// Text and gauge colors in the details panel. Light mode uses the system colors (orange deeper); dark mode uses
 /// lighter tints, because the panel's translucent background can be mid-gray over a bright desktop
 /// and the system blue and red fell to about 1.5:1 contrast there (MenuPanel also darkens it).
 enum PanelColor {
     static let normal = dynamic(light: .controlAccentColor, dark: NSColor(srgbRed: 120 / 255, green: 185 / 255, blue: 1, alpha: 1))
-    static let warning = dynamic(light: .systemOrange, dark: NSColor(srgbRed: 1, green: 185 / 255, blue: 80 / 255, alpha: 1))
+    /// Light: a deeper, still saturated orange; the system orange was about 2:1 on the panel.
+    static let warning = dynamic(light: NSColor(srgbRed: 222 / 255, green: 108 / 255, blue: 0, alpha: 1),
+                                 dark: NSColor(srgbRed: 1, green: 185 / 255, blue: 80 / 255, alpha: 1))
     static let critical = dynamic(light: .systemRed, dark: NSColor(srgbRed: 1, green: 135 / 255, blue: 125 / 255, alpha: 1))
 
     private static func dynamic(light: NSColor, dark: NSColor) -> Color {

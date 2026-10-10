@@ -35,7 +35,7 @@ final class MenuPanel {
         background.wantsLayer = true
         background.layer?.cornerRadius = 10
         background.layer?.masksToBounds = true
-        let dim = DarkDimView()
+        let dim = BackdropTintView()
         dim.translatesAutoresizingMaskIntoConstraints = false
         background.addSubview(dim)
         host.view.translatesAutoresizingMaskIntoConstraints = false
@@ -106,14 +106,15 @@ final class MenuPanel {
     }
 }
 
-/// In dark mode, darkens the translucent background: over a bright desktop it was mid-gray and
-/// colored text in the panel was hard to read. Clear in light mode; follows appearance changes.
-private final class DarkDimView: NSView {
+/// Evens out the translucent background so the desktop behind it shows through less: over a
+/// bright or busy desktop it turned mid-gray (dark mode) or murky (light mode) and colored text
+/// was hard to read. Black 45% in dark mode, white 50% in light mode; follows appearance changes.
+private final class BackdropTintView: NSView {
     override var wantsUpdateLayer: Bool { true }
 
     override func updateLayer() {
         let dark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        layer?.backgroundColor = dark ? NSColor.black.withAlphaComponent(0.45).cgColor : NSColor.clear.cgColor
+        layer?.backgroundColor = dark ? NSColor.black.withAlphaComponent(0.45).cgColor : NSColor.white.withAlphaComponent(0.5).cgColor
     }
 
     override func viewDidChangeEffectiveAppearance() {
