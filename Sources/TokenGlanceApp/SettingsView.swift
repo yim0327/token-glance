@@ -18,9 +18,12 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     func show() {
         if window == nil {
             let host = NSHostingController(rootView: SettingsView(store: store))
-            host.sizingOptions = [.preferredContentSize]
+            host.sizingOptions = [.minSize, .maxSize]
             let window = NSWindow(contentViewController: host)
-            window.styleMask = [.titled, .closable]
+            window.styleMask = [.titled, .closable, .resizable]
+            // The form scrolls; open it as tall as fits on the screen, up to its usual height.
+            let available = (NSScreen.main?.visibleFrame.height ?? 800) - 80
+            window.setContentSize(NSSize(width: SettingsView.width, height: min(SettingsView.idealHeight, available)))
             window.isReleasedWhenClosed = false
             window.delegate = self
             window.center()
@@ -39,6 +42,9 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 }
 
 struct SettingsView: View {
+    static let width: CGFloat = 520
+    static let idealHeight: CGFloat = 760
+
     let store: UsageStore
     @State private var claudeDir = ""
     @State private var codexDir = ""
@@ -79,7 +85,8 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 520)
+        .frame(width: Self.width)
+        .frame(minHeight: 320)
         .environment(\.locale, l10n.locale)
         .onAppear {
             claudeDir = store.settings.claudeConfigDir ?? ""
