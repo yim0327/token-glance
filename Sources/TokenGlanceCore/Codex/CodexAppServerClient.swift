@@ -37,7 +37,11 @@ public actor CodexAppServerClient {
         updatedHandler = handler
     }
 
-    public func readLimits() async -> Result<CodexAccountLimits, CodexAppServerFailure> {
+    public func readLimits(enabled: Bool = true) async -> Result<CodexAccountLimits, CodexAppServerFailure> {
+        guard enabled else {
+            stop()
+            return .failure(.disabled)
+        }
         if let inFlight { return await inFlight.value }
         if let retryAfter, now() < retryAfter { return .failure(.rateLimited(retryAfter: retryAfter)) }
         let id = UUID()
@@ -77,12 +81,16 @@ public actor CodexAppServerClient {
             readGeneration = generation
             try Task.checkCancellation()
             let account = try await request("account/read", params: ["refreshToken": false])
+            try Task.checkCancellation()
+            guard generation == readGeneration else { throw CodexAppServerFailure.disconnected }
             guard let accountInfo = account["account"] as? [String: Any],
                   let type = accountInfo["type"] as? String else {
                 throw CodexAppServerFailure.loginRequired
             }
             guard type == "chatgpt" else { throw CodexAppServerFailure.apiKeyAccount }
             let result = try await request("account/rateLimits/read", params: ["excludeResetCreditDetails": true])
+            try Task.checkCancellation()
+            guard generation == readGeneration else { throw CodexAppServerFailure.disconnected }
             guard let limits = CodexAccountLimits.decode(result, observedAt: now()) else {
                 throw CodexAppServerFailure.invalidResponse
             }
@@ -119,6 +127,7 @@ public actor CodexAppServerClient {
     }
 
     private func request(_ method: String, params: [String: Any]) async throws -> [String: Any] {
+        try Task.checkCancellation()
         let id = nextID
         nextID += 1
         return try await withCheckedThrowingContinuation { continuation in

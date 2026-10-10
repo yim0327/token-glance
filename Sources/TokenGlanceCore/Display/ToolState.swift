@@ -27,6 +27,7 @@ public enum UnavailableReason: Equatable, Sendable {
     case noData
     case corrupt
     case stale
+    case awaitingFreshLimit
     case unsupportedVersion
     case hookNotInstalled
     case hookOverwritten
@@ -91,6 +92,12 @@ public struct ToolState: Equatable, Sendable {
                               hookStatus: hookStatus, refreshedAt: now)
         state.limitWindows = snapshot.limits
         if tool == .codex {
+            let hadReset = state.summary?.limits.contains(where: \.isReset) ?? false
+            state.summary?.limits.removeAll(where: \.isReset)
+            state.limitWindows.removeAll { $0.isReset(at: now) }
+            if hadReset && state.summary?.limits.isEmpty == true {
+                state.unavailableReason = .awaitingFreshLimit
+            }
             state.limitSource = "Local logs"
             state.limitObservedAt = snapshot.limits.map(\.observedAt).max()
         }

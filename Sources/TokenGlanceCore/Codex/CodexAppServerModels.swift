@@ -46,9 +46,11 @@ public struct CodexAccountLimits: Equatable, Sendable {
     public static func decode(_ value: [String: Any], observedAt: Date) -> CodexAccountLimits? {
         var buckets: [CodexLimitBucket] = []
         if let byID = value["rateLimitsByLimitId"] as? [String: Any], !byID.isEmpty {
-            buckets = byID.keys.sorted().compactMap { key in
+            for key in byID.keys.sorted() {
+                // A missing bucket must not turn a multi-bucket account into a single
+                // apparently complete limit in the menu bar.
                 guard let snapshot = byID[key] as? [String: Any] else { return nil }
-                return bucket(snapshot, fallbackID: key)
+                buckets.append(bucket(snapshot, fallbackID: key))
             }
         } else if let snapshot = value["rateLimits"] as? [String: Any] {
             buckets = [bucket(snapshot, fallbackID: nil)]
@@ -74,7 +76,9 @@ public struct CodexAccountLimits: Equatable, Sendable {
 }
 
 public enum CodexAppServerFailure: Error, Equatable, Sendable {
+    case disabled
     case executableUnavailable
+    case launchFailed
     case loginRequired
     case apiKeyAccount
     case unsupportedMethod

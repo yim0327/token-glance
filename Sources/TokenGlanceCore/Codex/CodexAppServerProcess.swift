@@ -25,7 +25,12 @@ public final class CodexProcessTransport: CodexAppServerTransport, @unchecked Se
         process.standardInput = input
         process.standardOutput = output
         process.standardError = FileHandle.nullDevice
-        try process.run()
+        do {
+            try process.run()
+        } catch {
+            // Process errors can contain local paths. Expose only the safe category.
+            throw CodexAppServerFailure.launchFailed
+        }
     }
 
     public func write(_ data: Data) throws {

@@ -285,7 +285,7 @@ final class UsageStore {
         let generation = onlineGeneration
         onlineTask = Task { [weak self] in
             guard let self else { return }
-            let result = await onlineClient.readLimits()
+            let result = await onlineClient.readLimits(enabled: settings.codexEnabled && settings.codexOnlineLimitsEnabled)
             guard !Task.isCancelled, generation == onlineGeneration,
                   settings.codexEnabled && settings.codexOnlineLimitsEnabled else { return }
             switch result {
@@ -338,7 +338,9 @@ final class UsageStore {
 
     private static func onlineFailureText(_ failure: CodexAppServerFailure) -> String {
         switch failure {
+        case .disabled: "Codex online limit checks disabled"
         case .executableUnavailable: "Codex executable not found"
+        case .launchFailed: "Codex App Server could not start"
         case .loginRequired: "Codex login required"
         case .apiKeyAccount: "ChatGPT subscription login required"
         case .unsupportedMethod: "Installed Codex does not support account limits"

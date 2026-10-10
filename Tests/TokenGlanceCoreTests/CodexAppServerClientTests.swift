@@ -124,6 +124,35 @@ struct CodexAppServerClientTests {
         #expect(count.value == 0)
     }
 
+    @Test func onlineOptionOffOnOffControlsProcessAndRequests() async {
+        let launches = LockedCounter()
+        let fake = fixtureTransport()
+        let client = CodexAppServerClient(transportFactory: {
+            launches.increment()
+            return fake
+        })
+        #expect(await client.readLimits(enabled: false) == .failure(.disabled))
+        #expect(launches.value == 0)
+        #expect(fake.methods.isEmpty)
+
+        #expect((await client.readLimits(enabled: true)).success != nil)
+        #expect(launches.value == 1)
+        #expect(fake.methods.filter { $0 == "account/rateLimits/read" }.count == 1)
+
+        #expect(await client.readLimits(enabled: false) == .failure(.disabled))
+        #expect(fake.closed)
+        #expect(launches.value == 1)
+    }
+
+    @Test func processLaunchFailureIsDistinctFromDisconnect() async {
+        let missing = URL(fileURLWithPath: "/private/tmp/token-glance-missing-\(UUID().uuidString)")
+        let client = CodexAppServerClient(transportFactory: {
+            CodexProcessTransport(executableURL: missing)
+        })
+        #expect(await client.readLimits() == .failure(.launchFailed))
+        await client.stop()
+    }
+
     @Test func initializesAndReadsOnlyExpectedMethods() async throws {
         let fake = fixtureTransport()
         let client = CodexAppServerClient(transportFactory: { fake })
@@ -170,6 +199,14 @@ struct CodexAppServerClientTests {
         #expect(limits.buckets[1].windows.first?.durationMinutes == 30)
         #expect(limits.buckets[1].windows.first?.kind == nil)
         #expect(limits.buckets[1].windows.first?.resetsAt == nil)
+    }
+
+    @Test func malformedBucketDoesNotBecomeSingleAccountLimit() {
+        let value: [String: Any] = ["rateLimitsByLimitId": [
+            "one": ["primary": ["usedPercent": 10, "windowDurationMins": 300]],
+            "two": NSNull(),
+        ]]
+        #expect(CodexAccountLimits.decode(value, observedAt: Date()) == nil)
     }
 
     @Test func unsupportedAndRateLimited() async {
