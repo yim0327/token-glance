@@ -58,6 +58,9 @@ Token Glance는 Claude Code와 Codex CLI의 **5시간 세션 한도**와 **주�
    및 보안**에서 Token Glance 항목의 **그래도 열기**를 누르고 확인합니다. 체크섬이 일치한 파일에만
    이렇게 하세요.
 
+릴리스 zip은 게시 전에 로컬에서 체크섬·서명·리소스·실행을 확인하지만, 내려받은 파일이 거치는
+Gatekeeper 확인을 대신하지는 않습니다.
+
 #### 소스에서 빌드
 
 Swift 5.10 이상(Xcode 또는 Command Line Tools)이 필요합니다. 직접 빌드한 앱은 이 Mac의 아키텍처로
@@ -92,6 +95,8 @@ Token Glance는 메뉴바에만 나타납니다(Dock 아이콘 없음).
 ```
 
 설치 후에는 복사된 훅으로 상태 확인(`status`), 복구(`repair`), 제거(`uninstall`)를 합니다.
+`repair`는 그 시점에 설정된 statusline을 체이닝하므로, 이후 `uninstall`은 그 statusline으로
+되돌립니다.
 
 ```sh
 ~/Library/Application\ Support/TokenGlance/bin/token-glance-hook status
@@ -120,9 +125,11 @@ Token Glance는 메뉴바에만 나타납니다(Dock 아이콘 없음).
 | 조회 시점 | 약 5분마다, 새로고침, Codex 업데이트 알림 | 약 5분마다, 새로고침, 앱 시작, 깨어날 때, 윈도우 초기화 때 |
 | 성격 | 공식 문서화된 App Server 메서드 | **공식 지원 API가 아님.** Claude Code의 실험적 `get_usage` 요청이 무문서 서버 엔드포인트를 읽습니다 |
 
-Claude 온라인 조회는 예고 없이 바뀌거나 멈출 수 있고, 그러면 훅 캐시 값을 보여줍니다. 이 사용이
-계정 약관상 허용되는지는 사용자가 확인해야 합니다. 옵션을 끄면 진행 중인 조회와 자식 프로세스도
-멈춥니다.
+Claude 온라인 조회는 `claude`를 `--safe-mode`, `--no-session-persistence`, 텔레메트리 끔으로
+실행합니다. Token Glance가 자격 증명을 건드리지 않더라도, 자식 Claude Code는 평소처럼 자기 로그인을
+갱신해 키체인에 다시 쓸 수 있고 자기 상태에 사용량 스냅샷을 짧게 남깁니다. 이 경로는 예고 없이
+바뀌거나 멈출 수 있고, 그러면 훅 캐시 값을 보여줍니다. 이 사용이 계정 약관상 허용되는지는 사용자가
+확인해야 합니다. 옵션을 끄면 진행 중인 조회와 자식 프로세스도 멈춥니다.
 
 ### 한계
 
@@ -131,6 +138,7 @@ Claude 온라인 조회는 예고 없이 바뀌거나 멈출 수 있고, 그러�
 - Claude 한도는 훅만 쓸 때 Claude Code가 실행 중일 때만 갱신됩니다. 7일보다 오래된 값은 숨깁니다.
 - 초기화 시각이 지난 윈도우는 새 관측이 올 때까지 "윈도우 초기화됨 — 새 데이터를 기다리는 중"으로 표시합니다.
 - 로그·훅 형식은 비공식이라 바뀔 수 있습니다. 모르는 필드는 무시하고 읽을 수 없는 줄은 건너뜁니다.
+- Codex 한도 필드는 세션이 적은 기기 한 대에서만 검증했습니다([docs/log-schemas.md](docs/log-schemas.md) §2).
 - 24시간 넘게 쉬었다가 재개한 Codex 세션은 최대 5분 뒤에 갱신될 수 있습니다.
 - 알림은 앱이 실행 중일 때만 보냅니다. 잠자기·종료 중의 변화는 나중에 보내지 않습니다.
 - 기록 창은 이 Mac의 로그만 셉니다. 가장 오래된 로그 이전의 날은 "로그 없음"으로 표시합니다.
@@ -234,6 +242,9 @@ Once a release is published on the [Releases](https://github.com/yim0327/token-g
    Privacy & Security**, choose **Open Anyway** for Token Glance and confirm. Do this only for a
    file whose checksum matched.
 
+The release zip is checked locally before publishing (checksum, signature, resources, launch), but
+that does not replace the Gatekeeper check a downloaded file goes through.
+
 #### From source
 
 Requires Swift 5.10+ (Xcode or the Command Line Tools). A locally built app is built for this Mac's
@@ -269,7 +280,8 @@ The hook can also be managed from a terminal. The first install uses the hook in
 /Applications/TokenGlance.app/Contents/Resources/token-glance-hook install
 ```
 
-After that, the installed copy handles `status`, `repair` and `uninstall`.
+After that, the installed copy handles `status`, `repair` and `uninstall`. `repair` chains the
+statusline set at that moment, so a later `uninstall` restores that statusline.
 
 ```sh
 ~/Library/Application\ Support/TokenGlance/bin/token-glance-hook status
@@ -301,8 +313,11 @@ only. If a check fails, the reason is shown and the local values are used.
 | When | About every 5 minutes, Refresh, Codex update notifications | About every 5 minutes, Refresh, launch, wake, a window reset |
 | Status | Documented App Server methods | **Not an official, supported API.** Claude Code's experimental `get_usage` request reads an undocumented server endpoint |
 
-Claude online checks can change or stop working without notice; the hook cache is shown then. Whether
-this use is allowed under the terms for your account is for you to check. Turning an option off stops
+Claude online checks run `claude` with `--safe-mode`, `--no-session-persistence` and telemetry off.
+Even though Token Glance does not touch credentials, the child Claude Code may refresh its own login
+and write it back to the Keychain as usual, and keeps a short usage snapshot in its own state. The
+checks can change or stop working without notice; the hook cache is shown then. Whether this use is
+allowed under the terms for your account is for you to check. Turning an option off stops
 a running check and its child process.
 
 ### Limitations
@@ -314,6 +329,8 @@ a running check and its child process.
 - A window whose reset time has passed shows "Window reset — waiting for new data" until a new observation arrives.
 - Log and hook formats are unofficial and may change. Unknown fields are ignored and unreadable lines
   skipped.
+- The Codex limit fields were verified on one machine with few sessions only
+  ([docs/log-schemas.md](docs/log-schemas.md) §2).
 - A Codex session resumed after more than 24 hours idle may take up to 5 minutes to update.
 - Notifications are sent only while the app runs; changes while the Mac slept or the app was closed
   are not sent afterwards.

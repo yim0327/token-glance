@@ -16,24 +16,38 @@ Updated: 2026-10-11
 - Codex online limits (PRD §7.4, PR #6): opt-in (default OFF) account limit reads through the
   installed Codex App Server over stdio; fallback to local logs with a visible reason; multiple
   `limitId` buckets kept separate; account queries only on refresh/poll/wake/update/Codex reset.
+  Review fixes before merge: SIGPIPE guard on the child's stdin, non-blocking stdout reader, early
+  child exit reported as a launch failure, PATH for npm-installed `codex`, option lifecycle moved to
+  `CodexOnlineLimitsController` with tests, no reads after a cancelled start or app quit. 211 tests
+  in 34 suites.
 - Claude online limits (PRD §7.5, PR #7): no stable official API for plan limits, so the app
   delegates to Claude Code's experimental `get_usage` control request in a short-lived headless
   child and never reads the Keychain item or token. Calling the undocumented endpoint with the token
   directly was rejected (Legal and compliance wording on collecting/intermediating credentials).
   Opt-in with a consent dialog; 20 s timeout, shared reads, backoff 5 → 30 min (Refresh bypasses),
   quick retries after launch/wake, cancel on OFF; hook-cache fallback with reason, source and
-  observation time.
+  observation time. Verified with 3 approved probe runs (one showed that
+  `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` also blocks the usage read, so it is not set) and a
+  5-minute ON measurement (2 successful queries). 248 tests in 39 suites.
 - Missing limits stay visible (PR #9): every enabled tool keeps its menu bar line; the details panel
-  keeps gray rows with `--/--` and the reason. With online checks off, Codex no longer names
-  "Local logs" as the source (PR #10).
+  keeps gray rows with `--/--` and the reason. Cause: a #6 regression where the Codex line
+  disappeared after its 5-hour window reset. With online checks off, Codex no longer names
+  "Local logs" as the source (PR #10). 254 tests in 40 suites.
 - M6 release preparation (PR #12): repeated window use measured (93 open/close cycles, settled
-  42–45 MB, no per-cycle growth, `docs/perf.md`); `scripts/package-release.sh` (zip + SHA-256,
+  42–45 MB, no per-cycle growth, CPU 0.77%, lifetime peak 48.5 MB; measurement-only driver behind
+  `-DTG_STRESS`, not in release builds; `docs/perf.md`); `scripts/package-release.sh` (zip + SHA-256,
   version/arch/resources/signature checks, run in CI); `.github/workflows/release.yml` (`v*` tag =
-  `VERSION` → tests → package → **draft** Release); local install check of the zip; details panel
-  layout and gauge direction fixes; README screenshots.
+  `VERSION` → tests → package → **draft** Release); local install check of the zip (checksum, ad hoc
+  signature, arm64, string tables, launch, `--print-state`; hook install/overwritten/repair/uninstall
+  in a temporary profile); details panel fixes (the English source/observed line was cut off, so
+  they are now separate lines; gauges follow the menu bar mode; after the fix: settled 28–30 MB over
+  61 panel cycles); README screenshots. 255 tests in 40 suites.
 - Service marks (PR #13): Claude mark and OpenAI Blossom from the supplied SVGs in the menu bar and
-  next to the tool names in the panel; C/X badges as the fallback; panel contrast changes in dark
-  and light mode. Trademark points remain open (`docs/trademarks.md`).
+  next to the tool names in the panel; C/X badges as the fallback. Panel contrast: in dark mode
+  blue/orange/red on the translucent background measured 1.46 / 2.88 / 1.69 : 1, now 5.85 / 7.03 /
+  5.06 : 1 (black 45% dim, lighter tints); light mode about 3.4 / 2.8 / 3.1 : 1 (white 50%, deeper
+  orange). Darker light-mode tints were tried and rejected as murky, so light text stays under
+  4.5 : 1. Trademark points remain open (`docs/trademarks.md`). 261 tests in 42 suites.
 - Release-blocker fixes (`fix/release-blockers`):
   - Online-check children: shared `StdioChild` for both transports; SIGTERM to the child's process
     group recorded at launch, SIGKILL after a 2 s grace; `stop()` waits for every closed child, so
@@ -54,6 +68,12 @@ Updated: 2026-10-11
   online checks and privacy, limitations, troubleshooting), Korean and English kept in step;
   development-session wording removed from PRD, log schemas, performance notes, ADR, trademarks,
   release notes and CLAUDE.md, keeping measurement conditions and verification status.
+  A second pass against the earlier history restored what the first pass had dropped: README
+  limits and notices (local zip checks do not replace Gatekeeper; `repair` changes what `uninstall`
+  restores; the child Claude Code may refresh its login and cache a usage snapshot; Codex limit
+  fields verified on one machine only), the AI-tool note in the PRD, the source-analysis numbers
+  behind the statusline-ordering rule (`docs/log-schemas.md` §3.2), the original wording on where
+  the Blossom file came from, and per-PR review fixes, causes, contrast values and test counts here.
 
 ## Verified in the real app
 
@@ -67,7 +87,7 @@ Manual checks on the development Mac (2026-10-10), before the release-blocker fi
 | Hook cache value differs: notice and source shown | checked by hand |
 | Option off during a check: no child left; no orphan after quit | checked by hand |
 | Codex source line hidden when the option is off | checked by hand |
-| Codex live tracking with the online option on (new, resumed, resumed after restart) | app log only: state updated 1–2 s after each rollout write; label change not observed by eye |
+| Codex live tracking with the online option on (new, resumed, resumed after restart) | app log only: state updated 1–2 s after each rollout write (no other Codex activity at the time); label change not observed by eye. Codex account reads could not be confirmed from logs because there is no Codex online log line |
 | Language switch, panel closing, toggles, Refresh, test banner (M6 build) | checked by hand |
 | Codex new/same/resumed-after-restart sessions (M6 build) | 0.49–1.0 s after the write (probe) |
 

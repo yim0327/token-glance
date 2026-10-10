@@ -222,8 +222,8 @@ Usage 객체: `input_tokens`, `cached_input_tokens`, **`cache_write_input_tokens
 M0 검증 기기에는 oh-my-claudecode 5.6.1의 HUD가 statusLine으로 설정돼 있었다(`node ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hud/….mjs`). Token Glance는 이 도구를 필요로 하지 않는다. 기존 statusline이 있는 사용자의 대표 사례로 분석했고, 아래 관찰이 체이닝 요구사항의 근거다.
 
 1. **command 형태**: 쉘 변수 확장을 포함한다 → 원본 문자열을 그대로 보관해 `/bin/sh -c`로 실행한다(경로 해석 금지).
-2. **한도 출처**: stdin의 `rate_limits`와 함께 자체적으로 비공식 usage API를 조회하고, 같은 윈도우면 둘 중 큰 %를 표시한다 → Token Glance 값과 1%p 정도 다를 수 있다(아래 실제 환경 검증).
-3. **실행 시간**: node 기동과 모듈 로드에 수십 ms 이상, API 캐시가 만료되면 Keychain 접근과 HTTPS 요청을 statusline 실행 경로에서 기다려 수백 ms~수 초 걸릴 수 있다 → 훅은 기존 statusline을 실행하기 **전에** 캐시 저장을 끝낸다. Claude Code가 실행 중인 statusline을 다음 업데이트로 취소해도 캐시는 이미 기록돼 있어야 한다.
+2. **한도 출처**: stdin의 `rate_limits`와 함께 자체적으로 비공식 OAuth usage API를 조회하고(자격증명은 Keychain → 인증 파일 순), 같은 윈도우(`resets_at` 근접)면 둘 중 큰 %를, 아니면 stdin 값을 표시한다 → Token Glance 값과 1%p 정도 다를 수 있다(아래 실제 환경 검증).
+3. **실행 시간**(소스 분석, 미측정): node 기동과 다수 ESM 모듈 동적 import에 수십 ms 이상, API 캐시(기본 90초, 실패 15초, 네트워크 오류 2분, 429는 최대 5분 백오프)가 만료되면 Keychain 접근(2초 타임아웃)과 HTTPS 요청(10초 타임아웃)을 statusline 실행 경로에서 기다려 수백 ms~수 초 걸릴 수 있다 → 훅은 기존 statusline을 실행하기 **전에** 캐시 저장을 끝낸다. Claude Code가 실행 중인 statusline을 다음 업데이트로 취소해도 캐시는 이미 기록돼 있어야 한다.
 4. **내부 캐시**: stdin 전체와 API 결과를 자체 경로에 비원자적으로 저장한다(프로젝트별로 흩어지고 경로·세션명 포함) → Token Glance는 다른 도구의 캐시를 읽지 않고 자체 훅 캐시를 쓴다.
 5. **stdin 읽기**: EOF까지 전부 읽어 `JSON.parse`한다 → 받은 stdin **바이트를 그대로** 자식 stdin에 쓰고 **반드시 close(EOF)** 한다. 재직렬화하지 않는다(필드 손실 방지).
 
