@@ -22,6 +22,7 @@ Sources/
 Tests/
   TokenGlanceCoreTests/
   Fixtures/          # 익명화된 실제 로그 샘플 (내용/경로/이메일 제거)
+assets/AppIcon/      # 앱 아이콘 원본 SVG(자체 디자인)와 생성된 .icns
 docs/                # PRD.md, log-schemas.md, ADR
 scripts/             # .app 번들링, 릴리스
 ```
@@ -33,6 +34,7 @@ swift build
 swift test                # Xcode 환경 / CI
 ./scripts/test.sh         # Command Line Tools만 있는 환경 (swift test는 테스트 0개로 거짓 통과함)
 ./scripts/bundle-app.sh   # .app 생성 (M3 이후)
+./scripts/make-app-icon.sh # assets/AppIcon/AppIcon.svg -> AppIcon.icns (아이콘을 바꿀 때만)
 ```
 
 변경 후에는 항상 `swift build && ./scripts/test.sh`를 실행해 테스트가 실제로 실행·통과했는지(테스트 개수 포함) 확인한 뒤 완료를 보고한다.
@@ -76,4 +78,5 @@ swift test                # Xcode 환경 / CI
 - 메뉴바 라벨과 상세 패널의 도구 이름 옆에 한해 서비스 식별용으로 Claude 마크와 OpenAI Blossom을 쓴다(2026-10-10 결정). 공식 배포 파일을 바이트 그대로 두고(`Sources/TokenGlanceText/Resources/Marks/`) 다시 그리거나 모양을 바꾸지 않는다. 단색(메뉴바 labelColor, 패널 기본 글자색) 채움만 하며, 경고 색은 숫자에만 쓴다. 파일이 없으면 중립 C/X 배지로 폴백한다.
 - Anthropic 사전 승인과 OpenAI 지침 원문 확인은 미해결이다. 승인·법적 허용으로 표현하지 않는다. 출처·조건·미확인 사항은 `docs/trademarks.md`에 기록한다.
 - 앱 자체 아이콘·이름·브랜딩과 위 두 곳 밖의 화면에는 타사 로고를 쓰지 않는다.
+- 앱 아이콘은 자체 디자인이다(`assets/AppIcon/AppIcon.svg`). 타사 마크, 그것을 연상시키는 형태, 각 사 브랜드 색을 쓰지 않는다. SVG를 바꾸면 `./scripts/make-app-icon.sh`로 `AppIcon.icns`를 다시 만들어 함께 커밋한다.
 - README에 "Not affiliated with Anthropic or OpenAI"와, MIT 라이선스가 타사 상표 사용 권한을 주지 않는다는 점을 명시한다.

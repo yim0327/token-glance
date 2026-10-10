@@ -189,6 +189,8 @@ Claude 온라인 조회는 `claude`를 `--safe-mode`, `--no-session-persistence`
   실행됩니다).
 - 릴리스 패키징: `./scripts/package-release.sh`가 `dist/release`에 zip과 SHA-256을 만듭니다.
   `VERSION`과 일치하는 `v*` 태그를 push하면 CI가 테스트 후 **draft** Release를 만듭니다.
+- 앱 아이콘: 원본은 `assets/AppIcon/AppIcon.svg`(자체 디자인)입니다. 바꾼 뒤
+  `./scripts/make-app-icon.sh`로 `AppIcon.icns`를 다시 만들어 두 파일을 함께 커밋합니다.
 
 ### 라이선스와 고지
 
@@ -397,6 +399,8 @@ settings.json as `settings.json.token-glance-backup-<time>`.
   Tools are installed).
 - Release packaging: `./scripts/package-release.sh` writes the zip and its SHA-256 to `dist/release`.
   Pushing a `v*` tag that matches `VERSION` makes CI run the tests and create a **draft** Release.
+- App icon: the source is `assets/AppIcon/AppIcon.svg` (own design). After changing it, run
+  `./scripts/make-app-icon.sh` to rebuild `AppIcon.icns` and commit both files.
 
 ### License and notices
 

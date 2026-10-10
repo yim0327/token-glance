@@ -212,7 +212,7 @@
   - `TokenGlanceCore` (UI 무관: Provider, Parser, Aggregator, 모델) - 유닛 테스트 대상
   - `TokenGlanceApp` (SwiftUI 메뉴바 앱)
   - `token-glance-hook` (Foundation 기반 Swift CLI)
-- 번들: `scripts/bundle-app.sh` → `dist/TokenGlance.app`(ad-hoc 서명, LSUIElement), 번들 ID `io.github.yim0327.token-glance`, 훅 바이너리는 `Contents/Resources`에 포함하고 설치 시 `~/Library/Application Support/TokenGlance/bin/`에 복사. 진단용 `--print-state` 플래그 제공.
+- 번들: `scripts/bundle-app.sh` → `dist/TokenGlance.app`(ad-hoc 서명, LSUIElement, 앱 아이콘 `assets/AppIcon/AppIcon.icns`), 번들 ID `io.github.yim0327.token-glance`, 훅 바이너리는 `Contents/Resources`에 포함하고 설치 시 `~/Library/Application Support/TokenGlance/bin/`에 복사. 진단용 `--print-state` 플래그 제공.
 - 빌드: SwiftPM + `.app` 번들링 스크립트. `swift build`/`./scripts/test.sh`로 로컬과 CI에서 같은 방식으로 검증한다.
 - 테스트: Swift Testing / XCTest, 실제 구조 기반 합성/익명 fixture로 검증. 실제 로그 파일 복사 금지
 - CI: GitHub Actions (macOS runner에서 build + test)
