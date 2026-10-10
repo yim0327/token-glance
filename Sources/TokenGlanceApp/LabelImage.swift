@@ -8,27 +8,30 @@ import TokenGlanceCore
 enum LabelImage {
     static let font = NSFont.monospacedDigitSystemFont(ofSize: 9.5, weight: .semibold)
     static let singleLineFont = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium)
-    static let badgeSize: CGFloat = 8.5
+    static let badgeSize: CGFloat = 10
     static let lineHeight: CGFloat = 10.5
+    /// Space between the two lines (2 × 10.5 + 1 = 22 pt, within the 22–24 pt menu bar).
+    static let lineSpacing: CGFloat = 1
     static let gap: CGFloat = 2.5
 
     static func make(_ label: MenuBarLabel, height: CGFloat = NSStatusBar.system.thickness) -> NSImage {
         let lines = label.lines
         let twoLines = lines.count > 1
         let font = twoLines ? font : singleLineFont
-        let badge = twoLines ? badgeSize : 11
+        let badge = twoLines ? badgeSize : 13
         let textWidth = lines.map { width(of: $0, font: font) }.max() ?? 0
         let size = NSSize(width: ceil(badge + gap + textWidth) + 1, height: height)
 
         let image = NSImage(size: size, flipped: false) { _ in
             let rowHeight = twoLines ? lineHeight : height
-            let top = (height - rowHeight * CGFloat(lines.count)) / 2
+            let spacing = twoLines ? lineSpacing : 0
+            let top = (height - rowHeight * CGFloat(lines.count) - spacing * CGFloat(lines.count - 1)) / 2
             for (index, line) in lines.enumerated() {
-                let rowY = height - top - rowHeight * CGFloat(index + 1)
+                let rowY = height - top - rowHeight * CGFloat(index + 1) - spacing * CGFloat(index)
                 let text = NSAttributedString(string: line.text, attributes: [.font: font, .foregroundColor: color(line.severity)])
                 let textSize = text.size()
                 let textY = rowY + (rowHeight - textSize.height) / 2
-                drawBadge(letter(line.tool), in: NSRect(x: 0, y: rowY + (rowHeight - badge) / 2, width: badge, height: badge))
+                drawMark(line.tool, in: NSRect(x: 0, y: rowY + (rowHeight - badge) / 2, width: badge, height: badge))
                 if line.severity == .unavailable {
                     drawDashes(x: badge + gap, baselineY: textY - font.descender, font: font)
                 } else {
@@ -84,7 +87,25 @@ enum LabelImage {
         }
     }
 
-    /// A filled circle with the letter knocked out (neutral glyph, no vendor logos).
+    /// The service's mark (ServiceMarks), filled in one color with `labelColor` so it follows the
+    /// menu bar like a template image while the number next to it keeps its warning color. The
+    /// path is drawn as supplied, scaled uniformly to fit `rect` by its own bounds (the file's
+    /// empty margin is not kept; there is no room for it at this size).
+    private static func drawMark(_ tool: Tool, in rect: NSRect) {
+        guard let path = ServiceMarkPath.fitted(tool, in: rect, flipped: true),
+              let context = NSGraphicsContext.current?.cgContext
+        else {
+            drawBadge(letter(tool), in: rect)
+            return
+        }
+        context.saveGState()
+        context.addPath(path)
+        context.setFillColor(NSColor.labelColor.cgColor)
+        context.fillPath(using: .winding)
+        context.restoreGState()
+    }
+
+    /// Fallback when a mark file is missing or unreadable: a filled circle with the letter knocked out.
     private static func drawBadge(_ letter: String, in rect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         context.saveGState()

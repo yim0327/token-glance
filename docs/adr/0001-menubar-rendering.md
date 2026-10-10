@@ -31,7 +31,9 @@ Use option 2.
   Text uses `NSColor.labelColor`; warning/critical percentages use `systemOrange` / `systemRed`;
   missing values (`--`) use `secondaryLabelColor`. All are dynamic colors resolved at draw time,
   so no appearance observation is needed.
-- Tool glyphs are neutral circular badges with a knocked-out letter ("C", "X"), drawn in code. No
+- Tool glyphs were neutral circular badges (superseded 2026-10-10: the label now draws the Claude
+  mark and the OpenAI Blossom from their supplied SVG paths in `labelColor`, with these badges as
+  the fallback; see docs/trademarks.md). Originally: neutral circular badges with a knocked-out letter ("C", "X"), drawn in code. No
   Anthropic/OpenAI logos. SF Symbols `c.circle.fill` / `x.circle.fill` exist and would also work,
   but drawing the badge directly avoids a separate tinting pass at 8pt.
 - The popover is an `NSPopover` hosting SwiftUI content (`NSHostingController`). SwiftUI is still

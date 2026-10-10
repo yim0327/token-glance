@@ -73,5 +73,7 @@ swift test                # Xcode 환경 / CI
 
 ## 상표/고지
 
-- Claude, OpenAI 로고를 번들에 포함하지 않는다. 중립 심볼(C/X 글리프 또는 단색 아이콘)을 사용한다.
-- README에 "Not affiliated with Anthropic or OpenAI"를 명시한다.
+- 메뉴바 라벨과 상세 패널의 도구 이름 옆에 한해 서비스 식별용으로 Claude 마크와 OpenAI Blossom을 쓴다(사용자 요청, 2026-10-10). 공식 배포 파일을 바이트 그대로 두고(`Sources/TokenGlanceText/Resources/Marks/`) 다시 그리거나 모양을 바꾸지 않는다. 단색(메뉴바 labelColor, 패널 기본 글자색) 채움만 하며, 경고 색은 숫자에만 쓴다. 파일이 없으면 중립 C/X 배지로 폴백한다.
+- Anthropic 사전 승인과 OpenAI 지침 원문 확인은 미해결이다. 승인·법적 허용으로 표현하지 않는다. 출처·조건·미확인 사항은 `docs/trademarks.md`에 기록한다.
+- 앱 자체 아이콘·이름·브랜딩과 위 두 곳 밖의 화면에는 타사 로고를 쓰지 않는다.
+- README에 "Not affiliated with Anthropic or OpenAI"와, MIT 라이선스가 타사 상표 사용 권한을 주지 않는다는 점을 명시한다.

@@ -35,9 +35,16 @@ final class MenuPanel {
         background.wantsLayer = true
         background.layer?.cornerRadius = 10
         background.layer?.masksToBounds = true
+        let dim = BackdropTintView()
+        dim.translatesAutoresizingMaskIntoConstraints = false
+        background.addSubview(dim)
         host.view.translatesAutoresizingMaskIntoConstraints = false
         background.addSubview(host.view)
         NSLayoutConstraint.activate([
+            dim.leadingAnchor.constraint(equalTo: background.leadingAnchor),
+            dim.trailingAnchor.constraint(equalTo: background.trailingAnchor),
+            dim.topAnchor.constraint(equalTo: background.topAnchor),
+            dim.bottomAnchor.constraint(equalTo: background.bottomAnchor),
             host.view.leadingAnchor.constraint(equalTo: background.leadingAnchor),
             host.view.trailingAnchor.constraint(equalTo: background.trailingAnchor),
             host.view.topAnchor.constraint(equalTo: background.topAnchor),
@@ -96,6 +103,23 @@ final class MenuPanel {
         }) {
             monitors.append(local)
         }
+    }
+}
+
+/// Evens out the translucent background so the desktop behind it shows through less: over a
+/// bright or busy desktop it turned mid-gray (dark mode) or murky (light mode) and colored text
+/// was hard to read. Black 45% in dark mode, white 50% in light mode; follows appearance changes.
+private final class BackdropTintView: NSView {
+    override var wantsUpdateLayer: Bool { true }
+
+    override func updateLayer() {
+        let dark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        layer?.backgroundColor = dark ? NSColor.black.withAlphaComponent(0.45).cgColor : NSColor.white.withAlphaComponent(0.5).cgColor
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        needsDisplay = true
     }
 }
 
