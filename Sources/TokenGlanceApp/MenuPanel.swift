@@ -35,9 +35,16 @@ final class MenuPanel {
         background.wantsLayer = true
         background.layer?.cornerRadius = 10
         background.layer?.masksToBounds = true
+        let dim = DarkDimView()
+        dim.translatesAutoresizingMaskIntoConstraints = false
+        background.addSubview(dim)
         host.view.translatesAutoresizingMaskIntoConstraints = false
         background.addSubview(host.view)
         NSLayoutConstraint.activate([
+            dim.leadingAnchor.constraint(equalTo: background.leadingAnchor),
+            dim.trailingAnchor.constraint(equalTo: background.trailingAnchor),
+            dim.topAnchor.constraint(equalTo: background.topAnchor),
+            dim.bottomAnchor.constraint(equalTo: background.bottomAnchor),
             host.view.leadingAnchor.constraint(equalTo: background.leadingAnchor),
             host.view.trailingAnchor.constraint(equalTo: background.trailingAnchor),
             host.view.topAnchor.constraint(equalTo: background.topAnchor),
@@ -96,6 +103,22 @@ final class MenuPanel {
         }) {
             monitors.append(local)
         }
+    }
+}
+
+/// In dark mode, darkens the translucent background: over a bright desktop it was mid-gray and
+/// colored text in the panel was hard to read. Clear in light mode; follows appearance changes.
+private final class DarkDimView: NSView {
+    override var wantsUpdateLayer: Bool { true }
+
+    override func updateLayer() {
+        let dark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        layer?.backgroundColor = dark ? NSColor.black.withAlphaComponent(0.45).cgColor : NSColor.clear.cgColor
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        needsDisplay = true
     }
 }
 

@@ -67,7 +67,7 @@ private struct ToolSection: View {
                 if state.hookNeedsAttention {
                     Label(hookWarning, systemImage: "exclamationmark.triangle.fill")
                         .font(.caption)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(PanelColor.warning)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -111,7 +111,7 @@ private struct ToolSection: View {
                 if let failure = state.onlineFailure {
                     Text(l10n("popover.online.failure", onlineFailure(failure))
                          + (state.tool == .codex ? " " + l10n("popover.online.localIdentityUnverified") : ""))
-                        .font(.caption).foregroundStyle(.orange)
+                        .font(.caption).foregroundStyle(PanelColor.warning)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -224,9 +224,9 @@ private struct LimitRow: View {
 
     private var tint: Color {
         switch DisplayFormat.severity(status) {
-        case .warning: .orange
-        case .critical: .red
-        case .normal: .accentColor
+        case .warning: PanelColor.warning
+        case .critical: PanelColor.critical
+        case .normal: PanelColor.normal
         case .unavailable: .secondary
         }
     }
@@ -302,5 +302,20 @@ private struct TokenTable: View {
 
     private var topModels: [(String, TokenUsage)] {
         summary.weekByModel.sorted { $0.value.total > $1.value.total }.prefix(3).map { ($0.key, $0.value) }
+    }
+}
+
+/// Text and gauge colors in the details panel. Light mode uses the system colors; dark mode uses
+/// lighter tints, because the panel's translucent background can be mid-gray over a bright desktop
+/// and the system blue and red fell to about 1.5:1 contrast there (MenuPanel also darkens it).
+enum PanelColor {
+    static let normal = dynamic(light: .controlAccentColor, dark: NSColor(srgbRed: 120 / 255, green: 185 / 255, blue: 1, alpha: 1))
+    static let warning = dynamic(light: .systemOrange, dark: NSColor(srgbRed: 1, green: 185 / 255, blue: 80 / 255, alpha: 1))
+    static let critical = dynamic(light: .systemRed, dark: NSColor(srgbRed: 1, green: 135 / 255, blue: 125 / 255, alpha: 1))
+
+    private static func dynamic(light: NSColor, dark: NSColor) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light
+        })
     }
 }
