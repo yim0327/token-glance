@@ -87,13 +87,16 @@ private struct ToolSection: View {
             }
             if state.tool == .codex || state.limitSource != nil {
                 if let source = state.limitSource {
-                    HStack(spacing: 4) {
+                    // Source and observation time on their own lines: side by side, a long
+                    // English date was truncated or wrapped into a narrow column.
+                    VStack(alignment: .leading, spacing: 1) {
                         Text(l10n("popover.online.source", sourceName(source)))
                         if let observedAt = state.limitObservedAt {
                             Text(l10n("popover.online.observed", l10n.resetTime(observedAt)))
                         }
                     }
                     .font(.caption2).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                 }
                 if !state.otherSourceLimits.isEmpty {
                     Text(hookComparison).font(.caption2).foregroundStyle(.secondary)
