@@ -49,9 +49,24 @@ Updated: 2026-10-10
 | Codex live tracking with the online option on: new session, resumed session, resume after app restart | app log only: Codex state updated 1–2 s after each rollout write (16:47–16:49, no other Codex activity); label change not reported by the user |
 | Codex source line hidden when the option is off | user-confirmed |
 
+- M6 release preparation (branch `chore/m6-release`, PR pending review):
+  - Repeated window use measured (93 open/close cycles): footprint settles at 42–45 MB after first
+    use, no per-cycle growth; CPU 0.77% over the run; lifetime peak 48.5 MB (`docs/perf.md`).
+  - Measurement-only driver behind `-DTG_STRESS` (not in release builds).
+  - `scripts/package-release.sh` (zip + SHA-256, version/arch/resources/signature checks), run in CI.
+  - `.github/workflows/release.yml`: `v*` tag = VERSION → tests → package → **draft** Release.
+  - Local install check of the zip: checksum, ad hoc signature, arm64, string tables, launch,
+    `--print-state`; hook install/overwritten/repair/uninstall in a temporary profile.
+  - PRD v1.0, README screenshots (panel and history, English/Korean), install and Gatekeeper steps.
+  - Real-app regression checks passed (language, panel closing, toggles, refresh, test banner,
+    Codex new/same/resumed-after-restart sessions 0.49–1.0 s).
+
 ## Next
 
-- M6: README screenshots, release automation, distribution check.
+- M6 (needs approval): merge the M6 PR, push tag `v0.1.0`, review the draft Release, publish.
+- After publishing: download the zip on a Mac and check the Gatekeeper "Open Anyway" flow.
+- Menu bar label screenshot (to be taken by hand; window capture cannot isolate the status item).
+- English details panel: the "Limit source · Observed …" line truncates / wraps awkwardly.
 - Fix now (small PRs, not started):
   1. Child process robustness: wait for the App Server / Claude Code child to exit on quit (or kill
      its process group), cap buffered stdout lines, close stdout only after EOF.
