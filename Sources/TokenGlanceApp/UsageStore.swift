@@ -85,7 +85,11 @@ final class UsageStore {
     /// Saves new settings. Changed log folders rebuild the indexes and the file watcher.
     func apply(_ newSettings: AppSettings) {
         let newSettings = newSettings.normalized
-        guard newSettings != settings else { return }
+        guard newSettings != settings else {
+            log.debug("settings: apply with no change")
+            return
+        }
+        log.info("settings: apply \(Self.changedFields(self.settings, newSettings), privacy: .public)")
         let old = settings
         let rootsChanged = LogRoots.resolve(newSettings) != LogRoots.resolve(old)
         settings = newSettings
@@ -97,7 +101,10 @@ final class UsageStore {
         // Alert baselines restart from the next observation whenever what they describe changes.
         if newSettings.notificationsEnabled && !old.notificationsEnabled {
             planner.rebaseline()
-            Task { notificationAuthorization = await notifier.requestAuthorization() }
+            Task {
+                notificationAuthorization = await notifier.requestAuthorization()
+                log.info("notifications: requested, now \(String(describing: self.notificationAuthorization), privacy: .public)")
+            }
         }
         if rootsChanged { planner.rebaseline() }
         if !newSettings.claudeEnabled { planner.forget(tool: .claude) }
@@ -108,6 +115,20 @@ final class UsageStore {
             startWatching()
         }
         refresh()
+    }
+
+    /// Names of the settings that differ (diagnostics; no values or paths).
+    private static func changedFields(_ a: AppSettings, _ b: AppSettings) -> String {
+        var names: [String] = []
+        if a.percentMode != b.percentMode { names.append("percentMode") }
+        if a.claudeEnabled != b.claudeEnabled { names.append("claudeEnabled") }
+        if a.codexEnabled != b.codexEnabled { names.append("codexEnabled") }
+        if a.claudeConfigDir != b.claudeConfigDir { names.append("claudeConfigDir") }
+        if a.codexHome != b.codexHome { names.append("codexHome") }
+        if a.language != b.language { names.append("language") }
+        if a.notificationsEnabled != b.notificationsEnabled { names.append("notificationsEnabled") }
+        if a.notificationThresholds != b.notificationThresholds { names.append("thresholds") }
+        return names.joined(separator: ",")
     }
 
     /// The installer for the Claude config folder currently in use.
@@ -129,6 +150,7 @@ final class UsageStore {
 
     func updateNotificationAuthorization() async {
         notificationAuthorization = await notifier.authorization()
+        log.info("notifications: authorization \(String(describing: self.notificationAuthorization), privacy: .public)")
     }
 
     func openNotificationSettings() {
@@ -137,7 +159,9 @@ final class UsageStore {
 
     /// Sends a test notification. Returns an error description on failure.
     func sendTestNotification() async -> String? {
-        await notifier.send(id: "test-\(UUID().uuidString)", title: localizer("notify.test.title"), body: localizer("notify.test.body"))
+        let error = await notifier.send(id: "test-\(UUID().uuidString)", title: localizer("notify.test.title"), body: localizer("notify.test.body"))
+        log.info("notifications: test sent, error \(error != nil, privacy: .public)")
+        return error
     }
 
     private func evaluateNotifications(now: Date) {
