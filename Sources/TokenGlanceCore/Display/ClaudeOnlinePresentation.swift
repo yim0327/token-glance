@@ -1,7 +1,9 @@
 import Foundation
 
 /// Chooses which Claude limit values are shown while the online option is on: the latest valid
-/// account query, otherwise the statusline hook cache. Values from the two sources are never mixed,
+/// account query, otherwise the statusline hook cache. Once a queried window has passed its reset,
+/// hook values observed after the query win until the next query. The choice goes by freshness and
+/// reset state, never by which percent is higher. Values from the two sources are never mixed,
 /// averaged or summed, and token totals always stay the locally indexed ones.
 public enum ClaudeOnlinePresentation {
     public static let accountQuery = "Account query"
@@ -23,16 +25,20 @@ public enum ClaudeOnlinePresentation {
         // A window whose reset time has passed proves nothing about the account until the next
         // query reports it again, so it is not shown as recovered.
         let current = result.windows.filter { window in window.resetsAt.map { $0 > now } ?? true }
+        let hook = activeLimits(local)
+        if current.count < result.windows.count,
+           let hookObserved = hook.map(\.observedAt).max(), hookObserved > result.observedAt {
+            return fallback(local, reason: "Waiting for account query", now: now)
+        }
         guard !current.isEmpty else {
             let reason = result.windows.isEmpty ? "Account query returned no limit windows" : "Waiting for account query"
             return fallback(local, reason: reason, now: now)
         }
-        var state = local
+        var state = local.withSummaryForLimits(now: now)
         let statuses = current.map { window in
             LimitStatus(kind: window.kind, usedPercent: window.usedPercent, resetsAt: window.resetsAt,
                         isReset: false, observedAt: result.observedAt)
         }
-        let hook = activeLimits(local)
         state.otherSourceLimits = differs(hook, from: statuses) ? hook : []
         state.summary?.limits = statuses
         state.limitWindows = current.compactMap { window in

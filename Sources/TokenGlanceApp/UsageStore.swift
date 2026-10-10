@@ -358,11 +358,13 @@ final class UsageStore {
     private var claudeOnlineEnabled: Bool { settings.claudeEnabled && settings.claudeOnlineLimitsEnabled }
 
     private func presentClaude(now: Date) -> ToolState {
-        // Before the first local index there is no summary to put limits into; wait for it.
-        guard claudeOnlineEnabled, localClaude.summary != nil else { return localClaude }
+        guard claudeOnlineEnabled else { return localClaude }
+        // An account query can finish before the first local index; its values are shown at once.
         if let claudeOnlineSnapshot {
             return ClaudeOnlinePresentation.apply(claudeOnlineSnapshot, to: localClaude, now: now)
         }
+        // Without a query result there is nothing to explain before the first index.
+        guard localClaude.summary != nil else { return localClaude }
         return ClaudeOnlinePresentation.fallback(localClaude, reason: claudeOnlineFailure ?? "Waiting for account query", now: now)
     }
 

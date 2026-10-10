@@ -115,8 +115,9 @@ private struct ToolSection: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            // An empty token table is left out while a limit value is unknown.
-            if let summary = state.summary, missing == nil || summary.hasTokens {
+            // An empty token table is left out while a limit value is unknown, and before the first
+            // local index (account limits can arrive earlier).
+            if let summary = state.summary, state.refreshedAt != nil, missing == nil || summary.hasTokens {
                 TokenTable(summary: summary, l10n: l10n)
             }
         }
