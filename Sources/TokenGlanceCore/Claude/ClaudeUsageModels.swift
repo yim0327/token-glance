@@ -92,8 +92,10 @@ public enum ClaudeUsageFailure: Error, Equatable, Sendable {
     /// Failures worth a quick retry right after launch or wake, before the network is up.
     public var isTransient: Bool {
         switch self {
-        case .unavailable, .timeout, .disconnected, .launchFailed: true
-        case .disabled, .executableUnavailable, .subscriptionRequired, .unsupported, .invalidResponse: false
+        case .unavailable, .timeout, .disconnected: true
+        // A child that cannot start (or exits at once, e.g. an old Claude Code rejecting a flag)
+        // will not start a few seconds later either.
+        case .disabled, .executableUnavailable, .launchFailed, .subscriptionRequired, .unsupported, .invalidResponse: false
         }
     }
 }

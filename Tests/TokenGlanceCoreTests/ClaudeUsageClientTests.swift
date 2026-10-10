@@ -281,6 +281,20 @@ struct ClaudeUsageClientTests {
         #expect(launches.value == 1)
     }
 
+    @Test func cancelledCallerNeverStartsAChild() async {
+        let launches = Counter()
+        let client = ClaudeUsageClient(transportFactory: {
+            launches.increment()
+            return answering(success(usageBody()))
+        })
+        let task = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            return await client.readLimits()
+        }
+        #expect(await task.value == .failure(.disconnected))
+        #expect(launches.value == 0)
+    }
+
     @Test func stopCancelsARunningRead() async {
         let fake = FakeClaudeTransport { _ in [] }
         let client = ClaudeUsageClient(transportFactory: { fake })

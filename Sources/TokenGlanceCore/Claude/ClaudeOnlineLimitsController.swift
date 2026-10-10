@@ -8,9 +8,10 @@ public protocol ClaudeLimitsReading: Sendable {
 
 extension ClaudeUsageClient: ClaudeLimitsReading {}
 
-/// Delays between failed reads: doubling from `base` up to `maximum`, reset by a success.
+/// Delays between failed reads: doubling from `base` up to `maximum`, reset by a success. The base
+/// equals the 5-minute poll, so even the first failure delays the next automatic read.
 public struct ClaudeOnlineBackoff: Equatable, Sendable {
-    public var base: TimeInterval = 60
+    public var base: TimeInterval = 300
     public var maximum: TimeInterval = 30 * 60
     /// Extra attempts right after launch or wake, when the network may not be up yet.
     public var startupRetries: [TimeInterval] = [5, 15]
@@ -73,10 +74,11 @@ public final class ClaudeOnlineLimitsController {
     /// True when no read or stop is running.
     public var isIdle: Bool { readTask == nil && stopTask == nil }
 
-    /// Starts a read if the option is on, nothing is running and no backoff is pending.
+    /// Starts a read if the option is on, nothing is running and no backoff is pending. The Refresh
+    /// button (`.manual`) is the user's explicit request and is not held back by the backoff.
     public func refresh(_ trigger: Trigger = .poll) {
         guard !isShutDown, isEnabled(), readTask == nil, stopTask == nil else { return }
-        if let nextAllowedAt, now() < nextAllowedAt { return }
+        if trigger != .manual, let nextAllowedAt, now() < nextAllowedAt { return }
         let current = generation
         let reader = reader
         let sleep = sleep
@@ -126,7 +128,7 @@ public final class ClaudeOnlineLimitsController {
             await reader.stop()
             guard let self, self.generation == stopped else { return }
             self.stopTask = nil
-            self.refresh(.manual)
+            self.refresh(.poll)
         }
     }
 

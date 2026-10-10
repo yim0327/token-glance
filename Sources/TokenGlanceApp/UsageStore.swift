@@ -177,7 +177,8 @@ final class UsageStore {
             }
         }
         if claudeOnlineChanged {
-            claude = presentClaude(now: Date())
+            // After a folder change the old folder's values stay hidden until the new index is ready.
+            if !rootsChanged { claude = presentClaude(now: Date()) }
             if claudeOnlineEnabled && !wasClaudeOnline {
                 claudeOnline.refresh(.manual)
             } else {
@@ -357,7 +358,8 @@ final class UsageStore {
     private var claudeOnlineEnabled: Bool { settings.claudeEnabled && settings.claudeOnlineLimitsEnabled }
 
     private func presentClaude(now: Date) -> ToolState {
-        guard claudeOnlineEnabled else { return localClaude }
+        // Before the first local index there is no summary to put limits into; wait for it.
+        guard claudeOnlineEnabled, localClaude.summary != nil else { return localClaude }
         if let claudeOnlineSnapshot {
             return ClaudeOnlinePresentation.apply(claudeOnlineSnapshot, to: localClaude, now: now)
         }

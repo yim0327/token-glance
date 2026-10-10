@@ -40,6 +40,9 @@ public actor ClaudeUsageClient {
     }
 
     public func readLimits() async -> Result<ClaudeAccountLimits, ClaudeUsageFailure> {
+        // The caller (turned off meanwhile) was cancelled before reaching the actor: the unstructured
+        // read below would not inherit that, so no child may start.
+        guard !Task.isCancelled else { return .failure(.disconnected) }
         if let inFlight { return await inFlight.value }
         let id = UUID()
         let task = Task { await performRead() }

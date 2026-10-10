@@ -100,9 +100,10 @@ struct ClaudeOnlineLimitsControllerTests {
             try await harness.settle()
             let wait = try #require(harness.controller.nextAllowedAt).timeIntervalSince(harness.clock)
             expected.append(wait)
-            // Too early: nothing starts.
+            // Too early: automatic triggers start nothing.
             harness.clock += wait - 1
-            harness.controller.refresh(.manual)
+            harness.controller.refresh(.poll)
+            harness.controller.refresh(.reset)
             try await harness.settle()
             harness.clock += 1
         }
@@ -163,7 +164,7 @@ struct ClaudeOnlineLimitsControllerTests {
         harness.controller.disable()
         try await harness.settle()
         harness.enabled = true
-        harness.controller.refresh(.manual)
+        harness.controller.refresh(.poll)
         try await harness.settle()
         #expect(await harness.reader.reads == 2)
     }
@@ -178,11 +179,30 @@ struct ClaudeOnlineLimitsControllerTests {
         #expect(await harness.reader.stops == 1)
     }
 
+    @Test func manualRefreshIsNotHeldBackByBackoff() async throws {
+        let harness = Harness(reader: FakeClaudeReader(script: [failure]))
+        harness.enabled = true
+        harness.controller.refresh(.poll)
+        try await harness.settle()
+        #expect(harness.controller.nextAllowedAt != nil)
+        harness.controller.refresh(.manual)
+        try await harness.settle()
+        #expect(await harness.reader.reads == 2)
+    }
+
+    @Test func launchFailuresAreNotRetriedQuickly() async throws {
+        let harness = Harness(reader: FakeClaudeReader(script: [.failure(.launchFailed)]))
+        harness.enabled = true
+        harness.controller.refresh(.launch)
+        try await harness.settle()
+        #expect(await harness.reader.reads == 1)
+    }
+
     @Test func backoffDelays() {
         let backoff = ClaudeOnlineBackoff()
         #expect(backoff.delay(afterFailures: 0) == 0)
-        #expect(backoff.delay(afterFailures: 1) == 60)
-        #expect(backoff.delay(afterFailures: 3) == 240)
+        #expect(backoff.delay(afterFailures: 1) == 300)
+        #expect(backoff.delay(afterFailures: 3) == 1200)
         #expect(backoff.delay(afterFailures: 100) == 1800)
     }
 }
