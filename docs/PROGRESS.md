@@ -82,7 +82,10 @@ Updated: 2026-10-10
     badges as the fallback. `SVGPath` / `ServiceMarks` with tests; SVGs checked by packaging.
   - Details panel: the same marks next to the tool names (15 pt).
   - Dark mode panel: background dimmed (black 45%), lighter blue/orange/red; measured contrast
-    5.85 / 7.03 / 5.06 : 1 (was 1.46 / 2.88 / 1.69). Light mode unchanged, checked in the real app.
+    5.85 / 7.03 / 5.06 : 1 (was 1.46 / 2.88 / 1.69).
+  - Light mode panel: white 50% over the background (217 → 236), system colors with a deeper
+    orange (222,108,0); about 3.4 / 2.8 / 3.1 : 1. Darker tints were tried and rejected as murky.
+    README light panel images predate this (user chose to keep them).
   - README: menu bar label plus panels in light and dark for each language (user-approved);
     history images unchanged.
   - `./scripts/test.sh`: 261 tests in 42 suites pass.
