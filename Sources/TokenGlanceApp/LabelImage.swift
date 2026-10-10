@@ -1,5 +1,6 @@
 import AppKit
 import TokenGlanceCore
+import TokenGlanceText
 
 /// Draws the one- or two-line menu bar label (see docs/adr/0001-menubar-rendering.md).
 ///
@@ -8,7 +9,7 @@ import TokenGlanceCore
 enum LabelImage {
     static let font = NSFont.monospacedDigitSystemFont(ofSize: 9.5, weight: .semibold)
     static let singleLineFont = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium)
-    static let badgeSize: CGFloat = 8.5
+    static let badgeSize: CGFloat = 10
     static let lineHeight: CGFloat = 10.5
     static let gap: CGFloat = 2.5
 
@@ -16,7 +17,7 @@ enum LabelImage {
         let lines = label.lines
         let twoLines = lines.count > 1
         let font = twoLines ? font : singleLineFont
-        let badge = twoLines ? badgeSize : 11
+        let badge = twoLines ? badgeSize : 13
         let textWidth = lines.map { width(of: $0, font: font) }.max() ?? 0
         let size = NSSize(width: ceil(badge + gap + textWidth) + 1, height: height)
 
@@ -28,7 +29,7 @@ enum LabelImage {
                 let text = NSAttributedString(string: line.text, attributes: [.font: font, .foregroundColor: color(line.severity)])
                 let textSize = text.size()
                 let textY = rowY + (rowHeight - textSize.height) / 2
-                drawBadge(letter(line.tool), in: NSRect(x: 0, y: rowY + (rowHeight - badge) / 2, width: badge, height: badge))
+                drawMark(line.tool, in: NSRect(x: 0, y: rowY + (rowHeight - badge) / 2, width: badge, height: badge))
                 if line.severity == .unavailable {
                     drawDashes(x: badge + gap, baselineY: textY - font.descender, font: font)
                 } else {
@@ -84,7 +85,46 @@ enum LabelImage {
         }
     }
 
-    /// A filled circle with the letter knocked out (neutral glyph, no vendor logos).
+    /// The service's mark (ServiceMarks), filled in one color with `labelColor` so it follows the
+    /// menu bar like a template image while the number next to it keeps its warning color. The
+    /// path is drawn as supplied, scaled uniformly to fit `rect` by its own bounds (the file's
+    /// empty margin is not kept; there is no room for it at this size).
+    private static func drawMark(_ tool: Tool, in rect: NSRect) {
+        guard let path = markPaths[tool] ?? nil, let context = NSGraphicsContext.current?.cgContext else {
+            drawBadge(letter(tool), in: rect)
+            return
+        }
+        let bounds = path.boundingBoxOfPath
+        let scale = min(rect.width / bounds.width, rect.height / bounds.height)
+        context.saveGState()
+        context.translateBy(x: rect.midX, y: rect.midY)
+        context.scaleBy(x: scale, y: -scale) // SVG y grows downwards
+        context.translateBy(x: -bounds.midX, y: -bounds.midY)
+        context.addPath(path)
+        context.setFillColor(NSColor.labelColor.cgColor)
+        context.fillPath(using: .winding)
+        context.restoreGState()
+    }
+
+    private static let markPaths: [Tool: CGPath?] = Dictionary(uniqueKeysWithValues: Tool.allCases.map { tool in
+        (tool, ServiceMarks.mark(for: tool).map { cgPath($0.path) })
+    })
+
+    private static func cgPath(_ segments: [SVGPath.Segment]) -> CGPath {
+        let path = CGMutablePath()
+        func point(_ p: SVGPath.Point) -> CGPoint { CGPoint(x: p.x, y: p.y) }
+        for segment in segments {
+            switch segment {
+            case .move(let p): path.move(to: point(p))
+            case .line(let p): path.addLine(to: point(p))
+            case .curve(let c1, let c2, let end): path.addCurve(to: point(end), control1: point(c1), control2: point(c2))
+            case .close: path.closeSubpath()
+            }
+        }
+        return path
+    }
+
+    /// Fallback when a mark file is missing or unreadable: a filled circle with the letter knocked out.
     private static func drawBadge(_ letter: String, in rect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         context.saveGState()
