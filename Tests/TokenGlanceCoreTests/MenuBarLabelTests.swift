@@ -98,6 +98,16 @@ struct MenuBarLabelTests {
     }
 }
 
+struct UsageSummaryTests {
+    @Test func hasTokensWhenTodayOrWeekIsNonZero() {
+        let interval = DateInterval(start: Fixtures.t0 - 86_400, end: Fixtures.t0)
+        var summary = UsageSummary(today: .zero, todayByModel: [:], week: .zero, weekByModel: [:], weekInterval: interval, limits: [])
+        #expect(!summary.hasTokens)
+        summary.week = TokenUsage(input: 10, output: 0, cacheRead: 0, cacheWrite: 0)
+        #expect(summary.hasTokens)
+    }
+}
+
 struct ToolStateContentTests {
     @Test func sameContentIgnoresRefreshTime() {
         let a = ToolState(tool: .codex, refreshedAt: Fixtures.t0)

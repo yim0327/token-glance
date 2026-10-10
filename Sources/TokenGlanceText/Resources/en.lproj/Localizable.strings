@@ -41,6 +41,7 @@
 "reason.hookOverwritten" = "statusline hook was replaced (e.g. by an OMC update)";
 "reason.hookMissing" = "statusline hook program is missing";
 "reason.settingsUnreadable" = "Claude settings.json could not be read";
+"reason.unknown" = "Value unavailable; Token Glance tries again on the next refresh";
 
 /* Popover */
 "popover.indexing" = "Indexing logs…";

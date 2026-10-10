@@ -28,6 +28,9 @@ public struct UsageSummary: Equatable, Sendable {
     public var weekByModel: [String: TokenUsage]
     public var weekInterval: DateInterval
     public var limits: [LimitStatus]
+
+    /// Whether the token table has anything to show.
+    public var hasTokens: Bool { !today.isZero || !week.isZero }
 }
 
 /// Groups usage records into "today" and the current weekly window. Time and calendar are injected.

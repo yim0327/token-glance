@@ -162,6 +162,13 @@ extension Localizer {
         }
     }
 
+    /// Why the details panel shows a gray bar: nil when both the session and weekly values are known.
+    /// Falls back to a generic message when no reason was recorded.
+    public func missingLimitsMessage(_ state: ToolState) -> String? {
+        guard state.session == nil || state.weekly == nil else { return nil }
+        return state.unavailableReason.map(unavailable) ?? self("reason.unknown")
+    }
+
     public func pathValidation(_ validation: PathValidation) -> String {
         switch validation {
         case .useDefault: self("path.useDefault")

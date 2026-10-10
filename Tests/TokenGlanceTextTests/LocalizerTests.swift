@@ -132,6 +132,17 @@ struct TooltipTests {
             == "Codex: 윈도우 초기화 시각이 지남 — 새 한도 데이터를 기다리는 중 · 주간 86% 사용")
     }
 
+    @Test func missingLimitsMessage() {
+        let ko = Localizer(.korean)
+        #expect(ko.missingLimitsMessage(state(.codex, session: 20, weekly: 30)) == nil)
+        #expect(ko.missingLimitsMessage(state(.codex, session: nil, weekly: 86, issue: .awaitingFreshLimit))
+            == "윈도우 초기화 시각이 지남 — 새 한도 데이터를 기다리는 중")
+        #expect(ko.missingLimitsMessage(state(.claude, session: nil, issue: .hookNotInstalled)) == "statusline 훅이 설치되지 않음")
+        #expect(ko.missingLimitsMessage(state(.codex, session: 20)) == "수치를 확인할 수 없음 — 다음 갱신 때 다시 시도합니다")
+        #expect(Localizer(.english).missingLimitsMessage(state(.codex, session: nil))
+            == "Value unavailable; Token Glance tries again on the next refresh")
+    }
+
     @Test func resetWindow() {
         var claude = state(.claude, session: nil)
         claude.summary?.limits = [LimitStatus(kind: .session, usedPercent: 0, resetsAt: nil, isReset: true, observedAt: now - 7200)]
