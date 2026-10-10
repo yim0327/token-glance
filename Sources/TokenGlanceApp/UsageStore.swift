@@ -131,6 +131,7 @@ final class UsageStore {
         if rootsChanged { planner.rebaseline() }
         if !newSettings.claudeEnabled { planner.forget(tool: .claude) }
         if !newSettings.codexEnabled { planner.forget(tool: .codex) }
+        if onlineChanged { planner.forget(tool: .codex) }
         if rootsChanged {
             loader.configure(roots: LogRoots.resolve(newSettings))
             claude.refreshedAt = nil  // shows indexing progress again
@@ -291,9 +292,15 @@ final class UsageStore {
             switch result {
             case .success(let snapshot):
                 // Replace the complete account/bucket snapshot. Never merge partial identities.
-                onlineSnapshot = CodexOnlinePresentation.newer(snapshot, than: onlineSnapshot)
+                let accepted = CodexOnlinePresentation.newer(snapshot, than: onlineSnapshot)
+                if onlineSnapshot?.accountIdentity != accepted.accountIdentity
+                    || onlineSnapshot?.buckets.map(\.limitId) != accepted.buckets.map(\.limitId) {
+                    planner.forget(tool: .codex)
+                }
+                onlineSnapshot = accepted
                 onlineFailure = nil
             case .failure(let failure):
+                if onlineSnapshot != nil { planner.forget(tool: .codex) }
                 onlineSnapshot = nil
                 onlineFailure = Self.onlineFailureText(failure)
             }
