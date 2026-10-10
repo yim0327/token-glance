@@ -2,12 +2,12 @@
 
 Claude Code & Codex usage limits at a glance, in your macOS menu bar.
 
-<!-- SCREENSHOT PLACEHOLDER: two-line menu bar label (C 62% / X 80%) and the details panel.
-     Add as docs/images/menubar.png and replace this comment with:
-     ![Menu bar and details panel](docs/images/menubar.png) -->
-*Screenshot coming soon.*
+<img src="docs/images/panel-ko.png" alt="Token Glance details panel (Korean UI)" width="340">
 
-> **Status:** in development (M5). Build from source; no signed release yet.
+<!-- MENU BAR SCREENSHOT PENDING: two-line label (C 62% / X 80%), as docs/images/menubar.png. -->
+
+> **Status:** first release (v0.1.0) in preparation. Apple Silicon (arm64) only; the app is ad hoc
+> signed and **not notarized**. Until a release is published, build from source.
 
 Token Glance shows how much of the **5-hour session** and **weekly** limits you have left in
 Claude Code and Codex CLI, as a two-line menu bar label:
@@ -20,13 +20,24 @@ Claude Code and Codex CLI, as a two-line menu bar label:
 Click it for details: per-window gauges with `N% used / M% left`, reset times with a live
 countdown, and tokens used today and this week (input / output / cache, top models).
 
+## Screenshots
+
+| | English | Korean |
+|---|---|---|
+| Details panel | <img src="docs/images/panel-en.png" alt="Details panel, English" width="300"> | <img src="docs/images/panel-ko.png" alt="Details panel, Korean" width="300"> |
+| 14-day history | <img src="docs/images/history-en.png" alt="History window, English" width="380"> | <img src="docs/images/history-ko.png" alt="History window, Korean" width="380"> |
+
+Captured on macOS 26.6 with the optional online checks on (hence the "limit source" lines). The
+numbers are real usage on the author's Mac.
+
 ## Features
 
 - Two-line label (one line when only one tool is enabled), orange at 30% left or less, red at 10%.
 - Remaining % (default) or used %.
 - Updates within seconds of new activity (FSEvents), reading only the bytes appended to logs.
 - Shows why a value is missing (`--`): hook not installed, no data yet, data too old, …
-- Settings: display mode, tools on/off, custom log folders, open at login, Claude hook install/repair/uninstall.
+- Settings: display mode, tools on/off (turning a tool back on shows it again immediately), custom
+  log folders, open at login, language, notifications, Claude hook install/repair/uninstall.
 - Optional notifications (off by default) when the remaining percentage drops past 30% / 10%
   (configurable), and when a new window starts after running low.
 - English and Korean, following the system language by default or chosen in settings.
@@ -65,35 +76,51 @@ Details of the formats are in [docs/log-schemas.md](docs/log-schemas.md).
 
 ## Install
 
-Requires macOS 14+ and Swift 5.10+ (Xcode or the Command Line Tools).
+Requires macOS 14+.
+
+### From a release (Apple Silicon)
+
+Once a release is published on the [Releases](https://github.com/yim0327/token-glance/releases)
+page:
+
+1. Download `TokenGlance-<version>-macos-arm64.zip` and its `.sha256` file, then check it:
+   `shasum -a 256 -c TokenGlance-<version>-macos-arm64.zip.sha256`
+2. Unzip and move `TokenGlance.app` to `/Applications`.
+3. Open it. Because the app is not notarized (no Apple Developer account), macOS blocks the first
+   launch. Go to **System Settings › Privacy & Security**, find the message about Token Glance and
+   choose **Open Anyway**, then confirm. Do this only for a download whose checksum matches.
+
+The release zip is checked locally before publishing (checksum, signature, resources, launch), but
+that does not replace the Gatekeeper check a downloaded copy goes through.
+
+### From source
+
+Requires Swift 5.10+ (Xcode or the Command Line Tools). A locally built app is not quarantined and
+opens directly.
 
 ```sh
 git clone https://github.com/yim0327/token-glance.git
 cd token-glance
-./scripts/bundle-app.sh        # builds dist/TokenGlance.app (ad hoc signed)
+./scripts/bundle-app.sh        # builds dist/TokenGlance.app (ad hoc signed, this Mac's architecture)
 open dist/TokenGlance.app
 ```
 
-Then click the menu bar item, open **Settings…** and choose **Install…** under "Claude limits hook".
-The same can be done from a terminal:
+### Claude limits hook
+
+Click the menu bar item, open **Settings…** and choose **Install…** under "Claude limits hook". The
+same can be done from a terminal:
 
 ```sh
-dist/TokenGlance.app/Contents/Resources/token-glance-hook install     # backs up settings.json first
+/Applications/TokenGlance.app/Contents/Resources/token-glance-hook install   # backs up settings.json first
+~/Library/Application\ Support/TokenGlance/bin/token-glance-hook status     # installed / overwritten / …
+~/Library/Application\ Support/TokenGlance/bin/token-glance-hook repair     # after another tool replaced the statusline
 ~/Library/Application\ Support/TokenGlance/bin/token-glance-hook uninstall
 ```
 
-### Opening an unsigned app
+`repair` chains whatever statusline is set at that moment, so a later `uninstall` restores that one.
 
-Token Glance is not notarized (no Apple Developer account). A locally built app usually opens
-directly. If you downloaded a build and macOS refuses to open it, right-click the app and choose
-**Open**, or remove the quarantine flag:
-
-```sh
-xattr -cr TokenGlance.app
-```
-
-"Open at login" uses `SMAppService`; for an unsigned app macOS may ask you to approve it in
-System Settings › General › Login Items.
+"Open at login" uses `SMAppService` and is tied to the app's current location (turn it on again
+after moving the app). macOS may ask you to approve it in System Settings › General › Login Items.
 
 ## Development
 
@@ -103,10 +130,24 @@ swift build
 dist/TokenGlance.app/Contents/MacOS/TokenGlance --print-state   # label and tooltip once, no UI
 ```
 
-Design decisions: [docs/adr](docs/adr). Performance measurements: [docs/perf.md](docs/perf.md).
+Release packaging: `./scripts/package-release.sh` writes the zip and its SHA-256 to `dist/release`.
+Pushing a `v*` tag that matches `VERSION` runs the tests and creates a **draft** GitHub Release.
+
+Design decisions: [docs/adr](docs/adr).
+
+## Performance
+
+Measured on one Apple Silicon Mac (macOS 26.6) with a release build plus the measurement-only driver, online checks off,
+while Claude Code was writing logs: CPU 0.77% on average over a 22-minute run that opened and closed
+windows 93 times (0.02–0.53% in the idle minutes between), physical footprint about 18 MB
+before any window is opened and 42–45 MB once the panel, settings and history windows have been
+used (stable over 30 open/close cycles of each); the highest footprint seen was 48.5 MB. With Codex
+online checks on, its App Server child adds about 40 MB. Methods and all runs:
+[docs/perf.md](docs/perf.md).
 
 ## Limitations
 
+- Apple Silicon only for the release zip; not notarized (see Install).
 - Limits are percentages only; neither tool exposes remaining token counts for subscription plans.
 - Claude limits update only while Claude Code runs (they arrive through the statusline). Values
   older than 7 days are hidden; a window whose reset time has passed shows as reset.
