@@ -262,7 +262,13 @@ Not confirmed yet:
 
 - The icon in the consent dialogs (alerts) and in a notification banner (not seen; see the incident
   under "New app icon" above). Check by hand on the v0.1.1 build, without UI scripting of the
-  consent or online settings.
+  consent or online settings. The release notes keep "has not been checked yet" until then.
+  - A hand check on 2026-10-11 showed no icon in Finder, the consent dialog or a notification
+    banner, but the app checked was the installed `/Applications/TokenGlance.app`, which is
+    v0.1.0 (build 23, no `AppIcon.icns`, no `CFBundleIconFile`). That is expected for v0.1.0 and
+    says nothing about v0.1.1. The local 0.1.1 build (`dist/`) was not installed or opened.
+  - Plan: check the app downloaded from the v0.1.1 **draft** Release (Next step 4) before
+    publishing; if the icon is missing there, do not publish and fix first.
 - The CI release build: tag, draft assets, checksum and the downloaded app.
 
 ## Next
@@ -272,8 +278,12 @@ Not confirmed yet:
 2. Review the draft Release: workflow steps, two assets, notes equal to `docs/releases/v0.1.1.md`,
    0.1.1 and build number, icon inside the app.
 3. Publish (maintainer approval).
-4. Download check: checksum, arm64, ad hoc signature, Gatekeeper **Open Anyway**, icon in Finder;
-   if possible the icon in a consent dialog and a notification banner (by hand).
+4. Download check of the draft assets (before publishing): checksum, arm64, ad hoc signature,
+   Gatekeeper **Open Anyway**, and by hand the icon in Finder, a consent dialog and a notification
+   banner (quit the installed v0.1.0 first; same bundle id, so settings are shared). The draft was
+   created from the notes file at the tag, so to state what was seen (only what was seen), edit
+   the draft's notes before publishing and bring `docs/releases/v0.1.1.md` in line in the
+   post-release docs PR.
 5. Post-release docs PR: README "first release v0.1.0" lines (Korean and English) → latest release,
    `docs/install.md` checksum example → 0.1.1, PRD status line, these records.
 - Pick from "Later (LOW)" below; no release blockers are open.
