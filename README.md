@@ -17,7 +17,7 @@
 > **Apple Silicon(arm64) 전용 · macOS 14 이상 · 공증(notarization)되지 않은 앱**
 >
 > 첫 릴리스 [v0.1.0](https://github.com/yim0327/token-glance/releases/tag/v0.1.0)이 게시되었습니다.
-> [릴리스에서 설치](#릴리스에서-설치)하거나 [소스에서 빌드](#소스에서-빌드)할 수 있습니다.
+> [설치](#-설치)는 4단계이고, [소스에서 빌드](docs/install.md#소스에서-빌드)할 수도 있습니다.
 
 Token Glance는 Claude Code와 Codex CLI의 **5시간 세션 한도**와 **주간 한도**가 얼마나 남았는지
 메뉴바에 두 줄로 보여줍니다. 클릭하면 초기화 시각과 사용 토큰을 담은 상세 패널이 열립니다.
@@ -45,45 +45,20 @@ Token Glance는 Claude Code와 Codex CLI의 **5시간 세션 한도**와 **주�
 
 ### 📦 설치
 
-필요한 것: Apple Silicon Mac, macOS 14 이상, Claude Code 또는 Codex CLI.
+요구 사항: Apple Silicon Mac, macOS 14 이상. 릴리스 zip은 arm64 전용이고 공증되지 않은 앱입니다.
 
-#### 릴리스에서 설치
+1. [Releases](https://github.com/yim0327/token-glance/releases/latest)에서
+   `TokenGlance-<버전>-macos-arm64.zip`을 내려받습니다.
+2. Finder에서 압축을 풀고 `TokenGlance.app`을 **응용 프로그램** 폴더로 끌어다 놓습니다.
+3. 앱을 엽니다. 공증되지 않은 앱이라 처음에는 차단됩니다.
+4. **시스템 설정 › 개인정보 보호 및 보안**에서 **그래도 열기**를 누릅니다.
 
-[Releases](https://github.com/yim0327/token-glance/releases)의 최신 릴리스에서:
+자세한 화면과 문제 해결은 [설치 가이드(docs/install.md)](docs/install.md)를 보세요.
 
-1. `TokenGlance-<버전>-macos-arm64.zip`과 같은 이름의 `.sha256` 파일을 내려받습니다.
-2. 두 파일이 있는 폴더에서 체크섬을 확인합니다.
-
-   ```sh
-   shasum -a 256 -c TokenGlance-0.1.0-macos-arm64.zip.sha256
-   ```
-
-3. Finder에서 zip을 더블클릭해 압축을 풀고, `TokenGlance.app`을 Finder에서 **응용 프로그램**
-   (`/Applications`) 폴더로 끌어다 놓습니다. 터미널의 `mv`로 옮겼을 때는 앱이 App Translocation
-   경로(macOS가 정한 임시 위치)에서 실행되는 것이 관찰됐습니다. "로그인 시 열기"는 앱 위치에
-   묶이므로 옮긴 뒤에 켭니다([문제 해결](#-문제-해결)).
-4. 앱을 엽니다. 공증되지 않은 앱이라 macOS가 처음 실행을 막습니다. **시스템 설정 › 개인정보 보호
-   및 보안**에서 Token Glance 항목의 **그래도 열기**를 누르고 확인합니다. 체크섬이 일치한 파일에만
-   이렇게 하세요.
-
-릴리스 zip은 게시 전에 로컬에서 체크섬·서명·리소스·실행을 확인했고, v0.1.0은 게시 후 웹 브라우저로
-내려받은 파일로 체크섬과 **그래도 열기** 흐름도 확인했습니다(macOS 26.6.2, 한 대). 이 확인이 각
-Mac에서 내려받은 파일이 거치는 Gatekeeper 확인을 대신하지는 않습니다.
-
-#### 소스에서 빌드
-
-Swift 6 툴체인에서 빌드를 확인했습니다: CI는 Swift 6.1(Xcode 16.4), 개발 기기는 Swift 6.3(Command
-Line Tools). `Package.swift`는 swift-tools-version 5.10을 선언하지만, Swift 5.10 툴체인으로는 확인하지
-않았습니다. 테스트(`./scripts/test.sh`)는 Swift 6 툴체인에 들어 있는 swift-testing이 필요합니다.
-직접 빌드한 앱은 이 Mac의 아키텍처로 만들어지고 ad-hoc 서명되며, 내려받은 파일이 아니므로 Gatekeeper
-확인 없이 열립니다.
-
-```sh
-git clone https://github.com/yim0327/token-glance.git
-cd token-glance
-./scripts/bundle-app.sh
-open dist/TokenGlance.app
-```
+- 같은 릴리스의 `.sha256` 파일로 내려받은 zip을 확인할 수 있습니다([체크섬 확인](docs/install.md#체크섬-확인)).
+  **그래도 열기**는 체크섬이 일치한 파일에만 사용하세요.
+- [소스에서 빌드](docs/install.md#소스에서-빌드) · [업데이트](docs/install.md#업데이트) ·
+  [삭제](docs/install.md#삭제)
 
 ### 🚀 처음 실행
 
@@ -169,23 +144,23 @@ Claude 온라인 조회는 `claude`를 `--safe-mode`, `--no-session-persistence`
 
 ### 🔧 문제 해결
 
+설치·처음 실행 차단·로그인 시 열기 문제는 [설치 가이드의 문제 해결](docs/install.md#문제-해결)을 보세요.
+
 | 증상 | 확인할 것 |
 |---|---|
-| 처음 열 때 "열 수 없음" | 위 설치 4단계의 **그래도 열기**를 사용합니다. 보안 설정 전체를 끄는 방법은 권하지 않습니다. |
 | Claude가 `--`, "statusline 훅이 설치되지 않음" | 설정에서 Claude 한도 훅을 설치합니다. |
 | "다른 statusline으로 바뀜" | 다른 도구가 statusline 설정을 바꾼 경우입니다. 설정에서 **복구…**를 누르면 새 statusline을 유지한 채 다시 연결합니다. |
 | Claude 값이 오래됨 | Claude Code를 사용하면 갱신됩니다. 항상 최신 값이 필요하면 Claude 온라인 조회를 고려하세요. |
 | Codex가 `--`, "아직 데이터 없음" | Codex를 한 번 사용합니다. 로그 폴더를 바꿨다면 설정의 "Codex 홈"을 확인합니다. |
 | 온라인 조회 실패 사유가 보임 | 해당 도구가 설치·로그인되어 있는지 확인합니다. 그동안은 로컬 값을 표시합니다. |
-| 로그인 시 열리지 않음 | "로그인 시 열기"는 앱 위치에 묶입니다. 앱을 옮겼다면 다시 켭니다. 시스템 설정 › 일반 › 로그인 항목에서 승인이 필요할 수 있습니다. |
 
 **제거:** 먼저 설정에서 훅을 **제거**(또는 `token-glance-hook uninstall`)해 statusline을 되돌린 뒤
-앱을 지웁니다. 남은 캐시와 훅 사본은 `~/Library/Application Support/TokenGlance`에 있습니다. 훅 설치
-때 만든 백업은 `settings.json.token-glance-backup-<시각>` 이름으로 settings.json 옆에 남습니다.
+앱을 지웁니다. 남는 데이터 위치와 훅 설치 때 만든 백업 이름은 [설치 가이드의 삭제](docs/install.md#삭제)에
+있습니다.
 
 ### 📚 문서와 개발
 
-- [로그·훅 형식과 검증 기록](docs/log-schemas.md) · [성능 측정](docs/perf.md) ·
+- [설치 가이드](docs/install.md) · [로그·훅 형식과 검증 기록](docs/log-schemas.md) · [성능 측정](docs/perf.md) ·
   [설계 결정(ADR)](docs/adr) · [제품 요구사항(PRD)](docs/PRD.md) · [진행 상황](docs/PROGRESS.md)
 - [개발 기록](docs/development.md): 단계별 진행, 실사용에서 발견한 문제와 수정, AI 도구와 작업한
   방식
@@ -215,7 +190,7 @@ Claude 마크와 OpenAI Blossom은 어느 서비스의 수치인지 구분하기
 > **Apple Silicon (arm64) only · macOS 14 or later · not notarized**
 >
 > The first release, [v0.1.0](https://github.com/yim0327/token-glance/releases/tag/v0.1.0), is published.
-> [Install it from the release](#from-a-release) or [build from source](#from-source).
+> [Install](#-install) takes four steps, or you can [build from source](docs/install.md#build-from-source).
 
 Token Glance shows how much of the **5-hour session limit** and the **weekly limit** you have left in
 Claude Code and Codex CLI, as a two-line menu bar label. Click it for a details panel with reset times
@@ -243,47 +218,21 @@ Codex 0% of both). The "Limit source" and "Observed" lines appear only when onli
 
 ### 📦 Install
 
-You need an Apple Silicon Mac, macOS 14 or later, and Claude Code or Codex CLI.
+Requirements: an Apple Silicon Mac, macOS 14 or later. The release zip is arm64 only and not notarized.
 
-#### From a release
+1. Download `TokenGlance-<version>-macos-arm64.zip` from
+   [Releases](https://github.com/yim0327/token-glance/releases/latest).
+2. Unzip it in Finder and drag `TokenGlance.app` into the **Applications** folder.
+3. Open the app. It is not notarized, so macOS blocks it the first time.
+4. In **System Settings › Privacy & Security**, click **Open Anyway**.
 
-From the latest release on the [Releases](https://github.com/yim0327/token-glance/releases) page:
+For screenshots of each step and troubleshooting, see the [install guide (docs/install.md)](docs/install.md).
 
-1. Download `TokenGlance-<version>-macos-arm64.zip` and the `.sha256` file with the same name.
-2. In the folder with both files, check the checksum.
-
-   ```sh
-   shasum -a 256 -c TokenGlance-0.1.0-macos-arm64.zip.sha256
-   ```
-
-3. Unzip it by double-clicking the zip in Finder, then drag `TokenGlance.app` in Finder into the
-   **Applications** folder (`/Applications`). When the app was moved with `mv` in Terminal instead, it
-   was observed running from an App Translocation path (a temporary location chosen by macOS).
-   "Open at login" is tied to the app's location, so turn it on after moving the app
-   ([Troubleshooting](#-troubleshooting)).
-4. Open it. The app is not notarized, so macOS blocks the first launch. In **System Settings ›
-   Privacy & Security**, choose **Open Anyway** for Token Glance and confirm. Do this only for a
-   file whose checksum matched.
-
-The release zip was checked locally before publishing (checksum, signature, resources, launch), and
-after v0.1.0 was published, a copy downloaded with a web browser was checked as well (checksum and
-the **Open Anyway** flow, macOS 26.6.2, one Mac). That does not replace the Gatekeeper check a
-downloaded file goes through on each Mac.
-
-#### From source
-
-Builds were checked with Swift 6 toolchains: Swift 6.1 (Xcode 16.4) on CI and Swift 6.3 (Command Line
-Tools) on the development Mac. `Package.swift` declares swift-tools-version 5.10, but a Swift 5.10
-toolchain has not been tried. The tests (`./scripts/test.sh`) need swift-testing, which ships with
-Swift 6 toolchains. A locally built app is built for this Mac's architecture and ad hoc signed; it was
-not downloaded, so it opens without a Gatekeeper check.
-
-```sh
-git clone https://github.com/yim0327/token-glance.git
-cd token-glance
-./scripts/bundle-app.sh
-open dist/TokenGlance.app
-```
+- You can check the downloaded zip with the `.sha256` file from the same release
+  ([Check the checksum](docs/install.md#check-the-checksum)). Use **Open Anyway** only for a file
+  whose checksum matched.
+- [Build from source](docs/install.md#build-from-source) · [Update](docs/install.md#update) ·
+  [Uninstall](docs/install.md#uninstall)
 
 ### 🚀 First run
 
@@ -379,24 +328,24 @@ a running check and its child process.
 
 ### 🔧 Troubleshooting
 
+For problems installing the app, a blocked first launch or "Open at login", see
+[Troubleshooting in the install guide](docs/install.md#troubleshooting).
+
 | Symptom | What to check |
 |---|---|
-| macOS says the app cannot be opened | Use **Open Anyway** from step 4 of the install. Turning off security settings globally is not recommended. |
 | Claude shows `--`, "statusline hook not installed" | Install the Claude limits hook in Settings. |
 | "Replaced by another statusline" | Another tool changed the statusline setting. **Repair…** in Settings reconnects the hook and keeps the new statusline. |
 | Claude value is old | It updates when you use Claude Code. Consider Claude online checks if you always need a fresh value. |
 | Codex shows `--`, "no data yet" | Use Codex once. If you changed the log folder, check "Codex home" in Settings. |
 | An online check failure reason is shown | Check that the tool is installed and logged in. Local values are shown meanwhile. |
-| Does not open at login | "Open at login" is tied to the app's location; turn it on again after moving the app. macOS may ask for approval in System Settings › General › Login Items. |
 
 **Uninstall:** first **Uninstall** the hook in Settings (or `token-glance-hook uninstall`) to restore
-your statusline, then delete the app. The remaining cache and hook copy are in
-`~/Library/Application Support/TokenGlance`. Backups made when installing the hook stay next to
-settings.json as `settings.json.token-glance-backup-<time>`.
+your statusline, then delete the app. Where the remaining data is and how the backups made when
+installing the hook are named: [Uninstall in the install guide](docs/install.md#uninstall).
 
 ### 📚 Documentation and development
 
-- [Log and hook formats, with verification notes](docs/log-schemas.md) ·
+- [Install guide](docs/install.md) · [Log and hook formats, with verification notes](docs/log-schemas.md) ·
   [Performance measurements](docs/perf.md) · [Design decisions (ADRs)](docs/adr) ·
   [Product requirements (PRD, Korean)](docs/PRD.md) · [Progress](docs/PROGRESS.md)
 - [Development notes (Korean)](docs/development.md): milestones, problems found in real use and how
