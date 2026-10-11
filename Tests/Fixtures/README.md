@@ -1,12 +1,13 @@
 # Fixtures
 
-All fixtures are **hand-built with fake values**. No line was copied from a real log.
-Structure (keys, types, nesting, value shapes) mirrors what was observed locally in M0;
-see `docs/log-schemas.md`. Text content is `[redacted]` or empty, paths use `/Users/user/project`,
+All fixtures are **synthetic: hand-built with fake values**. No line was copied from a real log.
+Structure (keys, types, nesting, value shapes) mirrors what was observed in real local logs: Claude
+project logs and statusline stdin in M0, Codex rollouts in M1 (see `docs/log-schemas.md`). Text content is `[redacted]` or empty, paths use `/Users/user/project`,
 and IDs are `*_FAKE*` or zero-padded UUIDs.
 
-Files with `.synthetic` in the name are based on a schema that has **not** been verified
-against a real sample yet.
+Files with `.synthetic` in the name contain cases or shapes that have **not** been observed in a
+real sample (for example, a key that is absent, or a cumulative value that decreases). The rest of
+their structure follows the verified samples; the table below says which part is unobserved.
 
 | File | Source of structure | Notes |
 |---|---|---|
@@ -29,7 +30,7 @@ All timestamps are relative to `T0 = 2026-10-08T01:00:00Z` (epoch `1791421200`).
 | B streaming duplicates (3 lines, `output_tokens` 10 → 10 → 410) | `msg_FAKE0002` | counted once with `output_tokens = 410` (max) |
 | C exact duplicate line | `msg_FAKE0003` | counted once |
 | D `<synthetic>` model, no `requestId` | `msg_FAKE0004` | excluded |
-| E `<synthetic>` + `quotaLimits` (`five_hour`, `rejected`, `resetsAt = T0 + 3h = 1791432000`) | `msg_FAKE0005` | excluded from tokens; quota signal |
+| E `<synthetic>` + `quotaLimits` (`five_hour`, `rejected`, `resetsAt = T0 + 3h = 1791432000`) | `msg_FAKE0005` | excluded from tokens. The `quotaLimits` shape is kept for reference only; the app does not use it as a limit signal (not implemented, `docs/log-schemas.md` §1.3) |
 | F sidechain (subagent), haiku | `msg_FAKE0006` | counted |
 
 Totals after dedupe (A + B + C + F):

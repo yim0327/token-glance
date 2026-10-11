@@ -1,6 +1,6 @@
 # PRD: Token Glance - Claude Code / Codex 한도 잔여량 메뉴바 앱
 
-> 상태: v1.0 (M0~M6 구현·병합, 온라인 한도 조회 옵션(§7.4, §7.5) 포함. 첫 릴리스 v0.1.0 게시(2026-10-10 UTC), v0.1.1(새 앱 아이콘) 게시(2026-10-11 UTC). 2026-10-11)
+> 상태: v1.0 (M0~M6 구현·병합, 온라인 한도 조회 옵션(§7.4, §7.5) 포함. 첫 릴리스 v0.1.0 게시(2026-10-10 UTC), v0.1.1(새 앱 아이콘) 게시(2026-10-11 UTC). 2026-10-12 문서 정리)
 > 한 줄 설명: Claude Code & Codex usage limits at a glance, in your macOS menu bar.
 > 오픈소스 프로젝트 (MIT). 개발은 AI 코딩 도구 Claude Code를 활용해 진행했다(작업 규칙: `CLAUDE.md`).
 > `[확인 필요]`는 구현 전에 실제 로컬 데이터로 검증할 가정이다.
@@ -63,7 +63,7 @@
 - 설정 변경(`~/.claude/settings.json`)은 **사용자 동의 후**에만, 백업을 남기고 수행한다. 앱 내 "설치/제거" 버튼 제공.
 - **수치 차이**: 다른 statusline 도구가 stdin 값과 자체 API 값 중 큰 값을 보여주면 Token Glance와 1%p 정도 다를 수 있다(M0 사례: 주간 24% vs 25%, 5시간은 일치). Token Glance는 Claude Code가 statusline에 넘기는 값을 쓴다. 또한 사용률을 보여주는 도구와 남은 %를 보여주는 기본 라벨이 헷갈리지 않도록 UI에서 `N% used / M% left`를 함께 표기하고 라벨은 "남은 %/사용 %"를 설정으로 선택하게 한다.
 - **캐시 갱신**: 캐시는 5시간/주간 윈도우별로 독립 갱신하고 관측 시각도 윈도우별로 기록한다. 마지막 관측 후 7일이 지나면 오래된 값으로 처리한다. 캐시 위치: `~/Library/Application Support/TokenGlance/claude-rate-limits.json`(스키마 v1, 허용 키만 기록).
-- 제약: Claude Code 세션이 한 번도 실행되지 않았거나 오래 비활성이면 값이 오래될 수 있다 → 마지막 갱신 시각 표시, `resets_at`이 지났으면 "초기화됨(0%)"로 처리.
+- 제약: Claude Code 세션이 한 번도 실행되지 않았거나 오래 비활성이면 값이 오래될 수 있다 → 마지막 갱신 시각 표시. `resets_at`이 지난 윈도우는 시간 경과만으로 실제 한도 복구를 확정하지 않는다. 현재 동작(훅만 사용, 온라인 OFF): 내부 계산값은 사용 0%이고 메뉴바 라벨·게이지도 그 값(0% 사용 / 100% 남음)으로 그리지만, 상세 패널은 초기화 시각 대신 "윈도우 초기화됨 — 새 데이터를 기다리는 중", 툴팁은 세션 줄에 "(윈도우 초기화됨)"을 붙인다. Claude 온라인 조회가 켜져 있으면 초기화된 윈도우를 표시하지 않고 새 관측을 기다린다(§7.5). Codex 로컬 경로(온라인 실패 후 폴백 포함)는 초기화된 윈도우를 빼고, 세션 윈도우면 `--`로 새 관측을 기다린다. Codex 온라인 경로는 초기화된 윈도우를 다음 조회까지 마지막으로 받은 사용률 그대로 두고 초기화 시각 대신 "윈도우 초기화됨"을 표시한다(복구로 표시하지 않음, `expiredOnlineReadingDoesNotClaimRecovery` 테스트).
 
 ### 7.2 Claude Code - 토큰 사용량 (보조)
 
@@ -199,7 +199,7 @@
 | 성능 | idle CPU < 1%, 메모리 < 50MB, 증분 갱신 < 200ms. 메모리는 Activity Monitor의 메모리(physical footprint) 기준이며 순간 최고치는 별도 관리(RSS는 참고용). 조건·측정 방법은 `docs/perf.md` 참조 |
 | 성능 측정 정의 (M5~M6) | **CPU**: `ps` CPU 시간 증분의 평균(5초 간격). **footprint 평균/정착값**: `footprint` 1초 표본. **구간 최대**: 해당 구간 표본의 최대. **lifetime peak**: `vmmap`의 프로세스 수명 최대(시작·첫 스캔·지금까지 연 모든 창 포함). 상태는 "창을 연 적 없음"과 "창을 한 번이라도 사용함"을 구분한다. 온라인 옵션 ON의 자식 프로세스는 따로 기록한다 |
 | 성능 실측 (M6 반복 사용) | 온라인 OFF, 패널·설정·기록 창 각 30회 열고 닫기(총 93회, 22분): CPU 평균 0.77%(휴식 구간 0.02~0.53%). footprint 창 사용 전 18MB → 한 번 사용 후 42MB(설정 창이 +15MB) → 90회 반복 동안 42~45MB에서 정착, 마지막 44MB. 반복에 따른 증가 없음. 1초 표본 최대 48MB, lifetime peak 48.5MB. 수천 회·수일 가동은 미측정 |
-| 프라이버시 | 프롬프트/응답 내용은 저장·전송하지 않음. 수치 메타데이터만 사용. 기본 설정에서 외부 네트워크 호출 0 |
+| 프라이버시 | 원본 사용 로그는 읽기만 하고 바꾸지 않음. JSONL 줄은 읽지만 프롬프트/응답 필드는 추출·저장·기록·전송하지 않음. 수치 메타데이터만 사용. 앱이 쓰는 파일(훅 캐시, `settings.json` 백업, 기존 statusline 보관 파일, 앱 설정)은 별도로 문서화. 기본 설정에서 앱의 외부 네트워크 호출 0(체이닝한 기존 statusline 명령의 동작은 그 도구의 몫) |
 | 보안 | 앱/진단 스크립트는 인증 파일·Keychain을 직접 읽지 않음. Codex 온라인 옵션의 인증은 설치된 App Server에, Claude 온라인 옵션의 인증은 설치된 Claude Code에 위임. 토큰·계정 정보 저장 금지. 훅 관리 백업에는 사용자 설정이 포함되므로 권한 보호 |
 | 안정성 | 파싱 실패 라인 skip, 스키마 변경에 방어적, 값 누락 시 graceful degrade |
 | 권한 | dot-folder 읽기 필요 → App Sandbox OFF, 직접 배포 |
@@ -214,9 +214,9 @@
   - `token-glance-hook` (Foundation 기반 Swift CLI)
 - 번들: `scripts/bundle-app.sh` → `dist/TokenGlance.app`(ad-hoc 서명, LSUIElement, 앱 아이콘 `assets/AppIcon/AppIcon.icns`), 번들 ID `io.github.yim0327.token-glance`, 훅 바이너리는 `Contents/Resources`에 포함하고 설치 시 `~/Library/Application Support/TokenGlance/bin/`에 복사. 진단용 `--print-state` 플래그 제공.
 - 빌드: SwiftPM + `.app` 번들링 스크립트. `swift build`/`./scripts/test.sh`로 로컬과 CI에서 같은 방식으로 검증한다.
-- 테스트: Swift Testing / XCTest, 실제 구조 기반 합성/익명 fixture로 검증. 실제 로그 파일 복사 금지
+- 테스트: Swift Testing / XCTest, 실제 로그에서 관찰한 구조를 바탕으로 가짜 값으로 만든 합성 fixture로 검증. 실제 로그 파일·줄 복사 금지
 - CI: GitHub Actions (macOS runner에서 build + test)
-- 배포: GitHub Releases(.zip, `ditto`로 생성 + SHA-256). 공증은 Apple Developer 계정(연 $99) 필요. **결정: 계정 없음 → 소스 빌드 + ad-hoc 서명 미공증 릴리스로 시작.** 첫 실행은 시스템 설정 › 개인정보 보호 및 보안의 "그래도 열기"로 안내하고, `xattr -cr` 같은 광범위한 해제는 권하지 않는다. 릴리스 zip은 arm64 전용이며 universal/Intel 지원으로 소개하지 않는다. Homebrew cask는 이번 범위에서 제외(미공증 앱 정책 확인 후 별도 결정).
+- 배포: GitHub Releases(.zip, `ditto`로 생성 + SHA-256). 공증은 Apple Developer 계정(연 $99) 필요. **결정: 계정 없음 → 소스 빌드 + ad-hoc 서명·미공증 릴리스로 시작.** 첫 실행은 시스템 설정 › 개인정보 보호 및 보안의 "그래도 열기"로 안내하고, `xattr -cr` 같은 광범위한 해제는 권하지 않는다. 릴리스 zip은 arm64 전용이며 universal/Intel 지원으로 소개하지 않는다. Homebrew cask는 이번 범위에서 제외(미공증 앱 정책 확인 후 별도 결정).
 - 라이선스: **MIT (확정)**
 
 ## 11. 아키텍처
@@ -242,7 +242,7 @@
 
 | 단계 | 내용 | 완료 기준 |
 |---|---|---|
-| M0 | 환경 세팅(Xcode/CLT 복구), 레포 생성, `CLAUDE.md`, 실제 로그/훅 샘플 수집·익명화 | `swift build` 성공, fixture 확보, `[확인 필요]` 항목 검증 완료 |
+| M0 | 환경 세팅(Xcode/CLT 복구), 레포 생성, `CLAUDE.md`, 실제 로그/훅 스키마 확인(읽기 전용)과 합성 fixture 작성 | `swift build` 성공, fixture 확보, `[확인 필요]` 항목 검증 완료 |
 | M1 | (선행: Codex 세션 1회 실행 후 로그 재검증) `TokenGlanceCore`: Claude 토큰 파서(전역 dedupe, 키별 최대 output), Codex 파서(한도+delta 토큰), 테스트 | 테스트 통과, 수동 검증값과 일치 |
 | M2 | Claude 훅 스크립트 + 캐시 리더 + 설치/제거 로직 | 실제 Claude Code 세션에서 `rate_limits` 캐시 기록 확인 |
 | M3 | 메뉴바 라벨 + 팝오버 (세션/주간 게이지, 카운트다운) | 두 도구 동시 표시 MVP |
@@ -262,7 +262,7 @@
 
 | 리스크 | 대응 |
 |---|---|
-| Claude 한도는 statusline 훅 의존: Claude Code가 실행되어야 값 갱신 | 신선도 표시. 선택 옵션으로 Claude Code `get_usage` 위임 조회(§7.5) |
+| 기본 로컬 방식에서 Claude 한도는 statusline 훅 의존: Claude Code가 실행되어야 값 갱신 | 신선도 표시. 선택 옵션으로 Claude Code `get_usage` 위임 조회(§7.5) |
 | Claude 온라인 조회 경로가 실험적·무문서 (변경·중단, 약관 해석) | 기본 OFF, 동의 문구에 명시, 실패 시 훅 캐시 폴백, 미지원 상태 표시 |
 | 기존 statusline 사용자 충돌 | 체이닝 + 백업/복원 + 동의 절차 |
 | 훅이 SIGKILL을 받으면 이어서 실행 중인 기존 statusline 명령이 끝까지 실행됨 (가로채지 못함). Claude Code가 실제로 쓰는 취소 시그널은 미확인 | 실사용 중 고아 프로세스 관찰, 문서화 |
@@ -270,7 +270,7 @@
 | 비공식 API/로그 포맷 변경 | 방어적 파서, fixture 테스트, 버전 기록 |
 | Codex 누적 토큰 이중 집계 | 세션별 delta + 테스트 |
 | `rate_limits` 필드는 Pro/Max에서만, 첫 응답 후에만 존재 | 값 없을 때 안내 UI |
-| 공증 비용 | 미서명 릴리스 + 소스 빌드 안내로 시작 |
+| 공증 비용 | ad-hoc 서명·미공증 릴리스 + 소스 빌드 안내로 시작 |
 | Command Line Tools만 있으면 `swift test`가 테스트 0개로 통과함 | `scripts/test.sh`가 Testing.framework 경로를 추가하고, CI는 실행 테스트 수를 확인 |
 | MenuBarExtra 두 줄 표현 부적합(M3 검증) | NSStatusItem + 직접 그린 NSImage로 구현 완료 |
 | 24시간 넘게 쉬었던 Codex 세션 재개 지연 | 5분 폴백·수동 새로고침, 한계 표시 |
@@ -282,8 +282,8 @@
 
 - [x] 레포 description: "Claude Code & Codex usage limits at a glance, in your macOS menu bar"
 - [x] GitHub topics: `claude-code`, `codex`, `token-usage`, `menubar`, `macos`, `swift`
-- [x] README 최상단에 두 줄 메뉴바 스크린샷. README는 한국어(위)·영어(아래) 섹션과 최상단 언어 링크로 구성하고, 섹션마다 해당 언어의 상세 패널·기록 창 스크린샷만 넣는다(M6, 다크 모드·온라인 조회 ON 상태임을 캡션에 명시). 앱 아이콘은 제목 위에 한 번, 상세 패널은 라이트·다크를 나란히 둔다(v0.1.0 이후)
-- [ ] 아이콘: 게이지/눈 모티프 + 중립 색상
+- [x] README 최상단에 두 줄 메뉴바 스크린샷. README는 한국어(위)·영어(아래) 섹션과 최상단 언어 링크로 구성하고, 섹션마다 해당 언어의 상세 패널·기록 창 스크린샷만 넣는다(M6, 다크 모드·온라인 조회 ON 상태임을 캡션에 명시). 앱 아이콘은 제목 아래에 한 번, 상세 패널은 라이트·다크를 나란히 둔다(v0.1.0 이후)
+- [x] 아이콘: 눈 + 사용량 막대 모티프, 자체 디자인, 타사 마크·브랜드 색 미사용(`assets/AppIcon/AppIcon.svg`, v0.1.1)
 - [x] README에 "Not affiliated with Anthropic or OpenAI" 고지
 - [ ] 이름 중복 확인 (GitHub, Homebrew, 검색)
 
@@ -292,8 +292,8 @@
 | 항목 | 결정 |
 |---|---|
 | 앱 이름 | Token Glance (레포 `token-glance`) |
-| Apple Developer 계정 | 없음 → 미서명 릴리스 + 소스 빌드로 시작 |
-| 라이선스 | MIT |
+| Apple Developer 계정 | 없음 → ad-hoc 서명·미공증 릴리스 + 소스 빌드로 시작 |
+| 라이선스 | MIT (프로젝트 자체 소프트웨어·관련 문서. 타사 상표·마크에는 권리를 주지 않음) |
 | 기존 statusline | 다른 도구의 statusline이 이미 있을 수 있음(M0에서 확인) → 체이닝 P0 |
 | 최소 macOS | 14+ |
 | 스택 | AppKit NSStatusItem + SwiftUI, Foundation 훅 |
