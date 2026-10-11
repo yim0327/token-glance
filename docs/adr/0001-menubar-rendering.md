@@ -30,7 +30,9 @@ Use option 2.
 - The label is a non-template `NSImage` with a drawing handler, rebuilt only when values change.
   Text uses `NSColor.labelColor`; warning/critical percentages use `systemOrange` / `systemRed`;
   missing values (`--`) use `secondaryLabelColor`. All are dynamic colors resolved at draw time,
-  so no appearance observation is needed.
+  so no appearance observation is needed. (Changed 2026-10-10, PR #9: a missing value is now drawn
+  as two short bars, each as wide as a digit, in `labelColor`, because a thin "--" in the small
+  label font was barely visible. The tooltip and the details panel still give the reason.)
 - Tool glyphs were neutral circular badges with a knocked-out letter ("C", "X"), drawn in code, with
   no Anthropic/OpenAI logos. (Superseded 2026-10-10: the label now draws the Claude mark and the
   OpenAI Blossom from their supplied SVG paths in `labelColor`, with these badges as the fallback;

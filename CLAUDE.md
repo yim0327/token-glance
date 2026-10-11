@@ -5,7 +5,7 @@ macOS 메뉴바 앱. Claude Code와 Codex CLI의 5시간 세션 / 주간 한도 
 
 ## 핵심 원칙
 
-1. **읽기 전용, 프라이버시 우선**: 프롬프트/응답 내용은 읽더라도 저장·로그·전송하지 않는다. 수치 메타데이터만 사용한다.
+1. **읽기 전용, 프라이버시 우선**: 원본 사용 로그는 바꾸지 않는다. JSONL 줄은 읽지만 프롬프트/응답 필드는 추출·저장·로그·전송하지 않고 수치 메타데이터만 사용한다. 앱이 쓰는 파일(훅 캐시, 설정 백업, 앱 설정)은 원본 로그와 구분해 문서화한다.
 2. **기본 네트워크 호출 0**: 온라인 옵션이 꺼져 있으면 로컬 로그와 Claude 훅 캐시만 사용한다. Codex 온라인 한도 조회를 켜면 설치된 Codex App Server 자식 프로세스가 기존 로그인으로 네트워크 요청을 할 수 있다. Claude 온라인 한도 조회(기본 OFF)는 동의 창을 거쳐 켠 뒤에만 설치된 Claude Code를 프롬프트 없이 헤드리스 자식 프로세스로 실행하고, 그 Claude Code가 자기 로그인으로 네트워크 요청을 한다(공식 지원 API 아님). 앱과 진단 스크립트는 토큰·Keychain 항목·인증 파일을 직접 읽거나 저장하지 않고, 토큰·계정 식별자를 로그·캐시에 저장하지 않는다.
 3. **방어적 파싱**: 로그/훅 스키마는 비공식이고 바뀔 수 있다. 알 수 없는 필드는 무시, 파싱 실패 라인은 skip, 앱은 죽지 않는다. 값이 없으면 `--`로 표시한다.
 4. **추측 금지**: 로그 필드/경로는 `[확인 필요]`가 붙은 항목을 실제 샘플로 검증한 뒤 구현한다. 검증 결과는 `docs/log-schemas.md`에 기록한다.
@@ -17,11 +17,11 @@ macOS 메뉴바 앱. Claude Code와 Codex CLI의 5시간 세션 / 주간 한도 
 Package.swift
 Sources/
   TokenGlanceCore/   # UI 무관 로직: Provider, Parser, Aggregator, 모델 (테스트 대상)
-  TokenGlanceApp/    # AppKit/SwiftUI 메뉴바 앱 (NSStatusItem 두 줄 라벨 + 팝오버)
+  TokenGlanceApp/    # AppKit/SwiftUI 메뉴바 앱 (NSStatusItem 두 줄 라벨 + 상세 패널, M5에서 팝오버 대체)
   token-glance-hook/ # Claude statusline 훅 (stdin -> 캐시 기록 -> 기존 statusline 체이닝)
 Tests/
   TokenGlanceCoreTests/
-  Fixtures/          # 익명화된 실제 로그 샘플 (내용/경로/이메일 제거)
+  Fixtures/          # 관찰된 스키마를 바탕으로 가짜 값으로 만든 합성 fixture (실제 로그 줄 복사 없음)
 assets/AppIcon/      # 앱 아이콘 원본 SVG(자체 디자인)와 생성된 .icns
 docs/                # PRD.md, log-schemas.md, ADR
 scripts/             # .app 번들링, 릴리스
@@ -45,22 +45,22 @@ swift test                # Xcode 환경 / CI
 - Core에는 UI 코드(AppKit/SwiftUI)를 넣지 않는다. 파일 I/O는 프로토콜로 추상화해 테스트에서 fixture를 주입한다.
 - 시간은 `Date` 주입으로 테스트 가능하게 한다 (카운트다운, resets_at 만료 처리).
 - Codex 토큰은 세션 누적값이므로 delta로 집계한다 (이중 집계 금지). Claude는 `message.id`+`requestId`로 dedupe.
-- M5와 분리된 Codex 온라인 한도 조회는 별도 작업이다. 기본 OFF, stdio App Server, 계정 한도 %·초기화 시각만 조회한다. 토큰 상세·모델별 집계는 로컬 로그만 사용하며 서버 사용량을 합산하지 않는다. 여러 `limitId` 버킷을 임의로 합치지 않고 조회 실패 시 사유를 표시하며 로컬 한도로 폴백한다. 로컬 로그에 남지 않는 사용의 귀속은 검증 전까지 미확인이다.
+- Codex 온라인 한도 조회(구현됨, PRD §7.4)는 기본 OFF, stdio App Server, 계정 한도 %·초기화 시각만 조회한다. 토큰 상세·모델별 집계는 로컬 로그만 사용하며 서버 사용량을 합산하지 않는다. 여러 `limitId` 버킷을 임의로 합치지 않고 조회 실패 시 사유를 표시하며 로컬 한도로 폴백한다. 로컬 로그에 남지 않는 사용의 귀속은 검증 전까지 미확인이다.
 - 훅(`token-glance-hook`)은 stdin을 읽자마자 캐시에 **원자적으로(임시파일 -> rename)** 쓰고, 그 다음에 기존 statusline을 실행한다. Claude Code는 실행 중 스크립트를 취소할 수 있으므로 순서를 바꾸지 않는다. 훅 자체 실행 시간은 20ms 이하를 목표로 한다.
 - 주석/문서는 한국어 또는 영어 모두 가능하나 코드 식별자는 영어. README는 한국어(위)·영어(아래) 두 섹션을 같은 내용으로 유지하고, 최상단 언어 링크로 이동하게 하며, 각 섹션에는 해당 언어 스크린샷만 넣는다.
 
 ## 작업 방식
 
-- 한 번에 한 마일스톤(M0~M6)만 진행한다. 시작 전에 계획을 짧게 제시하고, 끝나면 완료 기준 충족 여부를 보고한다.
+- 한 번에 한 작업 범위(이슈·기능·수정·문서 정리 단위)만 진행한다. 시작 전에 범위와 계획을 짧게 제시하고, 끝나면 완료 기준 충족 여부를 보고한다. (M0~M6 마일스톤은 완료됐다. 기록은 `docs/PRD.md` §12)
 - 테스트 먼저(또는 함께). 파서 버그를 고칠 때는 재현 fixture/테스트를 먼저 추가한다.
 - 커밋은 작은 단위로, 메시지는 `feat:`, `fix:`, `test:`, `docs:`, `chore:`, `perf:` 접두사를 사용한다.
-- 실제 `~/.claude`, `~/.codex` 파일을 커밋하지 않는다. fixture는 반드시 익명화한다.
+- 실제 `~/.claude`, `~/.codex` 파일이나 실제 로그 줄을 복사·커밋하지 않는다. fixture는 관찰한 키·타입·값 형태만 따라 가짜 값으로 새로 만든다(`Tests/Fixtures/README.md`).
 - 모르는 것은 추측하지 말고 질문하거나 `docs/log-schemas.md`에 "미확인"으로 기록한다.
-- UI 자동 조작으로 앱을 확인할 때, 동의 창이 뜨거나 온라인 조회·네트워크·자식 프로세스를 켜는 설정은 조작하지 않는다. 필요하면 사람에게 요청한다. (앱 아이콘 확인 중 확인용 사본의 Codex 온라인 조회가 몇 초간 켜진 일이 있었다. `docs/PROGRESS.md` 참고)
+- UI 자동 조작으로 앱을 확인할 때, 동의 창이 뜨거나 온라인 조회·네트워크·자식 프로세스를 켜는 설정은 조작하지 않는다. 필요하면 사람에게 요청한다. (계기: `docs/PROGRESS.md`의 앱 아이콘 항목)
 
 ### 진행 기록 / 세션 정리
 
-- 마일스톤 완료, 테스트 전체 통과, 커밋 직후 등 작업 단위가 끝나면 `docs/PROGRESS.md`에 **완료 항목**과 **다음 할 일**을 기록(갱신)한다.
+- 작업 범위 완료, 테스트 전체 통과, 커밋 직후 등 작업 단위가 끝나면 `docs/PROGRESS.md`에 **완료 항목**과 **다음 할 일**을 기록(갱신)한다.
 - 기록 후에는 대화 컨텍스트를 비우고 새 세션에서 `docs/PROGRESS.md`부터 읽고 이어가도록 안내한다.
 - 로컬 Claude Code 설정(저장소에 포함되지 않음)을 쓰는 경우, 컨텍스트 압축 전 상태를 `docs/PRE_COMPACT_STATE.md`(git 무시)에 저장해 두고 압축 후 다시 읽는다.
 
@@ -80,4 +80,4 @@ swift test                # Xcode 환경 / CI
 - Anthropic 사전 승인과 OpenAI 지침 원문 확인은 미해결이다. 승인·법적 허용으로 표현하지 않는다. 출처·조건·미확인 사항은 `docs/trademarks.md`에 기록한다.
 - 앱 자체 아이콘·이름·브랜딩과 위 두 곳 밖의 화면에는 타사 로고를 쓰지 않는다.
 - 앱 아이콘은 자체 디자인이다(`assets/AppIcon/AppIcon.svg`). 타사 마크, 그것을 연상시키는 형태, 각 사 브랜드 색을 쓰지 않는다. SVG를 바꾸면 `./scripts/make-app-icon.sh`로 `AppIcon.icns`와 README용 `docs/images/app-icon.png`를 다시 만들어 함께 커밋한다.
-- README에 "Not affiliated with Anthropic or OpenAI"와, MIT 라이선스가 타사 상표 사용 권한을 주지 않는다는 점을 명시한다.
+- README에 "Not affiliated with Anthropic or OpenAI"와, MIT 라이선스가 프로젝트 자체 소프트웨어·관련 문서에 적용되며 타사 상표·마크 사용 권한을 주지 않는다는 점을 명시한다.

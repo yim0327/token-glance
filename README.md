@@ -48,15 +48,15 @@ Token Glance는 Claude Code와 Codex CLI의 **5시간 세션 한도**와 **주�
 요구 사항: Apple Silicon Mac, macOS 14 이상. 릴리스 zip은 arm64 전용이고 공증되지 않은 앱입니다.
 
 1. [Releases](https://github.com/yim0327/token-glance/releases/latest)에서
-   `TokenGlance-<버전>-macos-arm64.zip`을 내려받습니다.
+   `TokenGlance-<버전>-macos-arm64.zip`을 내려받습니다. 같은 릴리스의 `.sha256` 파일로 압축을 풀기
+   전에 [체크섬을 확인](docs/install.md#체크섬-확인)하는 것을 권장합니다.
 2. Finder에서 압축을 풀고 `TokenGlance.app`을 **응용 프로그램** 폴더로 끌어다 놓습니다.
 3. 앱을 엽니다. 공증되지 않은 앱이라 처음에는 차단됩니다.
 4. **시스템 설정 › 개인정보 보호 및 보안**에서 **그래도 열기**를 누릅니다.
 
 자세한 화면과 문제 해결은 [설치 가이드(docs/install.md)](docs/install.md)를 보세요.
 
-- 같은 릴리스의 `.sha256` 파일로 내려받은 zip을 확인할 수 있습니다([체크섬 확인](docs/install.md#체크섬-확인)).
-  **그래도 열기**는 체크섬이 일치한 파일에만 사용하세요.
+- **그래도 열기**는 체크섬이 일치한 파일에만 사용하세요.
 - [소스에서 빌드](docs/install.md#소스에서-빌드) · [업데이트](docs/install.md#업데이트) ·
   [삭제](docs/install.md#삭제)
 
@@ -66,12 +66,14 @@ Token Glance는 메뉴바에만 나타납니다(Dock 아이콘 없음).
 
 1. **Codex**: 따로 할 일이 없습니다. Codex 세션 로그(`~/.codex/sessions`, `CODEX_HOME` 반영)에서
    한도와 토큰을 읽습니다. Codex를 한 번 사용하면 값이 나타납니다.
-2. **Claude Code**: 한도를 보려면 **Claude 한도 훅**을 설치해야 합니다. Claude Code는 한도를
-   statusline 명령에만 넘기기 때문입니다. 메뉴바 항목 › **설정…** › "Claude 한도 훅" › **설치…**를
+2. **Claude Code**: 기본 로컬 방식에서 한도를 보려면 **Claude 한도 훅**이 필요합니다. Claude Code는
+   한도를 로컬에서는 statusline 명령에만 넘기기 때문입니다(선택 기능인 Claude 온라인 조회를 켜면 훅
+   없이도 계정 한도를 조회합니다. 아래 [온라인 조회와 프라이버시](#-온라인-조회와-프라이버시)). 메뉴바 항목 › **설정…** › "Claude 한도 훅" › **설치…**를
    누르고 확인합니다.
    - 훅은 한도 값만 기록한 뒤, 이미 쓰던 statusline이 있으면 같은 입력으로 그대로 실행합니다.
-   - 설치는 `~/.claude/settings.json`(또는 `CLAUDE_CONFIG_DIR`)의 `statusLine.command` 한 곳만
-     바꾸며, 바꾸기 전에 파일 전체를 백업합니다. **제거**하면 원래 설정으로 돌아갑니다.
+   - 설치는 `~/.claude/settings.json`(또는 `CLAUDE_CONFIG_DIR`)에서 `statusLine.command` 한 곳만
+     바꾸며, 바꾸기 전에 파일 전체를 같은 폴더에 백업합니다. **제거**하면 원래 statusline으로
+     돌아갑니다.
    - 설치 후 Claude Code가 응답을 한 번 받으면 값이 나타납니다.
 3. 나머지 설정(표시 방식, 도구 켜기/끄기, 로그 폴더, 로그인 시 열기, 언어, 알림)은 선택입니다.
 
@@ -91,15 +93,21 @@ Token Glance는 메뉴바에만 나타납니다(Dock 아이콘 없음).
 
 ### 🔒 온라인 조회와 프라이버시
 
-**기본 설정(온라인 조회 꺼짐)** 에서는 모든 처리가 이 Mac 안에서 끝납니다. 자식 프로세스를 띄우지
-않고, 네트워크 요청을 하지 않으며, 인증 파일이나 키체인을 읽지 않습니다.
+**기본 설정(온라인 조회 꺼짐)** 에서 Token Glance 앱은 자식 프로세스를 띄우지 않고, 네트워크 요청을
+하지 않으며, 인증 파일이나 키체인을 읽지 않습니다.
 
 - 한도: Claude는 훅 캐시, Codex는 로컬 세션 로그.
 - 토큰: Claude는 `~/.claude/projects/**/*.jsonl`(`CLAUDE_CONFIG_DIR` 반영), Codex는 로컬 세션 로그.
-- 프롬프트와 응답 내용은 저장·기록·전송하지 않습니다. 토큰 수, 퍼센트, 초기화 시각, 모델명만
+- 원본 사용 로그(Claude·Codex JSONL)는 읽기만 하고 바꾸지 않습니다. JSONL 줄의 바이트는 읽지만
+  프롬프트·응답 필드는 추출·보관·기록·전송하지 않고, 토큰 수, 퍼센트, 초기화 시각, 모델명만
   메모리에서 씁니다.
-- 훅은 한도 값만 `~/Library/Application Support/TokenGlance/claude-rate-limits.json`에 씁니다.
-  경로, 세션 ID, 세션 이름은 쓰지 않습니다.
+- 앱이 직접 쓰는 파일은 따로 있습니다. 훅은 한도 값만
+  `~/Library/Application Support/TokenGlance/claude-rate-limits.json`에 쓰며 경로, 세션 ID, 세션
+  이름은 쓰지 않습니다. 훅을 설치·복구·제거하면 `settings.json`을 바꾸기 전에 파일 전체를 백업하고,
+  기존 statusline 명령을 같은 폴더(`statusline-backup.json`)에 보관합니다. 앱 설정은 macOS 사용자
+  설정에 저장됩니다.
+- 기존 statusline이 있으면 훅은 Claude Code에게 받은 stdin을 그대로 그 명령에 넘깁니다. 그 명령이
+  네트워크를 쓰거나 파일을 저장하는지는 Token Glance가 통제하거나 보장하지 않습니다.
 
 **온라인 조회(설정에서 도구별로 켬, 기본 꺼짐)** 는 켜기 전에 동의 창을 띄웁니다. 켜면 설치된
 도구를 자식 프로세스로 실행하고, 그 도구가 자기 로그인으로 네트워크 요청을 합니다. Token Glance는
@@ -109,7 +117,7 @@ Token Glance는 메뉴바에만 나타납니다(Dock 아이콘 없음).
 | | Codex 온라인 조회 | Claude 온라인 조회 |
 |---|---|---|
 | 실행하는 것 | 설치된 Codex의 App Server (조회 사이에도 실행 유지) | 설치된 `claude`를 프롬프트 없이 헤드리스로 (조회마다 잠깐 실행) |
-| 조회 시점 | 약 5분마다, 새로고침, Codex 업데이트 알림 | 약 5분마다, 새로고침, 앱 시작, 깨어날 때, 윈도우 초기화 때 |
+| 조회 시점 | 약 5분 주기, 새로고침, Codex 업데이트 알림 | 약 5분 주기(실패 시 최대 30분까지 간격을 늘림), 새로고침, 앱 시작, 깨어날 때, 윈도우 초기화 때 |
 | 성격 | 공식 문서화된 App Server 메서드 | **공식 지원 API가 아님.** Claude Code의 실험적 `get_usage` 요청이 무문서 서버 엔드포인트를 읽습니다 |
 
 Claude 온라인 조회는 `claude`를 `--safe-mode`, `--no-session-persistence`, 텔레메트리 끔으로
@@ -123,7 +131,15 @@ Claude 온라인 조회는 `claude`를 `--safe-mode`, `--no-session-persistence`
 - 릴리스 zip은 Apple Silicon 전용이고 공증되지 않았습니다.
 - 한도는 퍼센트로만 제공됩니다. 두 도구 모두 남은 토큰 수를 알려주지 않습니다.
 - Claude 한도는 훅만 쓸 때 Claude Code가 실행 중일 때만 갱신됩니다. 7일보다 오래된 값은 숨깁니다.
-- 초기화 시각이 지난 윈도우는 새 관측이 올 때까지 "윈도우 초기화됨 — 새 데이터를 기다리는 중"으로 표시합니다.
+- 초기화 시각이 지났다는 것만으로 한도가 복구됐다고 확인하지 않습니다. 상세 패널은 새 관측이 올 때까지
+  "윈도우 초기화됨 — 새 데이터를 기다리는 중"으로 표시합니다. 메뉴바는 경로마다 다릅니다.
+  - Codex(로컬 로그, 온라인 조회 실패 후 폴백 포함)와 Claude 온라인 조회: 초기화된 5시간 윈도우는
+    `--`로 표시하고 새 관측을 기다립니다.
+  - Codex 온라인 조회: 다음 조회까지 마지막으로 받은 값을 그대로 표시하고, 툴팁에 "(윈도우
+    초기화됨)"을 붙입니다.
+  - 훅만 쓰는 Claude: 내부 계산상 사용 0%로 처리해 100% 남음(0% 사용)으로 그리고, 툴팁에 "(윈도우
+    초기화됨)"을 붙입니다.
+  - 툴팁의 "(윈도우 초기화됨)"은 5시간 윈도우 줄에만 붙습니다.
 - 로그·훅 형식은 비공식이라 바뀔 수 있습니다. 모르는 필드는 무시하고 읽을 수 없는 줄은 건너뜁니다.
 - Codex 한도 필드는 세션이 적은 기기 한 대에서만 검증했습니다([docs/log-schemas.md](docs/log-schemas.md) §2).
 - 24시간 넘게 쉬었다가 재개한 Codex 세션은 최대 5분 뒤에 갱신될 수 있습니다.
@@ -150,12 +166,12 @@ Claude 온라인 조회는 `claude`를 `--safe-mode`, `--no-session-persistence`
 |---|---|
 | Claude가 `--`, "statusline 훅이 설치되지 않음" | 설정에서 Claude 한도 훅을 설치합니다. |
 | "다른 statusline으로 바뀜" | 다른 도구가 statusline 설정을 바꾼 경우입니다. 설정에서 **복구…**를 누르면 새 statusline을 유지한 채 다시 연결합니다. |
-| Claude 값이 오래됨 | Claude Code를 사용하면 갱신됩니다. 항상 최신 값이 필요하면 Claude 온라인 조회를 고려하세요. |
+| Claude 값이 오래됨 | 훅만 쓸 때는 Claude Code를 사용하면 갱신됩니다. Claude Code를 쓰지 않는 동안에도 주기적으로(약 5분) 갱신하려면 Claude 온라인 조회를 고려하세요. |
 | Codex가 `--`, "아직 데이터 없음" | Codex를 한 번 사용합니다. 로그 폴더를 바꿨다면 설정의 "Codex 홈"을 확인합니다. |
 | 온라인 조회 실패 사유가 보임 | 해당 도구가 설치·로그인되어 있는지 확인합니다. 그동안은 로컬 값을 표시합니다. |
 
 **제거:** 먼저 설정에서 훅을 **제거**(또는 `token-glance-hook uninstall`)해 statusline을 되돌린 뒤
-앱을 지웁니다. 남는 데이터 위치와 훅 설치 때 만든 백업 이름은 [설치 가이드의 삭제](docs/install.md#삭제)에
+앱을 지웁니다. 남는 데이터 위치와 훅 관리 때 만든 백업 이름은 [설치 가이드의 삭제](docs/install.md#삭제)에
 있습니다.
 
 ### 📚 문서와 개발
@@ -178,8 +194,8 @@ MIT. [LICENSE](LICENSE)를 참고하세요.
 
 Anthropic 또는 OpenAI와 제휴하거나 후원·보증·승인을 받은 프로젝트가 아닙니다. 메뉴바와 상세 패널의
 Claude 마크와 OpenAI Blossom은 어느 서비스의 수치인지 구분하기 위해서만 씁니다. "Claude", "Codex",
-"OpenAI", "Anthropic"과 해당 마크는 각 소유자의 상표입니다. MIT 라이선스는 코드에만 적용되며 이
-상표에 대한 권리를 주지 않습니다. 출처, 그리는 방식, 미해결 사항: [docs/trademarks.md](docs/trademarks.md).
+"OpenAI", "Anthropic"과 해당 마크는 각 소유자의 상표입니다. MIT 라이선스는 이 프로젝트 자체의 소프트웨어와 관련 문서에
+적용되며, 이 상표와 저장소에 포함된 타사 마크 파일에 대한 권리를 주지 않습니다. 출처, 그리는 방식, 미해결 사항: [docs/trademarks.md](docs/trademarks.md).
 
 [맨 위로](#token-glance)
 
@@ -221,16 +237,16 @@ Codex 0% of both). The "Limit source" and "Observed" lines appear only when onli
 Requirements: an Apple Silicon Mac, macOS 14 or later. The release zip is arm64 only and not notarized.
 
 1. Download `TokenGlance-<version>-macos-arm64.zip` from
-   [Releases](https://github.com/yim0327/token-glance/releases/latest).
+   [Releases](https://github.com/yim0327/token-glance/releases/latest). Checking it with the
+   `.sha256` file from the same release before unzipping is recommended
+   ([Check the checksum](docs/install.md#check-the-checksum)).
 2. Unzip it in Finder and drag `TokenGlance.app` into the **Applications** folder.
 3. Open the app. It is not notarized, so macOS blocks it the first time.
 4. In **System Settings › Privacy & Security**, click **Open Anyway**.
 
 For screenshots of each step and troubleshooting, see the [install guide (docs/install.md)](docs/install.md).
 
-- You can check the downloaded zip with the `.sha256` file from the same release
-  ([Check the checksum](docs/install.md#check-the-checksum)). Use **Open Anyway** only for a file
-  whose checksum matched.
+- Use **Open Anyway** only for a file whose checksum matched.
 - [Build from source](docs/install.md#build-from-source) · [Update](docs/install.md#update) ·
   [Uninstall](docs/install.md#uninstall)
 
@@ -240,13 +256,16 @@ Token Glance appears only in the menu bar (no Dock icon).
 
 1. **Codex**: nothing to set up. Limits and tokens come from the Codex session logs
    (`~/.codex/sessions`, respects `CODEX_HOME`). Values appear after you use Codex once.
-2. **Claude Code**: install the **Claude limits hook** to see limits, because Claude Code passes them
-   only to statusline commands. Choose menu bar item › **Settings…** › "Claude limits hook" ›
+2. **Claude Code**: in the default local mode, limits need the **Claude limits hook**, because locally
+   Claude Code passes them only to statusline commands. (With the optional Claude online checks on,
+   account limits are queried without the hook; see
+   [Online checks and privacy](#-online-checks-and-privacy).) Choose menu bar item › **Settings…** › "Claude limits hook" ›
    **Install…** and confirm.
    - The hook records only the limit values, then runs your existing statusline, if any, with the
      same input.
    - Installing changes only `statusLine.command` in `~/.claude/settings.json` (or
-     `CLAUDE_CONFIG_DIR`), after backing up the whole file. **Uninstall** restores the original.
+     `CLAUDE_CONFIG_DIR`), after backing up the whole file in the same folder. **Uninstall** restores
+     the original statusline.
    - Values appear after Claude Code receives its next response.
 3. Everything else (display mode, tools on/off, log folders, open at login, language,
    notifications) is optional.
@@ -266,17 +285,23 @@ statusline set at that moment, so a later `uninstall` restores that statusline.
 
 ### 🔒 Online checks and privacy
 
-**By default (online checks off)** everything stays on this Mac: no child processes, no network
-requests, and no access to authentication files or the Keychain.
+**By default (online checks off)** the Token Glance app starts no child processes, makes no network
+requests, and does not read authentication files or the Keychain.
 
 - Limits: the hook cache for Claude, the local session logs for Codex.
 - Tokens: `~/.claude/projects/**/*.jsonl` for Claude (respects `CLAUDE_CONFIG_DIR`), the local
   session logs for Codex.
-- Prompt and response text is never stored, logged or sent. Only token counts, percentages, reset
-  times and model names are used, in memory.
-- The hook writes just the limit values to
+- The original usage logs (Claude and Codex JSONL) are only read, never changed. The bytes of each
+  JSONL line are read, but prompt and response fields are not extracted, kept, logged or sent; only
+  token counts, percentages, reset times and model names are used, in memory.
+- Token Glance writes its own files separately. The hook writes just the limit values to
   `~/Library/Application Support/TokenGlance/claude-rate-limits.json`; no paths, session ids or
-  session names.
+  session names. Installing, repairing or uninstalling the hook backs up the whole `settings.json`
+  before changing it, and keeps your previous statusline command in the same folder
+  (`statusline-backup.json`). App settings are stored in the macOS user defaults.
+- If you already have a statusline, the hook passes it the stdin it received from Claude Code
+  unchanged. Token Glance does not control or vouch for whether that command uses the network or
+  stores data.
 
 **Online checks (turned on per tool in Settings, off by default)** ask for consent first. When on, the
 app starts the installed tool as a child process, and that tool makes network requests with its own
@@ -287,7 +312,7 @@ only. If a check fails, the reason is shown and the local values are used.
 | | Codex online checks | Claude online checks |
 |---|---|---|
 | What runs | The installed Codex App Server (kept running between checks) | The installed `claude`, headless with no prompt (briefly, once per check) |
-| When | About every 5 minutes, Refresh, Codex update notifications | About every 5 minutes, Refresh, launch, wake, a window reset |
+| When | Periodically (about every 5 minutes), Refresh, Codex update notifications | Periodically (about every 5 minutes, backing off up to 30 minutes after failures), Refresh, launch, wake, a window reset |
 | Status | Documented App Server methods | **Not an official, supported API.** Claude Code's experimental `get_usage` request reads an undocumented server endpoint |
 
 Claude online checks run `claude` with `--safe-mode`, `--no-session-persistence` and telemetry off.
@@ -303,7 +328,15 @@ a running check and its child process.
 - Limits are percentages only; neither tool exposes remaining token counts.
 - With the hook alone, Claude limits update only while Claude Code runs. Values older than 7 days
   are hidden.
-- A window whose reset time has passed shows "Window reset — waiting for new data" until a new observation arrives.
+- A passed reset time alone is not taken as proof that a limit recovered. The details panel shows
+  "Window reset — waiting for new data" until a new observation arrives. The menu bar differs by path:
+  - Codex (local logs, including the fallback after a failed online check) and Claude online checks:
+    a reset 5-hour window shows `--` until a new observation arrives.
+  - Codex online checks: the last reported value stays until the next query, and the tooltip adds
+    "(window reset)".
+  - Claude with the hook alone: the window counts as 0% used internally, so it shows 100% left
+    (0% used), and the tooltip adds "(window reset)".
+  - The tooltip's "(window reset)" is added to the 5-hour line only.
 - Log and hook formats are unofficial and may change. Unknown fields are ignored and unreadable lines
   skipped.
 - The Codex limit fields were verified on one machine with few sessions only
@@ -335,13 +368,13 @@ For problems installing the app, a blocked first launch or "Open at login", see
 |---|---|
 | Claude shows `--`, "statusline hook not installed" | Install the Claude limits hook in Settings. |
 | "Replaced by another statusline" | Another tool changed the statusline setting. **Repair…** in Settings reconnects the hook and keeps the new statusline. |
-| Claude value is old | It updates when you use Claude Code. Consider Claude online checks if you always need a fresh value. |
+| Claude value is old | With the hook alone it updates when you use Claude Code. Consider Claude online checks to have it refreshed periodically (about every 5 minutes) while Claude Code is not in use. |
 | Codex shows `--`, "no data yet" | Use Codex once. If you changed the log folder, check "Codex home" in Settings. |
 | An online check failure reason is shown | Check that the tool is installed and logged in. Local values are shown meanwhile. |
 
 **Uninstall:** first **Uninstall** the hook in Settings (or `token-glance-hook uninstall`) to restore
 your statusline, then delete the app. Where the remaining data is and how the backups made when
-installing the hook are named: [Uninstall in the install guide](docs/install.md#uninstall).
+managing the hook are named: [Uninstall in the install guide](docs/install.md#uninstall).
 
 ### 📚 Documentation and development
 
@@ -365,7 +398,8 @@ MIT. See [LICENSE](LICENSE).
 Not affiliated with, sponsored, endorsed or approved by Anthropic or OpenAI. The menu bar and the
 details panel show the Claude mark and the OpenAI Blossom only to identify which service a number
 belongs to; "Claude", "Codex", "OpenAI", "Anthropic" and those marks are trademarks of their
-respective owners. The MIT license covers the code only and grants no rights to them. Sources, how
+respective owners. The MIT license covers this project's own software and associated documentation; it grants no
+rights to those names or to the third-party mark files included in the repository. Sources, how
 the marks are drawn and what is unresolved: [docs/trademarks.md](docs/trademarks.md).
 
 [Back to top](#token-glance)

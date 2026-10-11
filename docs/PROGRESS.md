@@ -1,6 +1,6 @@
 # Progress
 
-Updated: 2026-10-11
+Updated: 2026-10-12
 
 ## Status
 
@@ -87,67 +87,48 @@ Updated: 2026-10-11
   example is now "another tool changed the statusline" in both languages. A string-table test
   rejects known third-party tool names in Korean and English values. Behavior unchanged.
   `./scripts/test.sh`: 277 tests in 43 suites pass.
-- New app icon for v0.1.1 (`feat/app-icon`): until v0.1.0 the bundle had no icon (no `.icns`, no
-  `CFBundleIconFile`), so macOS showed the generic app icon. The new icon ("Peek over bar": two
-  eyes looking over a usage bar, blue body) is Token Glance's own design, picked from several rounds
-  of concepts; no third-party mark, shape based on one or brand color. Source
-  `assets/AppIcon/AppIcon.svg`; `scripts/make-app-icon.sh` renders every iconset size (16–1024 px)
-  with the system SVG renderer (`scripts/render-svg.swift`, no third-party tools) and packs
-  `AppIcon.icns` with `iconutil`; the `.icns` is committed. `bundle-app.sh` copies it and sets
-  `CFBundleIconFile`; `package-release.sh` (run in CI) fails if the icon is missing, the plist key
-  differs or the bundled file differs from `assets/AppIcon/AppIcon.icns` (checked: missing file and
-  a changed file both fail). One artwork for all sizes; no separate small-size drawing.
-  Checked on macOS 26.6.2 with a bundled copy: Finder icon view, Get Info (title and preview) and
-  list view show the new icon, with no gray backing plate. Not shown: the Dock (the app is
-  `LSUIElement`, so it never appears there) and alerts/notifications (not captured; see below).
-  `./scripts/test.sh`: 277 tests in 43 suites pass.
-  - Incident during the screenshot check: driving the settings window of a separate copy (own
-    bundle id and preference domain) by accessibility scripting turned that copy's Codex online
-    checks on for a few seconds. Likely cause, not confirmed: an accessibility press opened the
-    consent dialog late and a synthetic click meant for the toggle landed on its Enable button. It was turned off at once; its `codex app-server` child
-    ended and no process was left after the copy quit. The alert screenshot was then dropped.
-- README icon and light-mode panels (`docs/readme-icon-light-screenshots`): `make-app-icon.sh` also
-  renders `docs/images/app-icon.png` (128 px, transparent, 10 KB) from the same SVG; rerunning it left
-  `AppIcon.icns` byte for byte unchanged. The icon sits once below the README title (shown at 128 px).
-  All four panel images (`panel-{ko,en}-{light,dark}.png`) were retaken from a `main` build
-  (`c38bd15`) in a separate copy (own bundle id and preference domain) on macOS 26.6.2, both online
-  checks on, under the same conditions (taken one after another within a few minutes, not at one
-  instant; the README captions say "under the same conditions"): same limits in all four (Claude 4% / 83% used, Codex 0% / 0%, observed
-  1:30 PM), same items (no "hook cache differs" line), 772 × 1328 px; token counts differ slightly
-  because Claude Code was in use. The old light images (before the light-mode color change) were
-  replaced under the same names. Each README section shows its language's light and dark panels
-  side by side (280 px each). The person at the computer switched appearance, language and the
-  online options (consent dialogs) by hand; captures were taken by window id only. The installed
-  app was not changed. README layout: the Korean and English taglines are separate bold lines in a quote block with 👀, and every
-  level-3 heading starts with an emoji (same one in both languages); the links to the
-  troubleshooting headings now use the new anchors (`#-문제-해결`, `#-troubleshooting`).
-- Install guide (`docs/install-guide`): the README install section is now four short steps (download,
-  drag in Finder, open and get blocked, **Open Anyway**) with a one-line requirement, the arm64-only
-  and not-notarized notes, and links for the checksum, build from source, update and uninstall. The
-  details moved to the new `docs/install.md` (Korean top, English bottom): steps with screenshots
-  (blocked dialog, **Open Anyway** in Privacy & Security, the confirm dialog, the menu bar label),
-  the checksum command and what to do when it fails, update (same as the v0.1.0 release notes:
-  settings kept, the hook copy is not updated), uninstall (what remains and the backup name), build
-  from source (moved unchanged, Swift 6 range and swift-testing note kept) and install
-  troubleshooting; the "why blocked", "what was checked" and `mv`/App Translocation notes are in
-  `<details>`. The README troubleshooting table keeps the in-use rows and links to the guide for the
-  install rows (cannot open, open at login), and its uninstall line links to the guide. The README
-  hook, first run, online checks, privacy and limitations sections are unchanged. PRD §13 names the
-  guide. `docs/releases/v0.1.0.md` is unchanged (published text) and does not contradict the guide.
-  Screenshots (`docs/images/install/`, ko and en): taken on macOS 26.6.2 with two separate copies
-  built from `main` (`f0e7942`) in a scratch folder, each with its own bundle id
-  (`…token-glance.installshot-{ko,en}`), re-signed ad hoc and given a quarantine attribute so
-  Gatekeeper blocked them (`spctl` rejected both). The person at the computer opened them, pressed
-  **Open Anyway**, confirmed and switched the system language (English needed no logout: System
-  Settings quit and reopened, the dialogs came up in English); captures were taken by window id
-  only, never of the password prompt. The Privacy & Security images are cropped to the Security
-  section (no sidebar). The two English captures of the blocked dialog and System Settings show an
-  inactive window. The installed app and its settings were not touched; the copies ran from App
-  Translocation paths and were quit afterwards. Cleanup (2026-10-11): the two copies' preference
-  files (`…installshot-{ko,en}`) are no longer on this Mac (not in `~/Library/Preferences` or
-  `defaults domains`); the two copies, the raw captures, the README preview and the capture scripts
-  in the scratch folder were deleted. Their Gatekeeper approvals were left as they are. The launch-complete step reuses `docs/images/menubar.png`
-  (a full-screen app hid the menu bar during the capture).
+- New app icon for v0.1.1 (`feat/app-icon`, PR #19): until v0.1.0 the bundle had no icon (no `.icns`,
+  no `CFBundleIconFile`), so macOS showed the generic app icon. The new icon (two eyes looking over a
+  usage bar) is Token Glance's own design: no third-party mark, shape based on one or brand color.
+  Source `assets/AppIcon/AppIcon.svg`; `scripts/make-app-icon.sh` renders every iconset size
+  (16–1024 px) with the system SVG renderer (`scripts/render-svg.swift`, no third-party tools) and
+  packs the committed `AppIcon.icns`. `bundle-app.sh` copies it and sets `CFBundleIconFile`;
+  `package-release.sh` (run in CI) fails if the icon is missing or differs from the source (both
+  failure cases checked). One artwork for all sizes. Checked on macOS 26.6.2 with a bundled copy:
+  Finder icon view, Get Info and list view show the new icon. Not checked: alerts and notifications
+  (see "v0.1.1 release"); the Dock never shows the app (`LSUIElement`). `./scripts/test.sh`: 277
+  tests in 43 suites pass.
+  - Incident: while UI-scripting the settings window of a separate test copy (own bundle id and
+    preference domain) for screenshots, that copy's Codex online checks were turned on for a few
+    seconds. The likely cause (a late consent dialog receiving a click meant for the toggle) was not
+    confirmed. The option was turned off at once, its `codex app-server` child ended, and no process
+    was left after the copy quit. Since then CLAUDE.md forbids UI-automating consent dialogs and
+    settings that enable online checks, network or child processes.
+- README icon and light-mode panels (PR #21): `make-app-icon.sh` also renders
+  `docs/images/app-icon.png` (128 px) from the same SVG; rerunning it left `AppIcon.icns` unchanged.
+  The four panel images (`panel-{ko,en}-{light,dark}.png`) were retaken from a `main` build
+  (`c38bd15`) in a separate copy on macOS 26.6.2 with both online checks on, one after another within
+  a few minutes (same limits and items in all four; token counts differ slightly because Claude Code
+  was in use). Appearance, language and the online options were switched by hand; the installed app
+  was not changed.
+- Install guide (PR #22): the README install section is four short steps; details moved to
+  `docs/install.md` (Korean and English): steps with screenshots, checksum, update, uninstall, build
+  from source and install troubleshooting. Screenshots were taken on macOS 26.6.2 with two separate
+  copies built from `main` (`f0e7942`), each with its own bundle id, re-signed ad hoc and given a
+  quarantine attribute so Gatekeeper blocked them (`spctl` rejected both); the person at the
+  computer clicked through the dialogs, and the password prompt was never captured. The installed
+  app and its settings were not touched; the copies and capture files were removed afterwards. The
+  launch-complete step reuses `docs/images/menubar.png`.
+- Docs alignment (`docs/align-docs-with-current-state`, 2026-10-12, docs only): current state and
+  history separated (v0.1.1 in the development notes), PRD wording corrected (ad hoc signed and not
+  notarized, reset handling, icon checklist), privacy wording made precise (log bytes read but
+  prompt/response fields not extracted; the app's own cache, backups and settings listed apart from
+  the original logs), uninstall steps narrowed to Token Glance's own items, synthetic fixtures
+  described as such, perf and ADR notes clarified, this file condensed. License wording aligned with
+  `LICENSE` (the project's software and documentation; no rights to third-party names or marks).
+  `docs/releases/v0.1.1.md` got two clarifications (that license wording; the banner-icon steps are
+  one Mac's record, not a recommended fix), so it now differs from the published Release text, which
+  was not edited. No source, test, fixture or script changes.
 
 ## Verified in the real app
 
@@ -259,32 +240,27 @@ the icon checks. Preparation PR #23: `VERSION` 0.1.1 (read by `bundle-app.sh`,
 - Hand check by the maintainer (macOS 26.6.2) with the draft zip (downloaded with `gh`, so without
   the quarantine attribute), installed in place of v0.1.0: Finder icon view, Get Info and the
   online-check consent dialog showed the new icon; the test notification banner did not.
-- Notification banner icon:
-  - Seen: the app was found by the notification service at `/Applications/TokenGlance.app` and the
-    banner was delivered, with no icon error in the logs; the bundled icon file was complete
-    (16–1024 px). Unregistering the other Launch Services registrations for the bundle id (old
-    builds in the Trash, an App Translocation path, build folders and earlier scratch copies) and
-    restarting the notification processes did not change the banner. A copy with another bundle id
-    could not be used as a control: the notification service rejected it ("Failed to find or
-    validate client"), so it gave no result.
-  - Then, together: other copies of the app and the user icon caches removed, the installed app
-    removed, the Mac restarted, the draft zip downloaded again in a browser and installed. After
-    that the banner showed the new icon.
-  - Not known: which of these steps was needed (no single cache is named as the cause), whether a
-    restart alone helps, and whether other Macs updating from v0.1.0 see the same.
-  - The draft notes were edited before publishing to say only what was seen; `docs/releases/v0.1.1.md`
-    now matches the published notes.
-- Removed on this Mac during the check (confirmed): the bundle-id test copy and its preference file,
-  `dist/TokenGlance.app`, an old icon-check cache folder, and the user caches
-  `com.apple.iconservices`, `com.apple.dock.iconcache` and `com.apple.notificationcenterui`. Not
-  confirmed: emptying two old copies in the Trash and removing the system icon cache. Earlier the
-  same day the install-guide screenshot copies, raw captures, preview and capture scripts were
-  deleted from the scratch folder (see "Install guide" above). Gatekeeper approvals were left as
-  they are.
+- Notification banner icon (one development Mac):
+  - Seen: the notification service found the app at `/Applications/TokenGlance.app` and delivered
+    the banner, with no icon error in the logs; the bundled icon file was complete. Unregistering
+    other Launch Services registrations for the bundle id and restarting the notification processes
+    did not change the banner. A copy with another bundle id could not serve as a control (the
+    notification service rejected it).
+  - Then several steps were taken together: other copies of the app and the user icon caches
+    removed, the installed app removed, the Mac restarted, the draft zip downloaded again in a browser
+    and installed. After that the banner showed the new icon.
+  - Not known: which of these steps was needed, whether a restart alone helps, and whether other
+    Macs updating from v0.1.0 see the same. These steps are a record of one Mac, not a recommended
+    fix.
+  - Removed on this Mac during the check: the test copies, `dist/TokenGlance.app` and the user icon,
+    Dock icon and notification center caches. Not confirmed: emptying two old copies in the Trash and
+    removing the system icon cache. Gatekeeper approvals were left as they are.
+  - The draft notes were edited before publishing to say only what was seen;
+    `docs/releases/v0.1.1.md` matched the published notes at that time.
 - Published 2026-10-11T07:30:12Z, not a pre-release, with the reviewed notes. Without a token: the
   release page answers 200, both assets download from the public URLs (same sizes) and
   `shasum -a 256 -c` is OK, `releases/latest` (web and API) points to `v0.1.1`, and the published
-  notes equal the reviewed draft. The maintainer then did the download check.
+  notes equal the reviewed draft.
 
 ## Next
 

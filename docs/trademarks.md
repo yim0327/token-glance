@@ -11,8 +11,9 @@ and is not covered by the conditions below.
 - The marks and the names "Claude", "Anthropic", "OpenAI" and "Codex" are trademarks of their
   respective owners. All rights in them stay with those owners.
 - Token Glance is not affiliated with, sponsored, endorsed or approved by Anthropic or OpenAI.
-- The MIT license covers this project's code only. It grants no right to use the third-party
-  marks; anyone reusing the code or the files below needs to check the owners' terms themselves.
+- The MIT license (`LICENSE`) covers this project's own software and associated documentation. It
+  does not cover the third-party mark files below and grants no right to use the third-party names
+  or marks; anyone reusing the code or those files needs to check the owners' terms themselves.
 - No approval from Anthropic or OpenAI has been requested or confirmed for this use. The
   "not affiliated" notice is not a substitute for permission.
 
@@ -21,9 +22,10 @@ and is not covered by the conditions below.
 | File in `Sources/TokenGlanceText/Resources/Marks/` | Source | SHA-256 |
 |---|---|---|
 | `claude-spark.svg` | Anthropic press kit (`https://www.anthropic.com/press-kit`, "Anthropic media resources.zip", file `Anthropic logos/Claude logos/3 Claude Spark/SVG/Claude Spark - Clay.svg`), downloaded 2026-10-10 | `6d53db4be375e899c937c26cf16684a80d6e869b1928d72b37748bef2560e219` |
-| `openai-blossom.svg` | `OAI_OpenAI-Blossom_Black.svg`, supplied by the maintainer in response to a request for the official download from OpenAI's brand page (`https://openai.com/brand/`). The file carries no download URL and the page could not be opened by automated tools (HTTP 403), so where it was downloaded from is not recorded or verified independently. A white variant with the same path was supplied as well. | `75c1e9fffa5e8c437bec1d67197a73992bca45d166c6ff23215185dea8fae92a` |
+| `openai-blossom.svg` | Provided by the maintainer as `OAI_OpenAI-Blossom_Black.svg`, as the official download from OpenAI's brand page (`https://openai.com/brand/`). Original download URL: not recorded (the file carries none). Independent check of the source: not done (the page returned HTTP 403 to automated tools). A white variant with the same path was provided as well. | `75c1e9fffa5e8c437bec1d67197a73992bca45d166c6ff23215185dea8fae92a` |
 
-Both files are stored byte for byte as downloaded (only renamed). The Claude mark used is the
+Both files are stored byte for byte as downloaded or provided (only renamed); the SHA-256 values
+above are of the stored files. The Claude mark used is the
 general Claude mark ("Claude Spark"), not the separate Claude Code logo in the same press kit.
 
 ## How they are drawn

@@ -4,6 +4,12 @@ Targets (PRD §9): idle CPU < 1% (including while Claude Code is running), memor
 physical footprint (Activity Monitor "Memory"); peaks tracked separately. RSS is recorded for
 reference only (it includes shared framework pages).
 
+Open definition: PRD §9 says the 50 MB target is physical footprint and that peaks are tracked
+separately, but not whether it applies to the average, the settled value or the highest sample.
+The results below report those separately; where a result is compared with the target, read the
+comparison for the statistic named in that row or sentence only. Unless a row says "combined", footprint is the Token Glance app process
+alone; child processes of the optional online checks are listed apart from it.
+
 ## Method
 
 - Bundled release app (`./scripts/bundle-app.sh`), launched with `open`, measured for 5 minutes
@@ -49,7 +55,10 @@ for event paths, no state update when results are unchanged.
 | Bytes read after start | ~164 MB per refresh | 816 KB total | |
 
 - First full scan at launch: 1.4 s, 175 MB read, peak footprint 37–47 MB.
-- Worst case if events arrived continuously: one refresh per 1.5 s × 12.9 ms ≈ 0.9% CPU.
+- Rough refresh-time share if events arrived continuously: one refresh per 1.5 s × 12.9 ms ≈ 0.9%
+  of wall time. This assumes every refresh costs the measured average and is not a measured CPU
+  figure or an upper bound (a refresh can read more than the average, and the measured CPU averages
+  above include other work).
 - Caveat: log activity during this window was lighter than during the baseline (which overlapped
   with builds and test runs in the same Claude Code session). The per-refresh cost above is what
   scales with activity.
@@ -148,13 +157,15 @@ Same method; the app was used normally (panel, settings, history window opened a
 hand). "Peak" is `vmmap`'s lifetime peak, i.e. it includes launch, the first scan and every
 window opened so far. Spikes were also checked with `footprint --sample` at 0.2–0.5 s.
 
-| State (final build) | CPU avg | CPU max 5 s | Footprint avg | Lifetime peak |
+| State | CPU avg | CPU max 5 s | Footprint avg | Lifetime peak |
 |---|---|---|---|---|
 | Nothing opened since launch (before the fixes below, 5 min) | 0.17% | 1.4% | 19.8 MB | 40.5 MB |
 | All windows closed after using panel and settings (5 min) | 0.14% | 1.4% | 40.0 MB | 43.6 MB |
 | History window open (3 min) | 0.37% | 2.4% | 46.1 MB | 46.8 MB |
 | First scan, `--print-state` (3 runs, 1.26–1.32 s) | — | — | — | 29.7–34.7 MB |
 
+The first row was measured before the fixes below, as its label says. The table was headed "final
+build", so the other rows are taken to be of the build with the fixes; this is not recorded per row.
 Once SwiftUI windows have been shown, about 20 MB stays resident after they close (likely
 framework caches; not investigated further). Growth over many open/close cycles was not measured.
 
@@ -190,8 +201,8 @@ CPU is the average of CPU time deltas; footprint is the sum of both processes' p
 | App Server child | 0.11% | 1.98% | 43.5 MB | 79.0 MB |
 | Combined | **0.64%** | — | **70.3 MB** | **105.0 MB** |
 
-The combined CPU met the < 1% target. Combined footprint exceeded the < 50 MB target; the child
-was the larger part. This run predates integration with M5.
+The combined CPU met the < 1% target. Combined footprint (app + child) exceeded the < 50 MB target;
+the child was the larger part. The app alone stayed below 50 MB in this run. This run predates integration with M5.
 
 The M5-integrated build was then measured with the same separate-app-copy method for 303
 seconds (60 samples). The App Server account-limit read succeeded. The probe used a temporary

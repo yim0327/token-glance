@@ -22,8 +22,8 @@
 그래서 처음 열 때 macOS가 한 번 실행을 막습니다.
 
 1. [Releases](https://github.com/yim0327/token-glance/releases/latest)의 최신 릴리스에서
-   `TokenGlance-<버전>-macos-arm64.zip`을 내려받습니다. 체크섬을 확인하려면 같은 이름의 `.sha256`
-   파일도 함께 받습니다([체크섬 확인](#체크섬-확인)).
+   `TokenGlance-<버전>-macos-arm64.zip`을 내려받습니다. 같은 이름의 `.sha256` 파일도 함께 받아,
+   압축을 풀기 전에 [체크섬을 확인](#체크섬-확인)하는 것을 권장합니다.
 2. Finder에서 zip을 더블클릭해 압축을 풀고, `TokenGlance.app`을 Finder에서 **응용 프로그램** 폴더로
    끌어다 놓습니다.
 3. 응용 프로그램 폴더에서 `TokenGlance.app`을 엽니다. **'TokenGlance'을(를) 열지 않음** 안내가 뜨면
@@ -88,7 +88,7 @@ Gatekeeper가 확인합니다. Token Glance는 Apple 공증을 받지 않았기 
 
 ### 체크섬 확인
 
-내려받은 zip이 릴리스에 올린 파일과 같은지 확인합니다. zip과 `.sha256` 파일이 있는 폴더(보통
+내려받은 zip이 릴리스에 올린 파일과 같은지 확인합니다. 압축을 풀거나 앱을 열기 전에 합니다. zip과 `.sha256` 파일이 있는 폴더(보통
 다운로드 폴더)에서 터미널로 실행합니다. 파일 이름의 버전은 내려받은 버전으로 바꿉니다.
 
 ```sh
@@ -130,12 +130,14 @@ shasum -a 256 -c TokenGlance-0.1.1-macos-arm64.zip.sha256
 
 | 내용 | 위치 |
 |---|---|
-| 한도 캐시, 훅 사본 | `~/Library/Application Support/TokenGlance` |
-| 앱 설정 | 앱 식별자 `io.github.yim0327.token-glance`의 사용자 설정(`~/Library/Preferences`) |
-| 훅 설치 때 만든 `settings.json` 백업 | `settings.json` 옆의 `settings.json.token-glance-backup-<시각>` (`~/.claude` 또는 `CLAUDE_CONFIG_DIR`) |
+| 앱 전용 데이터: 한도 캐시(`claude-rate-limits.json`). 훅을 제거하지 않았다면 훅 사본(`bin/`)과 기존 statusline 보관 파일(`statusline-backup.json`)도 | `~/Library/Application Support/TokenGlance` 폴더 |
+| 앱 설정 | 앱 식별자 `io.github.yim0327.token-glance`의 사용자 설정 도메인. 파일은 `~/Library/Preferences/io.github.yim0327.token-glance.plist` |
+| 훅 설치·복구·제거 때 만든 `settings.json` 백업 | `settings.json` 옆의 `settings.json.token-glance-backup-<시각>` (`~/.claude` 또는 `CLAUDE_CONFIG_DIR`) |
 
-필요 없으면 위 폴더와 백업 파일을 직접 지웁니다. 백업은 훅 설치 전 설정 전체이므로, 지우기 전에
-지금의 `settings.json`이 원하는 상태인지 확인하세요.
+필요 없으면 위 항목만 직접 지웁니다. 다른 앱의 설정도 들어 있으므로 `~/Library/Preferences` 폴더
+전체나 그 안의 다른 파일은 지우지 마세요. 훅을 제거하지 않은 채 `TokenGlance` 폴더를 지우면
+`settings.json`이 없어진 훅을 가리키게 되므로, 먼저 1단계로 훅을 제거합니다. 각 백업은 그 작업 직전의
+`settings.json` 전체이므로, 지우기 전에 지금의 `settings.json`이 원하는 상태인지 확인하세요.
 
 ### 소스에서 빌드
 
@@ -184,8 +186,9 @@ The release zip is Apple Silicon only, ad hoc signed and not notarized by Apple,
 first launch once.
 
 1. From the latest release on the [Releases](https://github.com/yim0327/token-glance/releases/latest)
-   page, download `TokenGlance-<version>-macos-arm64.zip`. To check the checksum, also download the
-   `.sha256` file with the same name ([Check the checksum](#check-the-checksum)).
+   page, download `TokenGlance-<version>-macos-arm64.zip`. Also download the `.sha256` file with the
+   same name; checking the checksum before unzipping is recommended
+   ([Check the checksum](#check-the-checksum)).
 2. Unzip it by double-clicking the zip in Finder, then drag `TokenGlance.app` in Finder into the
    **Applications** folder.
 3. Open `TokenGlance.app` from the Applications folder. When **"TokenGlance" Not Opened** appears,
@@ -254,7 +257,8 @@ app's location, so turn it on after moving the app.
 
 ### Check the checksum
 
-This checks that the downloaded zip is the file uploaded to the release. Run it in Terminal in the
+This checks that the downloaded zip is the file uploaded to the release. Do it before unzipping or
+opening the app. Run it in Terminal in the
 folder with the zip and the `.sha256` file (usually Downloads). Replace the version in the file name
 with the one you downloaded.
 
@@ -298,13 +302,15 @@ What stays after deleting the app:
 
 | What | Where |
 |---|---|
-| Limit cache, hook copy | `~/Library/Application Support/TokenGlance` |
-| App settings | User defaults for the app identifier `io.github.yim0327.token-glance` (`~/Library/Preferences`) |
-| `settings.json` backups made when installing the hook | `settings.json.token-glance-backup-<time>` next to `settings.json` (`~/.claude` or `CLAUDE_CONFIG_DIR`) |
+| App data: the limit cache (`claude-rate-limits.json`); if the hook was not uninstalled, also the hook copy (`bin/`) and the saved previous statusline (`statusline-backup.json`) | the `~/Library/Application Support/TokenGlance` folder |
+| App settings | the user defaults domain of the app identifier `io.github.yim0327.token-glance`; the file is `~/Library/Preferences/io.github.yim0327.token-glance.plist` |
+| `settings.json` backups made when installing, repairing or uninstalling the hook | `settings.json.token-glance-backup-<time>` next to `settings.json` (`~/.claude` or `CLAUDE_CONFIG_DIR`) |
 
-Delete the folder and the backup files yourself if you no longer need them. A backup is the whole
-settings file from before the hook was installed, so check that your current `settings.json` is
-what you want before deleting it.
+Delete only these items yourself if you no longer need them. Do not delete the
+`~/Library/Preferences` folder or other files in it; they hold other apps' settings. Deleting the
+`TokenGlance` folder while the hook is still installed leaves `settings.json` pointing to a missing
+hook, so uninstall the hook first (step 1). Each backup is the whole `settings.json` from just before
+that change, so check that your current `settings.json` is what you want before deleting it.
 
 ### Build from source
 

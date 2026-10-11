@@ -1,8 +1,9 @@
 # Log / Hook Schema Notes
 
-M0 검증 결과. 모든 확인은 **읽기 전용**으로, 키 이름·타입·값의 형태(자릿수, 문자 패턴)만 추출했다. 프롬프트/응답 본문, 경로, 식별자 값은 기록하지 않는다.
+로그·훅 형식의 검증 기록. 범위: M0 초기 스키마 조사(§1, §3.1), M1 Codex 재검증(§2.1~2.6), Codex 갱신 누락을 진단하며 한 실사용 관찰(§2.1, PR #1·#3), M2 훅 설치·실제 환경 검증(§3.3), 온라인 조회 진단(§2.7, §3.5).
 
-- 검증일: 2026-10-09 (Codex는 M1에서 재검증)
+- 읽기 전용 범위: M0·M1의 스키마 조사는 **읽기 전용**으로 키 이름·타입·값의 형태(자릿수, 문자 패턴)만 추출했다. 이후 단계는 읽기 전용이 아니다. M2 실제 환경 검증은 승인 후 개발 기기의 `settings.json`을 바꾸고 훅을 설치했으며(§3.3), 온라인 조회 진단은 승인 후 설치된 도구로 실제 계정을 조회했다(§2.7, §3.5). 어느 단계에서도 프롬프트/응답 본문, 경로, 식별자 값은 기록하지 않는다.
+- 검증일: 2026-10-09 (Codex는 M1에서 재검증), 온라인 조회 진단 2026-10-10
 - 환경: macOS 26.6.2 (arm64), Claude Code 2.1.295, codex-cli 0.155.1. 기존 statusline으로 서드파티 HUD 플러그인(oh-my-claudecode 5.6.1)이 설정된 상태에서 체이닝을 검증했다(3.2).
 - 표기: ✅ 확인됨 / ⚠️ 예상과 다름 / ❓ 미확인
 
@@ -58,7 +59,7 @@ M0 검증 결과. 모든 확인은 **읽기 전용**으로, 키 이름·타입·
 | `message.usage.cache_read_input_tokens` | int | ✅ | |
 | `message.usage.cache_creation.ephemeral_5m_input_tokens` | int | ✅ | 신규 (분류용) |
 | `message.usage.cache_creation.ephemeral_1h_input_tokens` | int | ✅ | 신규 |
-| `message.usage.output_tokens_details.thinking_tokens` | int | ✅ | 일부 라인에만 (5,524/7,225). 관찰 5,640/5,640에서 `≤ output_tokens` → output에 포함으로 추정 |
+| `message.usage.output_tokens_details.thinking_tokens` | int | ✅ | 일부 라인에만 (M0 표본 5,524/7,225). 관찰 5,640/5,640에서 `≤ output_tokens` → output에 포함으로 추정 (이 문장은 M1에 추가됐다. 두 숫자의 표본 범위가 다른 이유는 기록되지 않았다) |
 | `message.usage.server_tool_use.{web_search_requests,web_fetch_requests}` | int | ✅ | 일부 라인 |
 | `message.usage.service_tier`, `speed`, `inference_geo` | string\|null | ✅ | 무시 |
 | `message.usage.iterations`, `fallback_credit` | array/null | ✅ | 무시 |
@@ -93,10 +94,10 @@ M0 검증 결과. 모든 확인은 **읽기 전용**으로, 키 이름·타입·
 
 - `used_percentage`는 없으므로 메인 소스가 될 수 없다. **보조 신호**: "세션 한도 도달 + 초기화 시각"을 statusline 캐시가 없을 때 표시하는 용도로 쓸 수 있다.
 
-**제안 (M2 결정, 미구현):** 보조 신호로 사용한다. 단 아래 조건을 모두 만족할 때만.
+**제안 (M2 결정, 현재 앱에 구현되지 않음):** 아래는 보조 신호로 쓸 경우의 조건이다. 현재 앱은 `quotaLimits`를 읽지 않으며, fixture의 해당 줄은 형태 참고용이다.
 1. 훅 캐시가 `noData` 또는 `stale`일 때만 쓴다. 훅 캐시가 있으면 항상 훅 값이 우선 (%가 있고 더 자주 갱신됨).
 2. `status == "rejected"`이고 `resetsAt > now`인 가장 최근 라인 1개만 사용. `rateLimitType`이 `five_hour`면 session, `seven_day`(추정, 미관찰)면 weekly로 매핑하고 그 외 값은 무시.
-3. 표시는 "한도 도달 (100%)" + `resetsAt` 카운트다운, `observedAt`은 라인의 `timestamp`. `resetsAt`이 지나면 기존 규칙대로 "초기화됨(0%)".
+3. 표시는 "한도 도달 (100%)" + `resetsAt` 카운트다운, `observedAt`은 라인의 `timestamp`. `resetsAt`이 지나면 시간 경과만으로 복구를 확정하지 않고 새 관측을 기다린다(현재 표시 규칙은 PRD §7.1).
 4. 근거: 한도 도달은 사용자가 가장 알고 싶은 순간인데, 이때 Claude Code 응답이 거절되어 statusline 갱신이 멈출 수 있다. 로그 파싱은 이미 하고 있어 추가 I/O가 없다.
 
 ### 1.4 `type == "cost-state"` (참고)
@@ -342,8 +343,8 @@ Claude Code ──stdin──▶ token-glance-hook (no args)
 | 항목 | 검증 방법 | 시점 |
 |---|---|---|
 | Codex `info: null`·반복 스냅샷·누적 감소, resume/fork 동작 | 세션이 더 쌓인 뒤 재검증 | 수시 |
-| `rate_limits` 최소 Claude Code 버전 | changelog 확인 | M2 |
-| stdin에 `rate_limits`가 없을 때의 형태 | API 키 사용자 또는 첫 응답 전 stdin 캡처 | M2 |
+| `rate_limits` 최소 Claude Code 버전 | changelog 확인 (M2 이후에도 미확인) | 수시 |
+| stdin에 `rate_limits`가 없을 때의 형태 | API 키 사용자 또는 첫 응답 전 stdin 캡처 (M2 이후에도 미확인, 파서는 키 부재·`null` 모두 처리) | 수시 |
 | Claude Code가 실제로 보내는 취소 시그널 종류 | 훅 SIGTERM/SIGINT 시 자식 그룹 정리는 확인됨(3.3). Claude Code가 SIGKILL을 쓰면 자식이 끝까지 실행됨 — 실제 시그널은 미확인 | 수시 |
 | 3.2 HUD statusline의 실제 실행 시간 | 미측정(직접 실행 시 네트워크 호출 가능). 실제 사용에서 표시 이상 없음 | 수시 |
 | `quotaLimits.rateLimitType`의 주간 값 이름 | 주간 한도 도달 시 관찰 | 수시 |
