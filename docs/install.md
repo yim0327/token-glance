@@ -66,6 +66,10 @@ Gatekeeper가 확인합니다. Token Glance는 Apple 공증을 받지 않았기 
 - v0.1.0은 게시 후 웹 브라우저로 내려받은 파일로 체크섬과 **그래도 열기** 흐름을 확인했습니다
   (macOS 26.6.2, Mac 한 대). 이 확인이 각 Mac에서 내려받은 파일이 거치는 Gatekeeper 확인을
   대신하지는 않습니다.
+- v0.1.1은 게시 전 draft 릴리스에서 웹 브라우저로 내려받은 파일(게시된 첨부 파일과 같은 파일)로 설치,
+  **그래도 열기** 흐름, 앱 아이콘을 확인했고, 게시 후에는 공개 주소에서 내려받은 파일의 체크섬을
+  확인했습니다(같은 Mac). 알림 배너 아이콘에 관한 관찰은
+  [v0.1.1 릴리스 노트](https://github.com/yim0327/token-glance/releases/tag/v0.1.1)에 있습니다.
 - 이 문서의 스크린샷은 같은 Mac(macOS 26.6.2)에서, 이 저장소에서 빌드한 별도 사본에 다운로드 표시를
   붙여 찍었습니다. 앱 이름과 안내 문구는 릴리스 파일과 같습니다.
 - 다른 macOS 버전과 Intel Mac에서는 확인하지 않았습니다.
@@ -89,10 +93,10 @@ Gatekeeper가 확인합니다. Token Glance는 Apple 공증을 받지 않았기 
 
 ```sh
 cd ~/Downloads
-shasum -a 256 -c TokenGlance-0.1.0-macos-arm64.zip.sha256
+shasum -a 256 -c TokenGlance-0.1.1-macos-arm64.zip.sha256
 ```
 
-`TokenGlance-0.1.0-macos-arm64.zip: OK`가 나오면 일치합니다.
+`TokenGlance-0.1.1-macos-arm64.zip: OK`가 나오면 일치합니다.
 
 `FAILED`가 나오거나 파일을 찾지 못하면 그 zip을 열지 말고 지운 뒤
 [Releases](https://github.com/yim0327/token-glance/releases/latest)에서 zip과 `.sha256` 파일을 다시
@@ -226,6 +230,11 @@ off security settings globally is not recommended.
 - After v0.1.0 was published, a copy downloaded with a web browser was checked as well (checksum and
   the **Open Anyway** flow, macOS 26.6.2, one Mac). That does not replace the Gatekeeper check a
   downloaded file goes through on each Mac.
+- v0.1.1 was installed from a copy downloaded with a web browser from the draft release (the same
+  file as the published asset), and the **Open Anyway** flow and the app icon were checked with it.
+  After publishing, the checksum of a copy downloaded from the public URL was checked (same Mac).
+  What was seen in notification banners is in the
+  [v0.1.1 release notes](https://github.com/yim0327/token-glance/releases/tag/v0.1.1).
 - The screenshots in this guide were taken on the same Mac (macOS 26.6.2) with a separate copy built
   from this repository and marked as downloaded. The app name and the messages are the same as for
   the release file.
@@ -251,10 +260,10 @@ with the one you downloaded.
 
 ```sh
 cd ~/Downloads
-shasum -a 256 -c TokenGlance-0.1.0-macos-arm64.zip.sha256
+shasum -a 256 -c TokenGlance-0.1.1-macos-arm64.zip.sha256
 ```
 
-`TokenGlance-0.1.0-macos-arm64.zip: OK` means it matches.
+`TokenGlance-0.1.1-macos-arm64.zip: OK` means it matches.
 
 If it says `FAILED` or cannot find the file, do not open that zip. Delete it, download the zip and
 the `.sha256` file again from [Releases](https://github.com/yim0327/token-glance/releases/latest) and

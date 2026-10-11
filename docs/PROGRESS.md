@@ -7,8 +7,8 @@ Updated: 2026-10-11
 - M0–M6 are merged to `main` (PR #1–#13). CI passes on `main`.
 - **v0.1.0 is published**: https://github.com/yim0327/token-glance/releases/tag/v0.1.0
   (tag `v0.1.0` on `5c99b09`, build 23).
-- **v0.1.1 is being prepared** (`chore/prepare-v0.1.1`): `VERSION` is `0.1.1` on that branch and
-  `docs/releases/v0.1.1.md` exists. Not tagged, not released.
+- **v0.1.1 is published** (new app icon): https://github.com/yim0327/token-glance/releases/tag/v0.1.1
+  (tag `v0.1.1` on `2fc4a0e`, build 29, published 2026-10-11T07:30:12Z). `VERSION` is `0.1.1`.
 - Release-blocker fixes and the public-docs cleanup are merged (PR #14).
 - Final pre-release check done (see "Verified in the real app"); build requirements, release notes
   and these records corrected before tagging (PR #17).
@@ -232,60 +232,62 @@ it writes nothing. The app was started from a terminal with that `PATH`, not fro
   again and dragging it in Finder gave the result above. README and release notes now say to drag
   it in Finder.
 
-## v0.1.1 preparation (2026-10-11, `chore/prepare-v0.1.1`)
+## v0.1.1 release (2026-10-11 UTC)
 
 Scope: the new app icon (PR #19) is the only change to the app. Since `v0.1.0`, nothing under
-`Sources/`, `Tests/` or `Package.swift` changed; `bundle-app.sh` only copies `AppIcon.icns` and sets
-`CFBundleIconFile` (bundle id unchanged), and `package-release.sh` only adds the icon checks.
+`Sources/`, `Tests/`, `Package.swift` or `.github/` changed; `bundle-app.sh` only copies
+`AppIcon.icns` and sets `CFBundleIconFile` (bundle id unchanged), and `package-release.sh` only adds
+the icon checks. Preparation PR #23: `VERSION` 0.1.1 (read by `bundle-app.sh`,
+`package-release.sh` and `release.yml`; nothing else hard-codes it) and `docs/releases/v0.1.1.md`.
 
-Confirmed at this point:
-
-- `VERSION` is read by `scripts/bundle-app.sh` (`CFBundleShortVersionString`),
-  `scripts/package-release.sh` (plist = `VERSION`, zip name) and `release.yml` (tag = `v$VERSION`).
-  No test, `ci.yml` step or source file hard-codes the version, so only `VERSION` changed.
-- `release.yml` uses `docs/releases/$GITHUB_REF_NAME.md` as the notes, so tag `v0.1.1` needs
-  `docs/releases/v0.1.1.md` (added; English, same sections as v0.1.0 plus "What's changed" and
-  "Notices").
-- Local run on this branch (before its commit, base `01b8b67`): `swift build` and
-  `./scripts/test.sh` exit 0, 277 tests in 43 suites ran and passed. `./scripts/package-release.sh`
-  exit 0: `TokenGlance-0.1.1-macos-arm64.zip`, `CFBundleShortVersionString` 0.1.1 (build 28 = commit
-  count of the base; the tag build will count the merge commit too), arm64, bundle id unchanged
-  (`io.github.yim0327.token-glance`), icon checks passed (`CFBundleIconFile` AppIcon, bundled
-  `AppIcon.icns` equal to `assets/AppIcon/AppIcon.icns`), `shasum -a 256 -c` OK.
-- README and `docs/install.md` examples: README uses `TokenGlance-<버전>-macos-arm64.zip` /
-  `TokenGlance-<version>-…`. `docs/install.md` shows `TokenGlance-0.1.0-…` in the checksum command,
-  right after a sentence that says to replace the version with the one downloaded. Left at 0.1.0
-  in this PR because v0.1.1 is not published yet (the example would name a file that does not
-  exist); change it in the post-release docs PR. `docs/releases/v0.1.0.md` is unchanged.
-
-Not confirmed yet:
-
-- The icon in the consent dialogs (alerts) and in a notification banner (not seen; see the incident
-  under "New app icon" above). Check by hand on the v0.1.1 build, without UI scripting of the
-  consent or online settings. The release notes keep "has not been checked yet" until then.
-  - A hand check on 2026-10-11 showed no icon in Finder, the consent dialog or a notification
-    banner, but the app checked was the installed `/Applications/TokenGlance.app`, which is
-    v0.1.0 (build 23, no `AppIcon.icns`, no `CFBundleIconFile`). That is expected for v0.1.0 and
-    says nothing about v0.1.1. The local 0.1.1 build (`dist/`) was not installed or opened.
-  - Plan: check the app downloaded from the v0.1.1 **draft** Release (Next step 4) before
-    publishing; if the icon is missing there, do not publish and fix first.
-- The CI release build: tag, draft assets, checksum and the downloaded app.
+- Pre-tag check on `main` at `2fc4a0e` (CI passed; no open PRs or issues; only tag `v0.1.0`):
+  `swift build` and `./scripts/test.sh` exit 0, 277 tests in 43 suites; `./scripts/package-release.sh`
+  exit 0 (0.1.1, build 29, arm64, ad hoc, icon checks passed, mark SVGs equal to the sources, no home
+  paths). Links and anchors in the docs resolve. Privacy scan of tracked files and the 6 commits
+  since `v0.1.0`: no real emails, names, tokens or home paths; the 11 new or changed images were
+  looked at and hold no personal data (metadata: only the macOS "Screenshot" comment).
+- Annotated tag `v0.1.1` on `2fc4a0e99e59728d6c34c2fc506d5230bd789047`, build 29 (commit count).
+  Release workflow run 38119181535 passed every step (tag = `VERSION`, build, 277 tests, package,
+  draft).
+- Draft review: two assets (zip 1,600,057 bytes, `.sha256` 100 bytes); SHA-256
+  `035ed32bcf16e7f92dda3fc4a2d074786c33ae8a27f7477c303cd73cc03a55a0` equal in the CI log, the
+  `.sha256` file and the download; downloaded app 0.1.1 / build 29, app and hook arm64 (minimum
+  macOS 14.0), ad hoc signed, `codesign --verify --strict --deep` passes, `CFBundleIconFile`
+  AppIcon and the bundled `AppIcon.icns` byte for byte equal to `assets/AppIcon/AppIcon.icns`, both
+  mark SVGs equal to the sources, ko/en string tables, no home or CI paths in the binaries; links in
+  the notes answer 200 and the file names match the assets.
+- Hand check by the maintainer (macOS 26.6.2) with the draft zip (downloaded with `gh`, so without
+  the quarantine attribute), installed in place of v0.1.0: Finder icon view, Get Info and the
+  online-check consent dialog showed the new icon; the test notification banner did not.
+- Notification banner icon:
+  - Seen: the app was found by the notification service at `/Applications/TokenGlance.app` and the
+    banner was delivered, with no icon error in the logs; the bundled icon file was complete
+    (16–1024 px). Unregistering the other Launch Services registrations for the bundle id (old
+    builds in the Trash, an App Translocation path, build folders and earlier scratch copies) and
+    restarting the notification processes did not change the banner. A copy with another bundle id
+    could not be used as a control: the notification service rejected it ("Failed to find or
+    validate client"), so it gave no result.
+  - Then, together: other copies of the app and the user icon caches removed, the installed app
+    removed, the Mac restarted, the draft zip downloaded again in a browser and installed. After
+    that the banner showed the new icon.
+  - Not known: which of these steps was needed (no single cache is named as the cause), whether a
+    restart alone helps, and whether other Macs updating from v0.1.0 see the same.
+  - The draft notes were edited before publishing to say only what was seen; `docs/releases/v0.1.1.md`
+    now matches the published notes.
+- Removed on this Mac during the check (confirmed): the bundle-id test copy and its preference file,
+  `dist/TokenGlance.app`, an old icon-check cache folder, and the user caches
+  `com.apple.iconservices`, `com.apple.dock.iconcache` and `com.apple.notificationcenterui`. Not
+  confirmed: emptying two old copies in the Trash and removing the system icon cache. Earlier the
+  same day the install-guide screenshot copies, raw captures, preview and capture scripts were
+  deleted from the scratch folder (see "Install guide" above). Gatekeeper approvals were left as
+  they are.
+- Published 2026-10-11T07:30:12Z, not a pre-release, with the reviewed notes. Without a token: the
+  release page answers 200, both assets download from the public URLs (same sizes) and
+  `shasum -a 256 -c` is OK, `releases/latest` (web and API) points to `v0.1.1`, and the published
+  notes equal the reviewed draft. The maintainer then did the download check.
 
 ## Next
 
-1. v0.1.1 tag: after this PR is merged and the maintainer approves, push the annotated tag
-   `v0.1.1` on the merge commit (`origin/main`, `VERSION` 0.1.1).
-2. Review the draft Release: workflow steps, two assets, notes equal to `docs/releases/v0.1.1.md`,
-   0.1.1 and build number, icon inside the app.
-3. Publish (maintainer approval).
-4. Download check of the draft assets (before publishing): checksum, arm64, ad hoc signature,
-   Gatekeeper **Open Anyway**, and by hand the icon in Finder, a consent dialog and a notification
-   banner (quit the installed v0.1.0 first; same bundle id, so settings are shared). The draft was
-   created from the notes file at the tag, so to state what was seen (only what was seen), edit
-   the draft's notes before publishing and bring `docs/releases/v0.1.1.md` in line in the
-   post-release docs PR.
-5. Post-release docs PR: README "first release v0.1.0" lines (Korean and English) → latest release,
-   `docs/install.md` checksum example → 0.1.1, PRD status line, these records.
 - Pick from "Later (LOW)" below; no release blockers are open.
 - Release workflow (found in the final check, not changed): raise the minimum test count from 50,
   and check that the tag commit is on `main`.
@@ -328,3 +330,5 @@ Not confirmed yet:
 - Real threshold-crossing notifications (automated tests only).
 - Launch at login after logging out and back in.
 - Intel Macs (release zip is arm64 only).
+- Notification banner icon after updating from v0.1.0 on other Macs, and which step restored it on
+  the development Mac (see "v0.1.1 release").
