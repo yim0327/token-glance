@@ -109,7 +109,8 @@ Updated: 2026-10-11
   `AppIcon.icns` byte for byte unchanged. The icon sits once above the README title (shown at 64 px).
   All four panel images (`panel-{ko,en}-{light,dark}.png`) were retaken from a `main` build
   (`c38bd15`) in a separate copy (own bundle id and preference domain) on macOS 26.6.2, both online
-  checks on, in one sitting: same limits in all four (Claude 4% / 83% used, Codex 0% / 0%, observed
+  checks on, under the same conditions (taken one after another within a few minutes, not at one
+  instant; the README captions say "under the same conditions"): same limits in all four (Claude 4% / 83% used, Codex 0% / 0%, observed
   1:30 PM), same items (no "hook cache differs" line), 772 × 1328 px; token counts differ slightly
   because Claude Code was in use. The old light images (before the light-mode color change) were
   replaced under the same names. Each README section shows its language's light and dark panels

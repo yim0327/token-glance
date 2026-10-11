@@ -25,7 +25,7 @@ Token Glance는 Claude Code와 Codex CLI의 **5시간 세션 한도**와 **주�
 <img src="docs/images/panel-ko-light.png" alt="상세 패널, 라이트 모드 (한국어, 온라인 조회 켬)" width="280"> <img src="docs/images/panel-ko-dark.png" alt="상세 패널, 다크 모드 (한국어, 온라인 조회 켬)" width="280">
 
 왼쪽은 라이트 모드, 오른쪽은 다크 모드입니다. 선택 기능인 온라인 조회를 켠 상태로 macOS 26.6에서 같은
-시점에 찍었습니다(Claude Code 5시간 4%·주간 83% 사용, Codex 5시간·주간 0% 사용). "한도 출처"와
+조건에서 찍었습니다(Claude Code 5시간 4%·주간 83% 사용, Codex 5시간·주간 0% 사용). "한도 출처"와
 "관측" 줄은 온라인 조회를 켰을 때만 보입니다.
 
 ### ✨ 기능
@@ -223,9 +223,9 @@ and token usage.
 
 <img src="docs/images/panel-en-light.png" alt="Details panel, light mode (English, online checks on)" width="280"> <img src="docs/images/panel-en-dark.png" alt="Details panel, dark mode (English, online checks on)" width="280">
 
-Light mode on the left, dark mode on the right, captured at the same time on macOS 26.6 with the
-optional online checks turned on (Claude Code 4% of the 5-hour and 83% of the weekly limit used, Codex
-0% of both). The "Limit source" and "Observed" lines appear only when online checks are on.
+Light mode on the left, dark mode on the right, captured under the same conditions on macOS 26.6 with
+the optional online checks turned on (Claude Code 4% of the 5-hour and 83% of the weekly limit used,
+Codex 0% of both). The "Limit source" and "Observed" lines appear only when online checks are on.
 
 ### ✨ Features
 
