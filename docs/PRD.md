@@ -282,7 +282,7 @@
 
 - [x] 레포 description: "Claude Code & Codex usage limits at a glance, in your macOS menu bar"
 - [x] GitHub topics: `claude-code`, `codex`, `token-usage`, `menubar`, `macos`, `swift`
-- [x] README 최상단에 두 줄 메뉴바 스크린샷. README는 한국어(위)·영어(아래) 섹션과 최상단 언어 링크로 구성하고, 섹션마다 해당 언어의 상세 패널·기록 창 스크린샷만 넣는다(M6, 다크 모드·온라인 조회 ON 상태임을 캡션에 명시)
+- [x] README 최상단에 두 줄 메뉴바 스크린샷. README는 한국어(위)·영어(아래) 섹션과 최상단 언어 링크로 구성하고, 섹션마다 해당 언어의 상세 패널·기록 창 스크린샷만 넣는다(M6, 다크 모드·온라인 조회 ON 상태임을 캡션에 명시). 앱 아이콘은 제목 위에 한 번, 상세 패널은 라이트·다크를 나란히 둔다(v0.1.0 이후)
 - [ ] 아이콘: 게이지/눈 모티프 + 중립 색상
 - [x] README에 "Not affiliated with Anthropic or OpenAI" 고지
 - [ ] 이름 중복 확인 (GitHub, Homebrew, 검색)

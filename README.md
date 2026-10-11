@@ -1,9 +1,12 @@
+<img src="docs/images/app-icon.png" alt="Token Glance app icon" width="64">
+
 # Token Glance
 
 **[한국어](#한국어)** · **[English](#english)**
 
-macOS 메뉴바에서 Claude Code와 Codex 사용 한도를 한눈에 봅니다.
-Claude Code & Codex usage limits at a glance, in your macOS menu bar.
+> 👀 **macOS 메뉴바에서 Claude Code와 Codex 사용 한도를 한눈에 봅니다.**
+>
+> 👀 **Claude Code & Codex usage limits at a glance, in your macOS menu bar.**
 
 <img src="docs/images/menubar.png" alt="Two-line menu bar label: Claude mark 27% / OpenAI mark 77%" width="104">
 
@@ -19,12 +22,13 @@ Claude Code & Codex usage limits at a glance, in your macOS menu bar.
 Token Glance는 Claude Code와 Codex CLI의 **5시간 세션 한도**와 **주간 한도**가 얼마나 남았는지
 메뉴바에 두 줄로 보여줍니다. 클릭하면 초기화 시각과 사용 토큰을 담은 상세 패널이 열립니다.
 
-<img src="docs/images/panel-ko-dark.png" alt="상세 패널, 다크 모드 (한국어, 온라인 조회 켬)" width="300">
+<img src="docs/images/panel-ko-light.png" alt="상세 패널, 라이트 모드 (한국어, 온라인 조회 켬)" width="280"> <img src="docs/images/panel-ko-dark.png" alt="상세 패널, 다크 모드 (한국어, 온라인 조회 켬)" width="280">
 
-선택 기능인 온라인 조회를 켠 상태로 macOS 26.6에서 찍었습니다. "한도 출처"와 "관측" 줄은 온라인
-조회를 켰을 때만 보입니다.
+왼쪽은 라이트 모드, 오른쪽은 다크 모드입니다. 선택 기능인 온라인 조회를 켠 상태로 macOS 26.6에서 같은
+시점에 찍었습니다(Claude Code 5시간 4%·주간 83% 사용, Codex 5시간·주간 0% 사용). "한도 출처"와
+"관측" 줄은 온라인 조회를 켰을 때만 보입니다.
 
-### 기능
+### ✨ 기능
 
 - 도구마다 한 줄씩, 남은 %(또는 사용 %)를 표시합니다. 30% 이하로 남으면 주황, 10% 이하이면
   빨강입니다.
@@ -39,7 +43,7 @@ Token Glance는 Claude Code와 Codex CLI의 **5시간 세션 한도**와 **주�
 
 <img src="docs/images/history-ko.png" alt="14일 기록 창 (한국어, 다크 모드)" width="360">
 
-### 설치
+### 📦 설치
 
 필요한 것: Apple Silicon Mac, macOS 14 이상, Claude Code 또는 Codex CLI.
 
@@ -57,7 +61,7 @@ Token Glance는 Claude Code와 Codex CLI의 **5시간 세션 한도**와 **주�
 3. Finder에서 zip을 더블클릭해 압축을 풀고, `TokenGlance.app`을 Finder에서 **응용 프로그램**
    (`/Applications`) 폴더로 끌어다 놓습니다. 터미널의 `mv`로 옮겼을 때는 앱이 App Translocation
    경로(macOS가 정한 임시 위치)에서 실행되는 것이 관찰됐습니다. "로그인 시 열기"는 앱 위치에
-   묶이므로 옮긴 뒤에 켭니다([문제 해결](#문제-해결)).
+   묶이므로 옮긴 뒤에 켭니다([문제 해결](#-문제-해결)).
 4. 앱을 엽니다. 공증되지 않은 앱이라 macOS가 처음 실행을 막습니다. **시스템 설정 › 개인정보 보호
    및 보안**에서 Token Glance 항목의 **그래도 열기**를 누르고 확인합니다. 체크섬이 일치한 파일에만
    이렇게 하세요.
@@ -81,7 +85,7 @@ cd token-glance
 open dist/TokenGlance.app
 ```
 
-### 처음 실행
+### 🚀 처음 실행
 
 Token Glance는 메뉴바에만 나타납니다(Dock 아이콘 없음).
 
@@ -110,7 +114,7 @@ Token Glance는 메뉴바에만 나타납니다(Dock 아이콘 없음).
 ~/Library/Application\ Support/TokenGlance/bin/token-glance-hook status
 ```
 
-### 온라인 조회와 프라이버시
+### 🔒 온라인 조회와 프라이버시
 
 **기본 설정(온라인 조회 꺼짐)** 에서는 모든 처리가 이 Mac 안에서 끝납니다. 자식 프로세스를 띄우지
 않고, 네트워크 요청을 하지 않으며, 인증 파일이나 키체인을 읽지 않습니다.
@@ -139,7 +143,7 @@ Claude 온라인 조회는 `claude`를 `--safe-mode`, `--no-session-persistence`
 바뀌거나 멈출 수 있고, 그러면 훅 캐시 값을 보여줍니다. 이 사용이 계정 약관상 허용되는지는 사용자가
 확인해야 합니다. 옵션을 끄면 진행 중인 조회와 자식 프로세스도 멈춥니다.
 
-### 한계
+### 🚧 한계
 
 - 릴리스 zip은 Apple Silicon 전용이고 공증되지 않았습니다.
 - 한도는 퍼센트로만 제공됩니다. 두 도구 모두 남은 토큰 수를 알려주지 않습니다.
@@ -163,7 +167,7 @@ Claude 온라인 조회는 `claude`를 `--safe-mode`, `--no-session-persistence`
   - 모델별 주간 한도는 표시하지 않습니다.
   - 조회마다 `claude` 프로세스가 1초 안팎 실행됩니다(약 0.3초 CPU, 실행 중 약 230MB).
 
-### 문제 해결
+### 🔧 문제 해결
 
 | 증상 | 확인할 것 |
 |---|---|
@@ -179,7 +183,7 @@ Claude 온라인 조회는 `claude`를 `--safe-mode`, `--no-session-persistence`
 앱을 지웁니다. 남은 캐시와 훅 사본은 `~/Library/Application Support/TokenGlance`에 있습니다. 훅 설치
 때 만든 백업은 `settings.json.token-glance-backup-<시각>` 이름으로 settings.json 옆에 남습니다.
 
-### 문서와 개발
+### 📚 문서와 개발
 
 - [로그·훅 형식과 검증 기록](docs/log-schemas.md) · [성능 측정](docs/perf.md) ·
   [설계 결정(ADR)](docs/adr) · [제품 요구사항(PRD)](docs/PRD.md) · [진행 상황](docs/PROGRESS.md)
@@ -190,9 +194,10 @@ Claude 온라인 조회는 `claude`를 `--safe-mode`, `--no-session-persistence`
 - 릴리스 패키징: `./scripts/package-release.sh`가 `dist/release`에 zip과 SHA-256을 만듭니다.
   `VERSION`과 일치하는 `v*` 태그를 push하면 CI가 테스트 후 **draft** Release를 만듭니다.
 - 앱 아이콘: 원본은 `assets/AppIcon/AppIcon.svg`(자체 디자인)입니다. 바꾼 뒤
-  `./scripts/make-app-icon.sh`로 `AppIcon.icns`를 다시 만들어 두 파일을 함께 커밋합니다.
+  `./scripts/make-app-icon.sh`로 `AppIcon.icns`와 README용 `docs/images/app-icon.png`를 다시 만들어
+  세 파일을 함께 커밋합니다.
 
-### 라이선스와 고지
+### 📄 라이선스와 고지
 
 MIT. [LICENSE](LICENSE)를 참고하세요.
 
@@ -216,12 +221,13 @@ Token Glance shows how much of the **5-hour session limit** and the **weekly lim
 Claude Code and Codex CLI, as a two-line menu bar label. Click it for a details panel with reset times
 and token usage.
 
-<img src="docs/images/panel-en-dark.png" alt="Details panel, dark mode (English, online checks on)" width="300">
+<img src="docs/images/panel-en-light.png" alt="Details panel, light mode (English, online checks on)" width="280"> <img src="docs/images/panel-en-dark.png" alt="Details panel, dark mode (English, online checks on)" width="280">
 
-Captured on macOS 26.6 with the optional online checks turned on. The "Limit source" and "Observed"
-lines appear only when online checks are on.
+Light mode on the left, dark mode on the right, captured at the same time on macOS 26.6 with the
+optional online checks turned on (Claude Code 4% of the 5-hour and 83% of the weekly limit used, Codex
+0% of both). The "Limit source" and "Observed" lines appear only when online checks are on.
 
-### Features
+### ✨ Features
 
 - One line per tool with the remaining % (or used %): orange at 30% left or less, red at 10% or less.
 - Details panel: 5-hour and weekly gauges, reset times with a countdown, tokens used today and this
@@ -235,7 +241,7 @@ lines appear only when online checks are on.
 
 <img src="docs/images/history-en.png" alt="14-day history window (English, dark mode)" width="360">
 
-### Install
+### 📦 Install
 
 You need an Apple Silicon Mac, macOS 14 or later, and Claude Code or Codex CLI.
 
@@ -254,7 +260,7 @@ From the latest release on the [Releases](https://github.com/yim0327/token-glanc
    **Applications** folder (`/Applications`). When the app was moved with `mv` in Terminal instead, it
    was observed running from an App Translocation path (a temporary location chosen by macOS).
    "Open at login" is tied to the app's location, so turn it on after moving the app
-   ([Troubleshooting](#troubleshooting)).
+   ([Troubleshooting](#-troubleshooting)).
 4. Open it. The app is not notarized, so macOS blocks the first launch. In **System Settings ›
    Privacy & Security**, choose **Open Anyway** for Token Glance and confirm. Do this only for a
    file whose checksum matched.
@@ -279,7 +285,7 @@ cd token-glance
 open dist/TokenGlance.app
 ```
 
-### First run
+### 🚀 First run
 
 Token Glance appears only in the menu bar (no Dock icon).
 
@@ -309,7 +315,7 @@ statusline set at that moment, so a later `uninstall` restores that statusline.
 ~/Library/Application\ Support/TokenGlance/bin/token-glance-hook status
 ```
 
-### Online checks and privacy
+### 🔒 Online checks and privacy
 
 **By default (online checks off)** everything stays on this Mac: no child processes, no network
 requests, and no access to authentication files or the Keychain.
@@ -342,7 +348,7 @@ checks can change or stop working without notice; the hook cache is shown then. 
 allowed under the terms for your account is for you to check. Turning an option off stops
 a running check and its child process.
 
-### Limitations
+### 🚧 Limitations
 
 - The release zip is Apple Silicon only and not notarized.
 - Limits are percentages only; neither tool exposes remaining token counts.
@@ -371,7 +377,7 @@ a running check and its child process.
   - Each check runs a `claude` process for about a second (about 0.3 s CPU, about 230 MB while it
     runs).
 
-### Troubleshooting
+### 🔧 Troubleshooting
 
 | Symptom | What to check |
 |---|---|
@@ -388,7 +394,7 @@ your statusline, then delete the app. The remaining cache and hook copy are in
 `~/Library/Application Support/TokenGlance`. Backups made when installing the hook stay next to
 settings.json as `settings.json.token-glance-backup-<time>`.
 
-### Documentation and development
+### 📚 Documentation and development
 
 - [Log and hook formats, with verification notes](docs/log-schemas.md) ·
   [Performance measurements](docs/perf.md) · [Design decisions (ADRs)](docs/adr) ·
@@ -400,9 +406,10 @@ settings.json as `settings.json.token-glance-backup-<time>`.
 - Release packaging: `./scripts/package-release.sh` writes the zip and its SHA-256 to `dist/release`.
   Pushing a `v*` tag that matches `VERSION` makes CI run the tests and create a **draft** Release.
 - App icon: the source is `assets/AppIcon/AppIcon.svg` (own design). After changing it, run
-  `./scripts/make-app-icon.sh` to rebuild `AppIcon.icns` and commit both files.
+  `./scripts/make-app-icon.sh` to rebuild `AppIcon.icns` and the README icon
+  (`docs/images/app-icon.png`), and commit all three files.
 
-### License and notices
+### 📄 License and notices
 
 MIT. See [LICENSE](LICENSE).
 
