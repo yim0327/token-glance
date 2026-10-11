@@ -119,6 +119,31 @@ Updated: 2026-10-11
   app was not changed. README layout: the Korean and English taglines are separate bold lines in a quote block with 👀, and every
   level-3 heading starts with an emoji (same one in both languages); the links to the
   troubleshooting headings now use the new anchors (`#-문제-해결`, `#-troubleshooting`).
+- Install guide (`docs/install-guide`): the README install section is now four short steps (download,
+  drag in Finder, open and get blocked, **Open Anyway**) with a one-line requirement, the arm64-only
+  and not-notarized notes, and links for the checksum, build from source, update and uninstall. The
+  details moved to the new `docs/install.md` (Korean top, English bottom): steps with screenshots
+  (blocked dialog, **Open Anyway** in Privacy & Security, the confirm dialog, the menu bar label),
+  the checksum command and what to do when it fails, update (same as the v0.1.0 release notes:
+  settings kept, the hook copy is not updated), uninstall (what remains and the backup name), build
+  from source (moved unchanged, Swift 6 range and swift-testing note kept) and install
+  troubleshooting; the "why blocked", "what was checked" and `mv`/App Translocation notes are in
+  `<details>`. The README troubleshooting table keeps the in-use rows and links to the guide for the
+  install rows (cannot open, open at login), and its uninstall line links to the guide. The README
+  hook, first run, online checks, privacy and limitations sections are unchanged. PRD §13 names the
+  guide. `docs/releases/v0.1.0.md` is unchanged (published text) and does not contradict the guide.
+  Screenshots (`docs/images/install/`, ko and en): taken on macOS 26.6.2 with two separate copies
+  built from `main` (`f0e7942`) in a scratch folder, each with its own bundle id
+  (`…token-glance.installshot-{ko,en}`), re-signed ad hoc and given a quarantine attribute so
+  Gatekeeper blocked them (`spctl` rejected both). The person at the computer opened them, pressed
+  **Open Anyway**, confirmed and switched the system language (English needed no logout: System
+  Settings quit and reopened, the dialogs came up in English); captures were taken by window id
+  only, never of the password prompt. The Privacy & Security images are cropped to the Security
+  section (no sidebar). The two English captures of the blocked dialog and System Settings show an
+  inactive window. The installed app and its settings were not touched; the copies ran from App
+  Translocation paths and were quit afterwards. Left behind on this Mac: the two copies' preference
+  files and their Gatekeeper approvals. The launch-complete step reuses `docs/images/menubar.png`
+  (a full-screen app hid the menu bar during the capture).
 
 ## Verified in the real app
 
