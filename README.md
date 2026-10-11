@@ -1,6 +1,6 @@
-<img src="docs/images/app-icon.png" alt="Token Glance app icon" width="64">
-
 # Token Glance
+
+<img src="docs/images/app-icon.png" alt="Token Glance app icon" width="128">
 
 **[한국어](#한국어)** · **[English](#english)**
 
@@ -8,7 +8,7 @@
 >
 > 👀 **Claude Code & Codex usage limits at a glance, in your macOS menu bar.**
 
-<img src="docs/images/menubar.png" alt="Two-line menu bar label: Claude mark 27% / OpenAI mark 77%" width="104">
+<img src="docs/images/menubar.png" alt="Two-line menu bar label: Claude mark 27% / OpenAI mark 77%" width="106">
 
 ---
 

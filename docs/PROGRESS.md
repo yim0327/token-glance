@@ -106,7 +106,7 @@ Updated: 2026-10-11
     ended and no process was left after the copy quit. The alert screenshot was then dropped.
 - README icon and light-mode panels (`docs/readme-icon-light-screenshots`): `make-app-icon.sh` also
   renders `docs/images/app-icon.png` (128 px, transparent, 10 KB) from the same SVG; rerunning it left
-  `AppIcon.icns` byte for byte unchanged. The icon sits once above the README title (shown at 64 px).
+  `AppIcon.icns` byte for byte unchanged. The icon sits once below the README title (shown at 128 px).
   All four panel images (`panel-{ko,en}-{light,dark}.png`) were retaken from a `main` build
   (`c38bd15`) in a separate copy (own bundle id and preference domain) on macOS 26.6.2, both online
   checks on, under the same conditions (taken one after another within a few minutes, not at one
