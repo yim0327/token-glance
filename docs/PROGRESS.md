@@ -104,6 +104,21 @@ Updated: 2026-10-11
     checks on for a few seconds. Likely cause, not confirmed: an accessibility press opened the
     consent dialog late and a synthetic click meant for the toggle landed on its Enable button. It was turned off at once; its `codex app-server` child
     ended and no process was left after the copy quit. The alert screenshot was then dropped.
+- README icon and light-mode panels (`docs/readme-icon-light-screenshots`): `make-app-icon.sh` also
+  renders `docs/images/app-icon.png` (128 px, transparent, 10 KB) from the same SVG; rerunning it left
+  `AppIcon.icns` byte for byte unchanged. The icon sits once below the README title (shown at 128 px).
+  All four panel images (`panel-{ko,en}-{light,dark}.png`) were retaken from a `main` build
+  (`c38bd15`) in a separate copy (own bundle id and preference domain) on macOS 26.6.2, both online
+  checks on, under the same conditions (taken one after another within a few minutes, not at one
+  instant; the README captions say "under the same conditions"): same limits in all four (Claude 4% / 83% used, Codex 0% / 0%, observed
+  1:30 PM), same items (no "hook cache differs" line), 772 × 1328 px; token counts differ slightly
+  because Claude Code was in use. The old light images (before the light-mode color change) were
+  replaced under the same names. Each README section shows its language's light and dark panels
+  side by side (280 px each). The person at the computer switched appearance, language and the
+  online options (consent dialogs) by hand; captures were taken by window id only. The installed
+  app was not changed. README layout: the Korean and English taglines are separate bold lines in a quote block with 👀, and every
+  level-3 heading starts with an emoji (same one in both languages); the links to the
+  troubleshooting headings now use the new anchors (`#-문제-해결`, `#-troubleshooting`).
 
 ## Verified in the real app
 
@@ -193,8 +208,7 @@ it writes nothing. The app was started from a terminal with that `PATH`, not fro
 - v0.1.1: release notes (`docs/releases/v0.1.1.md`) should mention the new app icon; `VERSION`
   is still 0.1.0.
 - App icon not yet seen in an alert (settings consent dialogs) or a notification banner; check by
-  hand on the next release build. README screenshots show the menu bar, panel and history window
-  only, so none needs a new capture for the icon.
+  hand on the next release build.
 - Pick from "Later (LOW)" below; no release blockers are open.
 - Release workflow (found in the final check, not changed): raise the minimum test count from 50,
   and check that the tag commit is on `main`.
@@ -213,11 +227,13 @@ it writes nothing. The app was started from a terminal with that `PATH`, not fro
   progress, or letting Refresh restart it.
 - Memory: combined footprint with Codex online checks is about 60 MB against the 50 MB target
   (`docs/perf.md`).
-- Light-mode panel screenshots (`docs/images/panel-*-light.png`) predate the light-mode color change
-  and are no longer used by the README.
 - Screenshot method for later updates: on macOS 26 the status item is hosted by Control Center;
   capture its screen rectangle (`screencapture -R`) for the label, and windows by id (`-l`) while
-  they are on screen (the panel releases its content when it closes).
+  they are on screen (the panel releases its content when it closes, and it closes when another
+  app takes focus, so start a script that waits for the window before opening it). Panel windows
+  are at window layer 101; the settings window is at layer 0. Light and dark pairs should be
+  taken in one sitting without pressing Refresh: an account query or a hook update in between
+  changes the numbers or adds the "hook cache differs" line.
 
 ## Won't do
 

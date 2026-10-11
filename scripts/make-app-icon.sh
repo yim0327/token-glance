@@ -2,13 +2,15 @@
 # Rebuilds assets/AppIcon/AppIcon.icns from assets/AppIcon/AppIcon.svg.
 # Every iconset size (16-1024 px) is rendered from the same SVG with the system renderer
 # (scripts/render-svg.swift), then packed with iconutil. No third-party tools are needed.
+# The README icon (docs/images/app-icon.png, 128 px) is rendered from the same SVG.
 # The .icns is committed so that bundling does not depend on this step; run this script and
-# commit both files whenever the SVG changes.
+# commit all three files whenever the SVG changes.
 set -eu
 cd "$(dirname "$0")/.."
 
 svg="assets/AppIcon/AppIcon.svg"
 icns="assets/AppIcon/AppIcon.icns"
+readme_png="docs/images/app-icon.png"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 iconset="$work/AppIcon.iconset"
@@ -23,4 +25,6 @@ for size in 16 32 128 256 512; do
 done
 
 iconutil -c icns "$iconset" -o "$icns"
+"$work/render-svg" "$svg" "$readme_png" 128
 echo "$icns"
+echo "$readme_png"
