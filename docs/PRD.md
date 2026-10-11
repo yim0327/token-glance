@@ -1,6 +1,6 @@
 # PRD: Token Glance - Claude Code / Codex 한도 잔여량 메뉴바 앱
 
-> 상태: v1.0 (M0~M6 구현·병합, 온라인 한도 조회 옵션(§7.4, §7.5) 포함. 첫 릴리스 v0.1.0 게시(2026-10-10 UTC). 2026-10-11)
+> 상태: v1.0 (M0~M6 구현·병합, 온라인 한도 조회 옵션(§7.4, §7.5) 포함. 첫 릴리스 v0.1.0 게시(2026-10-10 UTC), v0.1.1(새 앱 아이콘) 게시(2026-10-11 UTC). 2026-10-11)
 > 한 줄 설명: Claude Code & Codex usage limits at a glance, in your macOS menu bar.
 > 오픈소스 프로젝트 (MIT). 개발은 AI 코딩 도구 Claude Code를 활용해 진행했다(작업 규칙: `CLAUDE.md`).
 > `[확인 필요]`는 구현 전에 실제 로컬 데이터로 검증할 가정이다.

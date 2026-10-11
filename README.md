@@ -16,7 +16,7 @@
 
 > **Apple Silicon(arm64) 전용 · macOS 14 이상 · 공증(notarization)되지 않은 앱**
 >
-> 첫 릴리스 [v0.1.0](https://github.com/yim0327/token-glance/releases/tag/v0.1.0)이 게시되었습니다.
+> [최신 릴리스](https://github.com/yim0327/token-glance/releases/latest)에서 내려받을 수 있습니다.
 > [설치](#-설치)는 4단계이고, [소스에서 빌드](docs/install.md#소스에서-빌드)할 수도 있습니다.
 
 Token Glance는 Claude Code와 Codex CLI의 **5시간 세션 한도**와 **주간 한도**가 얼마나 남았는지
@@ -189,7 +189,7 @@ Claude 마크와 OpenAI Blossom은 어느 서비스의 수치인지 구분하기
 
 > **Apple Silicon (arm64) only · macOS 14 or later · not notarized**
 >
-> The first release, [v0.1.0](https://github.com/yim0327/token-glance/releases/tag/v0.1.0), is published.
+> Download it from the [latest release](https://github.com/yim0327/token-glance/releases/latest).
 > [Install](#-install) takes four steps, or you can [build from source](docs/install.md#build-from-source).
 
 Token Glance shows how much of the **5-hour session limit** and the **weekly limit** you have left in
