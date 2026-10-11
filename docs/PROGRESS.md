@@ -6,7 +6,9 @@ Updated: 2026-10-11
 
 - M0–M6 are merged to `main` (PR #1–#13). CI passes on `main`.
 - **v0.1.0 is published**: https://github.com/yim0327/token-glance/releases/tag/v0.1.0
-  (tag `v0.1.0` on `5c99b09`, build 23). `VERSION` is `0.1.0`.
+  (tag `v0.1.0` on `5c99b09`, build 23).
+- **v0.1.1 is being prepared** (`chore/prepare-v0.1.1`): `VERSION` is `0.1.1` on that branch and
+  `docs/releases/v0.1.1.md` exists. Not tagged, not released.
 - Release-blocker fixes and the public-docs cleanup are merged (PR #14).
 - Final pre-release check done (see "Verified in the real app"); build requirements, release notes
   and these records corrected before tagging (PR #17).
@@ -141,8 +143,10 @@ Updated: 2026-10-11
   only, never of the password prompt. The Privacy & Security images are cropped to the Security
   section (no sidebar). The two English captures of the blocked dialog and System Settings show an
   inactive window. The installed app and its settings were not touched; the copies ran from App
-  Translocation paths and were quit afterwards. Left behind on this Mac: the two copies' preference
-  files and their Gatekeeper approvals. The launch-complete step reuses `docs/images/menubar.png`
+  Translocation paths and were quit afterwards. Cleanup (2026-10-11): the two copies' preference
+  files (`…installshot-{ko,en}`) are no longer on this Mac (not in `~/Library/Preferences` or
+  `defaults domains`); the two copies, the raw captures, the README preview and the capture scripts
+  in the scratch folder were deleted. Their Gatekeeper approvals were left as they are. The launch-complete step reuses `docs/images/menubar.png`
   (a full-screen app hid the menu bar during the capture).
 
 ## Verified in the real app
@@ -228,12 +232,50 @@ it writes nothing. The app was started from a terminal with that `PATH`, not fro
   again and dragging it in Finder gave the result above. README and release notes now say to drag
   it in Finder.
 
-## Next (after v0.1.0)
+## v0.1.1 preparation (2026-10-11, `chore/prepare-v0.1.1`)
 
-- v0.1.1: release notes (`docs/releases/v0.1.1.md`) should mention the new app icon; `VERSION`
-  is still 0.1.0.
-- App icon not yet seen in an alert (settings consent dialogs) or a notification banner; check by
-  hand on the next release build.
+Scope: the new app icon (PR #19) is the only change to the app. Since `v0.1.0`, nothing under
+`Sources/`, `Tests/` or `Package.swift` changed; `bundle-app.sh` only copies `AppIcon.icns` and sets
+`CFBundleIconFile` (bundle id unchanged), and `package-release.sh` only adds the icon checks.
+
+Confirmed at this point:
+
+- `VERSION` is read by `scripts/bundle-app.sh` (`CFBundleShortVersionString`),
+  `scripts/package-release.sh` (plist = `VERSION`, zip name) and `release.yml` (tag = `v$VERSION`).
+  No test, `ci.yml` step or source file hard-codes the version, so only `VERSION` changed.
+- `release.yml` uses `docs/releases/$GITHUB_REF_NAME.md` as the notes, so tag `v0.1.1` needs
+  `docs/releases/v0.1.1.md` (added; English, same sections as v0.1.0 plus "What's changed" and
+  "Notices").
+- Local run on this branch (before its commit, base `01b8b67`): `swift build` and
+  `./scripts/test.sh` exit 0, 277 tests in 43 suites ran and passed. `./scripts/package-release.sh`
+  exit 0: `TokenGlance-0.1.1-macos-arm64.zip`, `CFBundleShortVersionString` 0.1.1 (build 28 = commit
+  count of the base; the tag build will count the merge commit too), arm64, bundle id unchanged
+  (`io.github.yim0327.token-glance`), icon checks passed (`CFBundleIconFile` AppIcon, bundled
+  `AppIcon.icns` equal to `assets/AppIcon/AppIcon.icns`), `shasum -a 256 -c` OK.
+- README and `docs/install.md` examples: README uses `TokenGlance-<버전>-macos-arm64.zip` /
+  `TokenGlance-<version>-…`. `docs/install.md` shows `TokenGlance-0.1.0-…` in the checksum command,
+  right after a sentence that says to replace the version with the one downloaded. Left at 0.1.0
+  in this PR because v0.1.1 is not published yet (the example would name a file that does not
+  exist); change it in the post-release docs PR. `docs/releases/v0.1.0.md` is unchanged.
+
+Not confirmed yet:
+
+- The icon in the consent dialogs (alerts) and in a notification banner (not seen; see the incident
+  under "New app icon" above). Check by hand on the v0.1.1 build, without UI scripting of the
+  consent or online settings.
+- The CI release build: tag, draft assets, checksum and the downloaded app.
+
+## Next
+
+1. v0.1.1 tag: after this PR is merged and the maintainer approves, push the annotated tag
+   `v0.1.1` on the merge commit (`origin/main`, `VERSION` 0.1.1).
+2. Review the draft Release: workflow steps, two assets, notes equal to `docs/releases/v0.1.1.md`,
+   0.1.1 and build number, icon inside the app.
+3. Publish (maintainer approval).
+4. Download check: checksum, arm64, ad hoc signature, Gatekeeper **Open Anyway**, icon in Finder;
+   if possible the icon in a consent dialog and a notification banner (by hand).
+5. Post-release docs PR: README "first release v0.1.0" lines (Korean and English) → latest release,
+   `docs/install.md` checksum example → 0.1.1, PRD status line, these records.
 - Pick from "Later (LOW)" below; no release blockers are open.
 - Release workflow (found in the final check, not changed): raise the minimum test count from 50,
   and check that the tag commit is on `main`.
